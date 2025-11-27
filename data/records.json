@@ -1,0 +1,44 @@
+[
+  {
+    "email": "szweiforwork@gmail.com",
+    "disease": "Tomato__Late_blight",
+    "severity": "blight",
+    "confidence": 0.9878997206687927
+  },
+  {
+    "email": "szweiforwork@gmail.com",
+    "disease": "Tomato__Late_blight",
+    "severity": "blight",
+    "confidence": 0.9878997206687927
+  },
+  {
+    "email": "szweiforwork@gmail.com",
+    "disease": "Tomato__Late_blight",
+    "severity": "blight",
+    "confidence": 0.9797496795654297
+  },
+  {
+    "email": "szweiforwork@gmail.com",
+    "disease": "Potato_Healthy",
+    "severity": "Healthy",
+    "confidence": 0.9746221303939819
+  },
+  {
+    "email": "szweiforwork@gmail.com",
+    "disease": "Potato__Late_blight",
+    "severity": "blight",
+    "confidence": 0.9691265225410461
+  },
+  {
+    "email": "szweiforwork@gmail.com",
+    "disease": "Peper_bell_healthy",
+    "severity": "healthy",
+    "confidence": 0.9953870177268982
+  },
+  {
+    "email": "szweiforwork@gmail.com",
+    "disease": "Peper_bell_healthy",
+    "severity": "healthy",
+    "confidence": 0.9980762004852295
+  }
+]

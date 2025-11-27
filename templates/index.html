@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Leaf Detection Local</title>
+  </head>
+  <body>
+    <h2>Register</h2>
+    <input id="reg_email" placeholder="Email" />
+    <input id="reg_password" type="password" placeholder="Password" />
+    <button onclick="register()">Register</button>
+
+    <hr />
+
+    <h2>Login</h2>
+    <input id="email" placeholder="Email" />
+    <input id="password" type="password" placeholder="Password" />
+    <button onclick="login()">Login</button>
+    <button onclick="logout()">Logout</button>
+
+    <hr />
+
+    <h2>Upload Image</h2>
+    <input type="file" accept="image/*" onchange="preview(event)" />
+    <img id="previewImg" width="200" />
+    <button onclick="predict()">Predict</button>
+
+    <hr />
+
+    <h2>History</h2>
+    <button onclick="loadHistory()">Load</button>
+    <ul id="historyList"></ul>
+
+    <script src="/static/script.js"></script>
+  </body>
+</html>
