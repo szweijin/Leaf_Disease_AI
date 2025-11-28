@@ -38,5 +38,69 @@
     "confidence": 0.5594123601913452,
     "image_path": "/static/uploads/ea8c3a64-3f44-4e50-8d2d-be9c3be53753.jpg",
     "timestamp": "139835950396658900"
+  },
+  {
+    "email": "szweiforwork@gmail.com",
+    "disease": "Peper_bell_healthy",
+    "severity": "healthy",
+    "confidence": 0.5594123601913452,
+    "image_path": "/static/uploads/fb4d379b-d793-4b0a-a908-f30021365264.jpg",
+    "timestamp": "139836013245265730"
+  },
+  {
+    "email": "szweiforwork@gmail.com",
+    "disease": "Peper_bell_healthy",
+    "severity": "healthy",
+    "confidence": 0.944871187210083,
+    "image_path": "/static/uploads/d19d82ee-8de8-4e19-83b2-ba2b1cb3a419.jpg",
+    "timestamp": "139836013898241820"
+  },
+  {
+    "email": "szweiforwork@gmail.com",
+    "disease": "Peper_bell_healthy",
+    "severity": "healthy",
+    "confidence": 0.5594123601913452,
+    "image_path": "/static/uploads/84fbbfe8-c308-4c74-b4ec-d344d831d3da.jpg",
+    "timestamp": "139836018965124390"
+  },
+  {
+    "email": "szweiforwork@gmail.com",
+    "disease": "Peper_bell_healthy",
+    "severity": "healthy",
+    "confidence": 0.944871187210083,
+    "image_path": "/static/uploads/4b0f6252-cef1-4308-929c-9a9ad4aa559e.jpg",
+    "timestamp": "139836031871167470"
+  },
+  {
+    "email": "szweiforwork@gmail.com",
+    "disease": "Peper_bell_healthy",
+    "severity": "healthy",
+    "confidence": 0.944871187210083,
+    "image_path": "/static/uploads/7d834ae7-5ed8-457d-9a60-9bf7033a1dd9.jpg",
+    "timestamp": "139836036518289520"
+  },
+  {
+    "email": "szweiforwork@gmail.com",
+    "disease": "Tomato__Late_blight",
+    "severity": "blight",
+    "confidence": 0.9797496795654297,
+    "image_path": "/static/uploads/4ce649a6-82db-4bdc-9f4e-a2b7fa8c36e9.jpg",
+    "timestamp": "139836036731908330"
+  },
+  {
+    "email": "szweiforwork@gmail.com",
+    "disease": "Tomato__Late_blight",
+    "severity": "blight",
+    "confidence": 0.9797496795654297,
+    "image_path": "/static/uploads/59ab6f30-2803-4ae6-b8be-561321732279.jpg",
+    "timestamp": "139836037632444480"
+  },
+  {
+    "email": "szweiforwork@gmail.com",
+    "disease": "Tomato__Late_blight",
+    "severity": "blight",
+    "confidence": 0.9797496795654297,
+    "image_path": "/static/uploads/9f1ff3ff-513e-4727-8698-e5629313f536.jpg",
+    "timestamp": "139836037812393470"
   }
 ]

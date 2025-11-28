@@ -21,11 +21,12 @@ model = YOLO("yolov11/best.pt")
 # JSON 資料路徑
 USERS_FILE = "data/users.json"
 RECORDS_FILE = "data/records.json"
+DISEASE_INFO_FILE = "data/disease_info.json"
 
 # --- 工具函式 ---
 def load_json(path):
     if not os.path.exists(path):
-        return []
+        return [] if path != DISEASE_INFO_FILE else {}
     with open(path, "r") as f:
         return json.load(f)
 
@@ -255,7 +256,7 @@ def predict():
 
     # 處理 Base64 圖片資料
     if "," in img_data:
-        header, encoded = img_data.split(",", 1)
+        _, encoded = img_data.split(",", 1)
     else:
         encoded = img_data
 
@@ -283,7 +284,8 @@ def predict():
             "disease": "健康 (Healthy)",
             "severity": "無",
             "confidence": 0.0,
-            "image_path": web_image_path
+            "image_path": web_image_path,
+            "disease_info": None
         })
 
     cls_id = int(boxes[0].cls)
@@ -293,6 +295,10 @@ def predict():
     # 簡單解析嚴重程度 (假設命名格式有底線)
     parts = disease_name.split("_")
     severity = parts[-1] if len(parts) > 1 else "Unknown"
+
+    # 2.5. 載入病害資訊
+    disease_info_db = load_json(DISEASE_INFO_FILE)
+    disease_info = disease_info_db.get(disease_name, None)
 
     # 3. 儲存紀錄 (包含圖片路徑)
     records = load_json(RECORDS_FILE)
@@ -310,7 +316,8 @@ def predict():
         "disease": disease_name,
         "severity": severity,
         "confidence": confidence,
-        "image_path": web_image_path
+        "image_path": web_image_path,
+        "disease_info": disease_info
     })
 
 

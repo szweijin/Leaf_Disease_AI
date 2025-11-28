@@ -644,19 +644,64 @@
 
     <!-- 結果模態框 -->
     <div class="modal fade" id="resultModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">🌱 檢測結果</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body text-center">
-                    <img id="modalImg" alt="檢測結果圖像" class="img-fluid rounded mb-3" style="max-height: 200px;">
-                    <h3 id="modalDisease" class="fw-bold mb-2">-</h3>
-                    <p class="text-muted mb-1">嚴重程度: <span id="modalSeverity" class="fw-bold">-</span></p>
-                    
-                    <progress id="modalProgressBar" class="w-100 mb-2" style="height: 25px;"></progress>
-                    <p>信心分數: <span id="modalScore" class="fw-bold">-</span></p>
+                <div class="modal-body">
+                    <div class="text-center mb-4">
+                        <img id="modalImg" alt="檢測結果圖像" class="img-fluid rounded mb-3" style="max-height: 250px;">
+                        <h3 id="modalDisease" class="fw-bold mb-2 text-success">-</h3>
+                        <div class="d-flex justify-content-center gap-3 flex-wrap">
+                            <div>
+                                <small class="text-muted">嚴重程度</small>
+                                <p class="fw-bold mb-0"><span id="modalSeverity">-</span></p>
+                            </div>
+                            <div>
+                                <small class="text-muted">信心分數</small>
+                                <p class="fw-bold mb-0"><span id="modalScore">-</span></p>
+                            </div>
+                        </div>
+                        <progress id="modalProgressBar" class="w-100 mt-3" style="height: 25px;"></progress>
+                    </div>
+
+                    <!-- 病害詳細信息 -->
+                    <div id="diseaseDetailContainer" style="display: none;">
+                        <hr>
+                        <div class="disease-detail" style="background: #f0f8f5; padding: 15px; border-radius: 10px;">
+                            <h5 class="fw-bold text-success mb-3">📋 病害詳細信息</h5>
+                            
+                            <div class="mb-3">
+                                <h6 class="fw-bold text-success">🔬 病因</h6>
+                                <p id="modalDiseaseCode" style="margin: 0; padding: 10px; background: white; border-radius: 8px; border-left: 4px solid #198754;">-</p>
+                            </div>
+
+                            <div class="mb-3">
+                                <h6 class="fw-bold text-success">🍃 症狀特徵</h6>
+                                <p id="modalDiseaseFeature" style="margin: 0; padding: 10px; background: white; border-radius: 8px; border-left: 4px solid #198754; line-height: 1.6;">-</p>
+                            </div>
+
+                            <div class="mb-3">
+                                <h6 class="fw-bold text-success">💊 防治方案</h6>
+                                <div id="modalDiseaseSolution">
+                                    <div class="mb-2">
+                                        <p class="fw-bold mb-2" style="color: #198754;">🧪 農藥防治</p>
+                                        <ul id="modalPesticideList" style="margin: 0; padding-left: 20px;">
+                                            <li>-</li>
+                                        </ul>
+                                    </div>
+                                    <div>
+                                        <p class="fw-bold mb-2" style="color: #198754;">🌱 管理措施</p>
+                                        <ul id="modalManagementList" style="margin: 0; padding-left: 20px;">
+                                            <li>-</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer justify-content-center">
                     <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">關閉</button>

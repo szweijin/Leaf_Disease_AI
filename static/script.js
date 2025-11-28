@@ -184,6 +184,44 @@ async function predict() {
             progressBar.value = scorePercent;
             progressBar.max = 100;
 
+            // 顯示病害詳細信息
+            const detailContainer = document.getElementById("diseaseDetailContainer");
+            if (data.disease_info) {
+                detailContainer.style.display = 'block';
+                document.getElementById("modalDiseaseCode").textContent = data.disease_info.causes || "-";
+                document.getElementById("modalDiseaseFeature").textContent = data.disease_info.feature || "-";
+                
+                // 填入農藥防治建議
+                const pesticideList = document.getElementById("modalPesticideList");
+                pesticideList.innerHTML = "";
+                if (data.disease_info.solution && data.disease_info.solution.pesticide) {
+                    data.disease_info.solution.pesticide.forEach(p => {
+                        const li = document.createElement("li");
+                        li.style.marginBottom = "8px";
+                        li.textContent = p;
+                        pesticideList.appendChild(li);
+                    });
+                } else {
+                    pesticideList.innerHTML = "<li>暫無資料</li>";
+                }
+                
+                // 填入管理措施
+                const managementList = document.getElementById("modalManagementList");
+                managementList.innerHTML = "";
+                if (data.disease_info.solution && data.disease_info.solution.management) {
+                    data.disease_info.solution.management.forEach(m => {
+                        const li = document.createElement("li");
+                        li.style.marginBottom = "8px";
+                        li.textContent = m;
+                        managementList.appendChild(li);
+                    });
+                } else {
+                    managementList.innerHTML = "<li>暫無資料</li>";
+                }
+            } else {
+                detailContainer.style.display = 'none';
+            }
+
             // 顯示 Modal
             resultModal.show();
 
@@ -234,7 +272,7 @@ async function loadHistory() {
                 ${imgHtml}
                 <div class="history-content">
                     <div class="history-disease">${r.disease}</div>
-                    <div class="history-detail">嚴重程度: ${r.severity}</div>
+                    <div class="history-detail">分類結果: ${r.severity}</div>
                     <div class="history-detail">時間: ${r.timestamp ? r.timestamp : '剛剛'}</div>
                 </div>
                 <div>
