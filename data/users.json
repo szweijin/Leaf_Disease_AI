@@ -1,10 +1,6 @@
 [
   {
     "email": "szweiforwork@gmail.com",
-    "password": "scrypt:32768:8:1$6gMXdhPQWt8jCYLX$61565c1380b90d091eea49fd4dbda5c78603dbcd8adbfc4bbaef9cd2d70b935a7bbf99a46b4fc21dec157a82d2323e2afe4cd884703f8a5e8a7ce28d5f45f63a"
-  },
-  {
-    "email": "n113",
-    "password": "scrypt:32768:8:1$V0bLOnpH3NEqruXl$fe8dbcdca10eddb5c23a986438a80b9746b0089b54a45eac9a1dd23fb6e7dfb7b8d6fdc5bbe6a7845cc6e5b819f9e3d453ff631657b3a45b313f2a766b4511cf"
+    "password": "scrypt:32768:8:1$LH1TV8bij2s7RQLd$6a3ad831b25243028c489c52aec807bcd3d44d376fb186565c86f84ea86fa061895be00f9142320a42f25ab4abc2660ee91c57591e4a594d2fda90e9697d35a1"
   }
 ]

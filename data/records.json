@@ -1,44 +1,42 @@
 [
   {
     "email": "szweiforwork@gmail.com",
-    "disease": "Tomato__Late_blight",
-    "severity": "blight",
-    "confidence": 0.9878997206687927
-  },
-  {
-    "email": "szweiforwork@gmail.com",
-    "disease": "Tomato__Late_blight",
-    "severity": "blight",
-    "confidence": 0.9878997206687927
-  },
-  {
-    "email": "szweiforwork@gmail.com",
-    "disease": "Tomato__Late_blight",
-    "severity": "blight",
-    "confidence": 0.9797496795654297
-  },
-  {
-    "email": "szweiforwork@gmail.com",
-    "disease": "Potato_Healthy",
-    "severity": "Healthy",
-    "confidence": 0.9746221303939819
-  },
-  {
-    "email": "szweiforwork@gmail.com",
-    "disease": "Potato__Late_blight",
-    "severity": "blight",
-    "confidence": 0.9691265225410461
+    "disease": "Peper_bell_healthy",
+    "severity": "healthy",
+    "confidence": 0.9980290532112122,
+    "image_path": "/static/uploads/e77c45e7-45d8-4061-8cae-cec34b293db9.jpg",
+    "timestamp": "139835931874478940"
   },
   {
     "email": "szweiforwork@gmail.com",
     "disease": "Peper_bell_healthy",
     "severity": "healthy",
-    "confidence": 0.9953870177268982
+    "confidence": 0.9793495535850525,
+    "image_path": "/static/uploads/1e4bfcb4-619c-4c34-918c-93f329982c9a.jpg",
+    "timestamp": "139835941605741280"
   },
   {
     "email": "szweiforwork@gmail.com",
     "disease": "Peper_bell_healthy",
     "severity": "healthy",
-    "confidence": 0.9980762004852295
+    "confidence": 0.944871187210083,
+    "image_path": "/static/uploads/5cb6ff5a-54f6-4ebd-9d25-1c7b5ff23dc8.jpg",
+    "timestamp": "139835950175549930"
+  },
+  {
+    "email": "szweiforwork@gmail.com",
+    "disease": "Peper_bell_healthy",
+    "severity": "healthy",
+    "confidence": 0.5594123601913452,
+    "image_path": "/static/uploads/1eaedc6a-8775-43e3-83a9-3d8c672c7862.jpg",
+    "timestamp": "139835950328519020"
+  },
+  {
+    "email": "szweiforwork@gmail.com",
+    "disease": "Peper_bell_healthy",
+    "severity": "healthy",
+    "confidence": 0.5594123601913452,
+    "image_path": "/static/uploads/ea8c3a64-3f44-4e50-8d2d-be9c3be53753.jpg",
+    "timestamp": "139835950396658900"
   }
 ]
