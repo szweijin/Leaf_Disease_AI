@@ -1,0 +1,114 @@
+---
+config:
+  layout: dagre
+  look: neo
+  theme: redux
+---
+flowchart TB
+    B{"是否已登入?"} -- Yes --> C["首頁"]
+    B -- No --> D{"是否有帳號?"}
+    D -- Yes --> E["登入頁"]
+    D -- No --> F["註冊頁"]
+    F --> K{"註冊成功?"}
+    K -- Yes --> E
+    K -- No --> L["顯示註冊失敗"]
+    C --> I["帳號中心"] & J["歷史紀錄"] & n1["從裝置拍照上傳"] & n23["從裝置相簿選圖上傳"]
+    n1 --> n3["已取得相機權限"]
+    n2["resize 640*640"] --> n30["上傳相片"]
+    E --> n8["登入成功?"]
+    n9["傳送進Model(後端)"] --> n10["結果回傳成功?"]
+    n10 -- Yes --> n11["預測結果顯示<br>"]
+    n10 -- No --> n17["非植物<br>非茄科<br>病害無法辨識<br>系統錯誤"]
+    n17 --> n16["顯示錯誤類別"]
+    n12["同張圖片再送一次Model?"] -- Yes --> n9
+    n12 -- No --> n13(["儲存紀錄"])
+    n8 -- Yes --> C
+    n8 -- No --> n14@{ label: "<span style=\"color:\">顯示登入失敗</span>" }
+    L --> F
+    n4["上傳成功?"] -- No --> n15["顯示圖片上傳失敗<br>(回到原本來源)"]
+    n13 --> C
+    n11 --> n18@{ label: "疾病類別<br style=\"--tw-scale-x:\">罹病機率<br style=\"--tw-scale-x:\">病徵說明<br style=\"--tw-scale-x:\">建議處置" }
+    n18 --> n12
+    n14 --> D
+    n23 --> G["已取得相簿權限"]
+    n20(["APP用戶開啟"]) --> B
+    n3 -- 永久拒絕 --> n21["顯示⌈請至設定開啟相機權限⌋<br>"]
+    G -- 永久拒絕 --> n22["顯示⌈請至設定開啟相簿權限⌋"]
+    n16 --> C
+    G -- Yes --> n24["開啟相簿<br>"]
+    n3 -- Yes --> n25["開啟相機<br>"]
+    n15 -- 來自相機 --> n1
+    n15 -- 來自相簿 --> n23
+    G -- No --> n27["要求相簿權限<br>"]
+    n3 -- No --> n26["要求相機權限<br>"]
+    n22 --> n23
+    n26 --> n1 & n25
+    n25 --> n29["取得相機照片<br>"]
+    n24 --> n28["取得相簿圖片<br>"]
+    n28 --> n2
+    n29 --> n2
+    n30 --> n4
+    n4 -- Yes --> n9
+    n27 --> n24
+
+    n23@{ shape: rect}
+    n3@{ shape: diam}
+    n8@{ shape: diam}
+    n10@{ shape: diam}
+    n17@{ shape: braces}
+    n12@{ shape: diam}
+    n14@{ shape: rect}
+    n4@{ shape: diam}
+    n18@{ shape: braces}
+    G@{ shape: diam}
+    n21@{ shape: rect}
+    n22@{ shape: rect}
+    n24@{ shape: rect}
+    n25@{ shape: rect}
+    n27@{ shape: rect}
+    n26@{ shape: rect}
+    n29@{ shape: rect}
+    n28@{ shape: rect}
+     B:::Ash
+     C:::Aqua
+     D:::Ash
+     K:::Ash
+     L:::Rose
+     n3:::Ash
+     n8:::Ash
+     n10:::Ash
+     n17:::Rose
+     n16:::Rose
+     n12:::Ash
+     n14:::Rose
+     n4:::Ash
+     n15:::Rose
+     n18:::Ash
+     G:::Ash
+     n21:::Rose
+     n22:::Rose
+     n27:::Rose
+     n26:::Rose
+    classDef Aqua stroke-width:1px, stroke-dasharray:none, stroke:#46EDC8, fill:#DEFFF8, color:#378E7A
+    classDef Ash stroke-width:1px, stroke-dasharray:none, stroke:#999999, fill:#EEEEEE, color:#000000
+    classDef Rose stroke-width:1px, stroke-dasharray:none, stroke:#FF5978, fill:#FFDFE5, color:#8E2236
+    linkStyle 1 stroke:#D50000,fill:none
+    linkStyle 3 stroke:#D50000,fill:none
+    linkStyle 6 stroke:#D50000,fill:none
+    linkStyle 16 stroke:#D50000,fill:none
+    linkStyle 17 stroke:#D50000,fill:none
+    linkStyle 18 stroke:#000000,fill:none
+    linkStyle 19 stroke:#D50000,fill:none
+    linkStyle 20 stroke:#000000,fill:none
+    linkStyle 21 stroke:#D50000,fill:none
+    linkStyle 22 stroke:#FFCDD2,fill:none
+    linkStyle 23 stroke:#D50000,fill:none
+    linkStyle 24 stroke:#000000,fill:none
+    linkStyle 27 stroke:#FFCDD2,fill:none
+    linkStyle 30 stroke:#D50000,fill:none
+    linkStyle 31 stroke:#D50000,fill:none
+    linkStyle 32 stroke:#FFCDD2,fill:none
+    linkStyle 35 stroke:#FFCDD2,fill:none
+    linkStyle 36 stroke:#FFCDD2,fill:none
+    linkStyle 37 stroke:#D50000,fill:none
+    linkStyle 38 stroke:#D50000,fill:none

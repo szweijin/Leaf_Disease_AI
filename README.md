@@ -1,610 +1,264 @@
 # 🌿 Leaf Disease AI
 
-> 使用 YOLOv11 深度學習模型進行植物葉片病害檢測的現代化 Web 應用
+以 YOLOv11 深度學習模型為核心的植物葉片病害檢測 Web 應用，支援多用戶帳號、病害資料查詢、檢測歷史、統計分析與現代化前端。
 
 ![Python](https://img.shields.io/badge/Python-3.8+-3776ab?style=flat-square&logo=python)
 ![Flask](https://img.shields.io/badge/Flask-3.0+-000000?style=flat-square&logo=flask)
 ![YOLOv11](https://img.shields.io/badge/YOLOv11-Latest-00457C?style=flat-square&logo=yolo)
+![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3+-7952B3?style=flat-square&logo=bootstrap)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 
-## 📋 目錄
-
-- [專案概述](#專案概述)
-- [主要功能](#主要功能)
-- [技術堆棧](#技術堆棧)
-- [快速開始](#快速開始)
-- [使用指南](#使用指南)
-- [API 文檔](#api-文檔)
-- [檔案結構](#檔案結構)
-- [密碼要求](#密碼要求)
-- [生產部署](#生產部署)
-- [常見問題](#常見問題)
-
-## 📖 專案概述
-
-Leaf Disease AI 是一個智能植物葉片病害檢測系統，使用先進的 YOLOv11 物體檢測模型實現高精度的病害識別。該應用採用現代化的 Web + App 混合設計，提供直觀的使用者介面和流暢的使用體驗。
-
-**適用場景**：
-
-- 農業種植戶進行田間病害監測
-- 農技服務中心病害診斷
-- 農業研究機構數據採集
-- 教育機構教學演示
-
-## ✨ 主要功能
-
-### 核心功能
-
-- 🔐 **帳戶管理**
-
-  - 郵箱註冊與登入
-  - 密碼加密存儲
-  - 複雜度驗證
-  - 登出清理
-
-- 🖼️ **圖像分析**
-
-  - 實時病害檢測
-  - 嚴重程度評估
-  - 置信度評分
-  - 圖像預覽展示
-  - **病害詳細信息顯示**
-    - 病因與病原菌信息
-    - 症狀特徵描述
-    - 農藥防治建議
-    - 管理措施指導
-
-- 📊 **檢測記錄**
-
-  - 歷史紀錄查詢
-  - 按使用者隔離
-  - 時間戳記
-  - 圖像存儲
-
-- 👤 **帳號中心**
-  - 個人資訊查看
-  - 密碼修改
-  - 帳號建立時間記錄
-  - 最後登入時間追蹤
-  - 檢測統計分析
-  - 病害分布圖表
-
-### 用戶體驗
-
-- 🎨 **現代化 UI 設計**
-
-  - 漸變色背景
-  - 響應式佈局
-  - 流暢動畫效果
-  - 適配各類設備
-
-- 📱 **跨平台支持**
-  - 桌面瀏覽器優化
-  - 平板設備適配
-  - 手機全屏支持
-
-## 🛠️ 技術堆棧
-
-| 分類         | 技術               | 版本   |
-| ------------ | ------------------ | ------ |
-| **後端框架** | Flask              | 3.0+   |
-| **機器學習** | YOLOv11            | Latest |
-| **前端框架** | Bootstrap          | 5.3.0  |
-| **前端語言** | HTML5 + JavaScript | ES6+   |
-| **密碼安全** | Werkzeug           | 2.0+   |
-| **資料存儲** | JSON               | Native |
-| **伺服器**   | Gunicorn           | 21.0+  |
-
-## 🚀 快速開始
-
-### 前置需求
-
-```bash
-# 檢查 Python 版本
-python --version  # 需要 3.8 或以上
-
-# 確保已安裝 pip
-pip --version
-```
-
-### 安裝步驟
-
-1. **複製並進入專案目錄**
-
-```bash
-git clone <repository-url>
-cd Leaf_Disease_AI
-```
-
-2. **安裝依賴套件**
-
-```bash
-pip install -r requirements.txt
-```
-
-3. **驗證模型檔案**
-
-```bash
-# 確保 yolov11/best.pt 存在
-ls -la yolov11/best.pt
-```
-
-4. **初始化資料目錄**
-
-```bash
-mkdir -p data static/uploads
-```
-
-5. **運行應用**
-
-```bash
-# 開發模式
-python app.py
-
-# 或使用 Gunicorn（生產環境）
-gunicorn -w 4 -b 0.0.0.0:5000 app:app
-```
-
-6. **訪問應用**
-
-```
-http://localhost:5000
-```
-
-## 📖 使用指南
-
-### 第一次使用
-
-1. **建立帳戶**
-
-   - 點擊「立即註冊」
-   - 輸入有效的郵箱地址
-   - 設置符合要求的密碼
-   - 點擊「註冊」完成註冊
-
-2. **登入系統**
-
-   - 回到登入表單
-   - 輸入郵箱和密碼
-   - 點擊「登入」進入主應用
-
-3. **上傳圖像**
-
-   - 點擊上傳區域或拖放圖像
-   - 預覽圖像確保正確
-   - 點擊「開始分析」按鈕
-
-4. **查看結果與病害信息**
-
-   - 彈窗顯示檢測結果
-   - 包含病害類型、嚴重程度、置信度
-   - **病害詳細信息區域**包含：
-     - 🔬 **病因**：病原菌名稱與類型
-     - 🍃 **症狀特徵**：詳細的病害特徵描述
-     - 💊 **防治方案**：
-       - 🧪 農藥防治建議（包含用量、安全採收期）
-       - 🌱 管理措施（預防與控制方法）
-   - 點擊「關閉」返回主界面
-
-5. **檢查歷史**
-
-   - 向下滾動查看歷史紀錄
-   - 每條紀錄顯示圖像、診斷結果、信心分數
-   - 自動按時間倒序排列
-
-6. **帳號設定**
-   - 點擊導航欄「帳號設定」按鈕
-   - 查看個人資訊和帳號建立時間
-   - 修改密碼
-   - 查看檢測統計資訊
-
-### 密碼要求
-
-註冊時，密碼必須滿足以下條件：
-
-✅ 長度至少 **8 個字符**
-✅ 包含至少 **1 個大寫字母** (A-Z)
-✅ 包含至少 **1 個小寫字母** (a-z)
-✅ 包含至少 **1 個數字** (0-9)
-
-**示例**：`MyPassword123` ✓
-
-## 📡 API 文檔
-
-### 認證相關
-
-#### 1. 使用者註冊
-
-```
-POST /register
-Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "password": "MyPassword123"
-}
-```
-
-**回應** (200):
-
-```json
-{
-  "status": "註冊成功！"
-}
-```
-
-**錯誤** (400):
-
-```json
-{
-  "error": "該 Email 已被註冊"
-}
-```
-
----
-
-#### 2. 使用者登入
-
-```
-POST /login
-Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "password": "MyPassword123"
-}
-```
-
----
-
-**回應** (200):
-
-```json
-{
-  "status": "logged_in"
-}
-```
-
-**錯誤** (401):
-
-```json
-{
-  "error": "帳號或密碼錯誤"
-}
-```
-
----
-
-#### 3. 檢查認證狀態
-
-```
-GET /check-auth
-```
-
-**回應** (200):
-
-```json
-{
-  "authenticated": true,
-  "email": "user@example.com"
-}
-```
-
----
-
-#### 4. 使用者登出
-
-```
-GET /logout
-```
-
-**回應** (200):
-
-```json
-{
-  "status": "logged_out"
-}
-```
-
-### 帳號中心相關
-
-#### 5. 取得使用者個人資料
-
-```
-GET /user/profile
-Authorization: Session required
-```
-
-**回應** (200):
-
-```json
-{
-  "email": "user@example.com",
-  "created_at": "2025-11-28T10:30:45.123456",
-  "last_login": "2025-11-28T14:20:30.654321"
-}
-```
-
-**錯誤** (401):
-
-```json
-{
-  "error": "請先登入"
-}
-```
-
----
-
-#### 6. 修改密碼
-
-```
-POST /user/change-password
-Content-Type: application/json
-Authorization: Session required
-
-{
-  "old_password": "OldPassword123",
-  "new_password": "NewPassword456"
-}
-```
-
-**回應** (200):
-
-```json
-{
-  "status": "密碼已成功更新"
-}
-```
-
-**錯誤** (400):
-
-```json
-{
-  "error": "舊密碼不正確"
-}
-```
-
----
-
-#### 7. 取得使用者統計資料
-
-```
-GET /user/stats
-Authorization: Session required
-```
-
-**回應** (200):
-
-```json
-{
-  "total_detections": 42,
-  "disease_stats": {
-    "Early_Blight_Severe": 15,
-    "Late_Blight_Mild": 10,
-    "Healthy": 17
-  },
-  "severity_stats": {
-    "Severe": 18,
-    "Mild": 15,
-    "None": 9
-  }
-}
-```
-
-### 功能相關
-
-#### 8. 圖像預測
-
-```
-POST /predict
-Content-Type: application/json
-Authorization: Session required
-
-{
-  "image": "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
-}
-```
-
-**回應** (200):
-
-```json
-{
-  "disease": "Early_Blight_Severe",
-  "severity": "Severe",
-  "confidence": 0.95,
-  "image_path": "/static/uploads/uuid.jpg"
-}
-```
-
-**錯誤** (401):
-
-```json
-{
-  "error": "請先登入"
-}
-```
-
----
-
-#### 9. 取得檢測歷史
-
-```
-GET /history
-Authorization: Session required
-```
-
-**回應** (200):
-
-```json
-[
-  {
-    "email": "user@example.com",
-    "disease": "Early_Blight_Severe",
-    "severity": "Severe",
-    "confidence": 0.95,
-    "image_path": "/static/uploads/uuid.jpg",
-    "timestamp": "1234567890"
-  }
-]
-```
-
-## 📁 檔案結構
+## 目錄
+
+- [🌿 Leaf Disease AI](#-leaf-disease-ai)
+  - [目錄](#目錄)
+  - [專案簡介](#專案簡介)
+  - [主要功能](#主要功能)
+  - [技術架構](#技術架構)
+  - [快速開始](#快速開始)
+  - [API 端點（摘要）](#api-端點摘要)
+  - [檔案結構與用途](#檔案結構與用途)
+  - [部署建議](#部署建議)
+  - [❓ 常見問題](#-常見問題)
+    - [Q: 模型檔案 `best.pt` 在哪裡下載？](#q-模型檔案-bestpt-在哪裡下載)
+    - [Q: 密碼錯誤或忘記怎麼辦？](#q-密碼錯誤或忘記怎麼辦)
+    - [Q: 上傳的圖像存儲在哪裡？](#q-上傳的圖像存儲在哪裡)
+    - [Q: 如何刪除檢測記錄？](#q-如何刪除檢測記錄)
+    - [Q: 支援哪些圖像格式？](#q-支援哪些圖像格式)
+    - [Q: 檢測速度如何？](#q-檢測速度如何)
+  - [🤝 貢獻指南](#-貢獻指南)
+  - [📄 許可證](#-許可證)
+  - [📧 聯絡方式](#-聯絡方式)
+
+## 專案簡介
+
+Leaf Disease AI 提供即時植物病害檢測、病害資料查詢、檢測歷史管理與統計分析。後端採用 Flask 3.0+，前端以 Bootstrap 5 打造響應式 UI，核心模型為 YOLOv11。支援多用戶帳號、密碼安全、Session 認證，並可容器化部署。
+
+**適用場景**：農業監測、農技診斷、教學演示、研究數據採集。
+
+## 主要功能
+
+- 用戶註冊、登入、密碼修改、Session 認證
+- 圖像上傳與 YOLOv11 病害檢測（類型、置信度、嚴重度）
+- 檢測歷史查詢、分頁、統計分析
+- 病害詳細資料查詢（病因、症狀、防治、管理措施）
+- 前端響應式 UI、病害分布圖表
+- 多層日誌系統（activity/error/audit/api/performance）
+
+## 技術架構
+
+- 後端：Flask 3.0+
+- 機器學習：YOLOv11
+- 前端：Bootstrap 5.3+、HTML5、JavaScript (ES6+)
+- 密碼安全：Werkzeug
+- 資料存儲：JSON（計劃支援 PostgreSQL）
+- 伺服器：Gunicorn
+- 容器化：Docker / Docker Compose
+
+## 快速開始
+
+1. 複製並進入專案目錄
+   ```bash
+   git clone <repository-url>
+   cd Leaf_Disease_AI
+   ```
+2. 安裝依賴
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. 驗證模型檔案
+   ```bash
+   ls -la data/models/yolov11/best.pt
+   ```
+4. 初始化資料目錄
+   ```bash
+   mkdir -p data/static/uploads data/models
+   ```
+5. 啟動應用
+   ```bash
+   python src/app.py
+   # 或生產環境
+   gunicorn -w 4 -b 0.0.0.0:5000 src.app:app
+   ```
+6. 訪問 http://localhost:5000
+
+## API 端點（摘要）
+
+- `POST /register`：用戶註冊
+- `POST /login`：用戶登入
+- `GET /logout`：登出
+- `GET /check-auth`：檢查認證
+- `GET /user/profile`：取得個人資料
+- `POST /user/change-password`：修改密碼
+- `GET /user/stats`：檢測統計
+- `POST /predict`：圖像病害檢測
+- `GET /history`：檢測歷史查詢
+
+## 檔案結構與用途
 
 ```
 Leaf_Disease_AI/
-├── app.py                      # Flask 應用主程式
-│   ├── UserManager             # 使用者管理類
-│   ├── 路由定義 (API endpoints)
-│   └── 模型推理邏輯
 │
-├── requirements.txt            # Python 依賴套件
-├── README.md                   # 本檔案
-├── .gitignore                  # Git 忽略規則
-├── .env.example                # 環境變數範本
+├── src/                          # 【核心源碼】應用程式的核心邏輯
+│   ├── __init__.py               # 將 src 標示為 Python 套件
+│   ├── app.py                    # Flask 應用主入口，整合路由與配置
+│   ├── core/                     # 核心模組，處理資料庫與使用者驗證
+│   │   ├── __init__.py
+│   │   ├── db_manager.py         # 資料庫連線與操作管理
+│   │   └── user_manager.py       # 使用者帳戶與 Session 管理
+│   ├── models/                   # 資料庫模型定義 (若使用 ORM)
+│   │   └── __init__.py
+│   ├── routes/                   # API 路由定義，劃分不同功能的端點
+│   │   └── __init__.py
+│   ├── services/                 # 服務層，處理具體業務邏輯
+│   │   └── __init__.py           # 圖像辨識、資料處理、統計分析等
+│   └── utils/                    # 通用工具函數，如格式轉換、日誌記錄
+│       └── __init__.py
 │
-├── templates/
-│   └── index.html              # 主 HTML 模板
-│       ├── 認證頁面 (Login/Register)
-│       ├── 應用頁面 (Main App)
-│       └── 結果模態框 (Result Modal)
+├── frontend/                     # 【前端資源】使用者介面相關檔案
+│   ├── templates/                # HTML 模板檔案 (Jinja2)
+│   │   ├── index.html            # 首頁
+│   │   ├── admin/                # 管理員頁面
+│   │   ├── auth/                 # 登入/註冊頁面
+│   │   └── dashboard/            # 使用者儀表板
+│   └── static/                   # 靜態資源
+│       ├── script.js             # 主要 JavaScript 邏輯
+│       ├── css/                  # CSS 樣式表
+│       ├── js/                   # 其他 JavaScript 模組
+│       ├── images/               # 圖片資源
+│       │   └── icons/            # 圖標集合
+│       └── uploads/              # 使用者上傳的圖像暫存目錄
 │
-├── static/
-│   ├── script.js               # 前端 JavaScript 邏輯
-│   │   ├── 表單處理
-│   │   ├── API 呼叫
-│   │   └── UI 更新
-│   └── uploads/                # 上傳圖像存儲目錄
+├── data/                         # 【數據與模型】應用所需的資料與 AI 模型
+│   ├── disease_info.json         # 病害詳細資料 (病名、症狀、防治)
+│   ├── records.json              # 檢測歷史記錄 (開發用)
+│   ├── users.json                # 使用者資料 (開發用)
+│   ├── seed/                     # 初始化資料種子檔
+│   │   └── disease_info.json     # 預設病害資料
+│   ├── logs/                     # 應用程式日誌檔
+│   │   └── *.log                 # activity, error, audit, api, performance 日誌
+│   └── models/                   # AI 模型儲存目錄
+│       └── yolov11/              # YOLOv11 模型相關檔案
+│           └── best.pt           # 預訓練的模型權重檔
 │
-├── data/
-│   ├── users.json              # 使用者資料（JSON）
-│   └── records.json            # 檢測紀錄（JSON）
+├── config/                       # 【環境配置】不同環境的設定檔
+│   ├── __init__.py
+│   ├── base.py                   # 基礎通用設定 (資料庫路徑、日誌配置等)
+│   ├── development.py            # 開發環境專用設定 (Debug 模式)
+│   └── production.py             # 生產環境專用設定 (高效能設定)
 │
-└── yolov11/
-    └── best.pt                 # YOLOv11 預訓練模型
+├── database/                     # 【資料庫】資料庫相關腳本
+│   ├── init_database.sql         # 資料庫初始化腳本 (表結構、索引、字段)
+│   ├── migrations/               # 資料庫遷移腳本 (版本升級)
+│   ├── queries/                  # 常用的 SQL 查詢範本
+│   └── backup/                   # 資料庫備份檔
+│
+├── deploy/                       # 【部署配置】用於生產環境部署的設定檔
+│   ├── docker/                   # Docker 容器化相關
+│   │   └── Dockerfile            # Docker 映像定義檔
+│   ├── docker-compose/           # Docker Compose 編排配置
+│   │   └── docker-compose.yml    # 多容器部署定義
+│   ├── kubernetes/               # Kubernetes 部署配置 (可選)
+│   ├── nginx/                    # Nginx 反向代理伺服器設定
+│   │   └── ssl/                  # SSL 憑證 (生產環境)
+│   ├── ci-cd/                    # 持續整合/持續部署管道設定
+│   └── scripts/                  # 部署自動化腳本
+│
+├── docs/                         # 【專案文件】詳細的設計與說明文件
+│   ├── DATABASE_DESIGN.md        # 資料庫架構詳細說明
+│   ├── IMPLEMENTATION_GUIDE.md   # 實作指南
+│   ├── PROJECT_STRUCTURE.md      # 專案結構說明
+│   ├── ARCHIVE_PLAN.md           # 檔案歸檔計畫
+│   ├── usermap.mmd               # 使用者流程圖 (Mermaid)
+│   └── diagrams/                 # 系統設計圖表
+│
+├── tests/                        # 【自動化測試】確保程式碼品質
+│   ├── fixtures/                 # 測試資料與 fixture 集合
+│   └── integration/              # 整合測試
+│
+├── requirements/                 # 【依賴管理】分層的 Python 套件需求
+│   ├── base.txt                  # 基礎依賴 (所有環境通用)
+│   ├── dev.txt                   # 開發環境依賴 (測試工具、偵錯工具等)
+│   └── prod.txt                  # 生產環境依賴 (高效能、監控工具等)
+│
+├── local/                        # 【本地開發工具】本地開發與測試工具
+│   ├── Makefile                  # 本地開發命令集
+│   └── README_LOCAL.md           # 本地開發說明
+│
+├── env/                          # 【環境變數】敏感資訊存儲 (勿提交至 git)
+│
+├── .vscode/                      # VS Code 工作區設定
+├── .git/                         # Git 版本控制目錄
+├── .gitignore                    # Git 忽略清單
+├── CHANGELOG.md                  # 版本歷史與更新日誌
+├── CONTRIBUTING.md               # 貢獻指南
+├── LICENSE                       # MIT 許可證
+├── requirements.txt              # 主要依賴檔案 (簡易安裝)
+└── README.md                     # 專案入口說明文件 (本檔案)
 ```
 
-## 🔒 安全性注意事項
+## 部署建議
 
-### 開發環境
-
-- ✅ 適合本地測試和演示
-- ✅ 簡易 JSON 存儲
-- ⚠️ Secret key 已硬編碼
-
-### 生產環境建議
-
-1. **資料庫遷移**
-
-   ```bash
-   # 使用 PostgreSQL + SQLAlchemy
-   pip install Flask-SQLAlchemy psycopg2-binary
-   ```
-
-2. **環境變數管理**
-
-   ```bash
-   pip install python-dotenv
-   ```
-
-3. **加強安全**
-   - 啟用 HTTPS
-   - 設置強 Secret Key
-   - 配置 CORS 政策
-   - 實施速率限制
-
-## 📦 生產部署
-
-### 使用 Gunicorn
-
-```bash
-# 安裝 Gunicorn
-pip install gunicorn
-
-# 運行（4 個 worker 進程）
-gunicorn -w 4 -b 0.0.0.0:5000 --timeout 120 app:app
-```
-
-### 使用 Docker
-
-```dockerfile
-FROM python:3.11-slim
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY . .
-
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "app:app"]
-```
-
-### Nginx 反向代理
-
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-
-    location / {
-        proxy_pass http://127.0.0.1:5000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-```
+- 開發：`python src/app.py`
+- 生產：`gunicorn -w 4 -b 0.0.0.0:5000 src.app:app`
+- 容器化：參考 `deploy/docker/`、`docker-compose/`
+- 建議使用 PostgreSQL 取代 JSON 作為正式資料庫
+- 機密資訊請放置於 `env/`，勿提交至 git
 
 ## ❓ 常見問題
 
 ### Q: 模型檔案 `best.pt` 在哪裡下載？
 
-A: 模型檔案是經過訓練的 YOLOv11 模型。請確保 `yolov11/best.pt` 存在於專案目錄中。如果沒有，需要使用您的訓練資料集進行訓練。
+A: 模型檔案是經過訓練的 YOLOv11 模型。請確保 `data/models/yolov11/best.pt` 已存在。若無，則需自行訓練或尋找預訓練模型。
 
-### Q: 密碼錯誤提示不夠詳細？
+### Q: 密碼錯誤或忘記怎麼辦？
 
-A: 系統會提示具體的密碼要求（長度、大小寫、數字）。請按照提示設置密碼。
+A: 註冊時請遵循密碼規則（至少 8 字元、含大小寫字母與數字）。當前版本尚未支援密碼重設功能。
 
 ### Q: 上傳的圖像存儲在哪裡？
 
-A: 圖像存儲在 `static/uploads/` 目錄，使用 UUID 命名以避免衝突。
+A: 圖像暫時存儲在 `frontend/static/uploads/`，並以 UUID 重新命名以避免衝突。
 
 ### Q: 如何刪除檢測記錄？
 
-A: 當前版本不支援刪除功能。可以手動編輯 `data/records.json` 或等待後續版本更新。
+A: 目前版本不支援從介面刪除記錄。若為測試資料，可手動編輯 `data/records.json`。
 
 ### Q: 支援哪些圖像格式？
 
-A: 支援所有常見的圖像格式（JPG、PNG、GIF 等）。
+A: 支援常見的網頁圖像格式，如 JPG, PNG, GIF。
 
 ### Q: 檢測速度如何？
 
-A: 取決於硬體配置，通常 GPU 環境下 1-2 秒內完成一次檢測。
+A: 檢測速度依賴於伺服器硬體配置。在 GPU 環境下，單張圖像的處理時間通常在 1-2 秒內。
 
 ## 🤝 貢獻指南
 
-歡迎提交 Issue 或 Pull Request！
+我們歡迎任何形式的貢獻！您可以：
+
+- 回報問題 (Issue)
+- 提交功能請求 (Pull Request)
+- 協助改善文檔
+
+請參考 `CONTRIBUTING.md` 了解詳細的貢獻流程。
 
 ```bash
-# 建立新分支
-git checkout -b feature/your-feature
-
-# 提交更改
-git commit -am 'Add new feature'
-
-# 推送到遠程
-git push origin feature/your-feature
+# 簡易流程範例
+git checkout -b feature/your-awesome-feature
+git commit -am 'Add some feature'
+git push origin feature/your-awesome-feature
 ```
 
 ## 📄 許可證
 
-本專案採用 MIT 許可證。詳見 [LICENSE](LICENSE) 檔案。
+本專案採用 MIT 許可證。詳情請參閱 [LICENSE](LICENSE) 檔案。
 
 ## 📧 聯絡方式
 
-- **報告問題**: [GitHub Issues](https://github.com/szweijin/Leaf_Disease_AI/issues)
-- **功能建議**: 提交 Pull Request 或 Issue
+- **回報問題**: [GitHub Issues](https://github.com/szweijin/Leaf_Disease_AI/issues)
+- **功能建議**: 提交 Pull Request 或開啟 Issue 討論
 
 ---
 
-**最後更新**：2025 年 11 月 28 日
-**當前版本**：1.0.0
+**最後更新**：2025-12-01
+**當前版本**：1.0.1
 **開發分支**：fix

@@ -71,3 +71,22 @@ yolov11/*.pt
 # Node modules (如果有前端工具)
 node_modules/
 npm-debug.log
+
+# 環境變數
+env/.env.local
+env/.env.staging
+env/.env.production
+env/.env.test
+
+# 本地開發
+local/
+
+# 上傳檔案
+frontend/static/uploads/
+data/logs/
+
+# 資料庫備份
+database/backup/
+
+# 部署憑證
+deploy/nginx/ssl/

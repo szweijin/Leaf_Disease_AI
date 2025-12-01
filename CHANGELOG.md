@@ -154,3 +154,38 @@ Leaf_Disease_AI/
 - 行動應用版本
 - 云端同步
 - 高級分析功能
+
+## [1.0.1] - 2025-12-01
+
+### 🐞 修正
+
+- 修正 YOLOv11 檢測模型路徑錯誤，確保模型能正確載入
+- 優化 disease_info.json 數據結構，提升查詢效率
+- 修正前端圖像預覽在 Safari 下的顯示問題
+- 修正部分 API 回傳格式不一致（/predict, /history）
+- 修正密碼修改 API 的驗證邏輯
+
+### ✨ 優化
+
+- 增加檢測記錄分頁查詢功能，提升大數據量下的效能
+- 前端 dashboard 新增病害分布統計圖表
+- 強化 session 安全性，增加過期自動登出
+- 優化 Dockerfile，減少映像檔大小
+- 補充 README.md 快速啟動指引
+
+### 🔧 技術棧
+
+- 升級 Flask 至 3.0.2
+- 升級 Bootstrap 至 5.3.2
+- 新增 pandas 依賴（用於統計分析）
+
+### 📖 文檔
+
+- 更新 API 文檔，補充 /user/change-password、/history 分頁參數
+- 新增 CI/CD 配置說明
+
+### 🚀 部署
+
+- 新增 docker-compose.yml 範例，支援一鍵啟動
+
+---
