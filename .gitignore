@@ -1,0 +1,70 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# 環境變數
+.env
+.env.local
+.env.*.local
+env/local/.env
+env/deploy/.env
+
+# 上傳檔案
+local/uploads/
+deploy/uploads/
+static/uploads/
+frontend/static/uploads/
+data/static/uploads/
+
+# 日誌
+*.log
+local/logs/
+deploy/logs/
+data/logs/
+
+# 建置輸出
+dist/
+build/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 模型檔案（如果太大）
+# model/yolov11/*.pt
+
+# 測試覆蓋率
+.coverage
+htmlcov/
+.pytest_cache/
+
+# 備份檔案
+*.bak
+*.backup
+database/local/backup/*.sql.gz
+
+# 臨時檔案
+*.tmp
+*.temp

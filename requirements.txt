@@ -1,0 +1,23 @@
+# 基礎依賴
+Flask
+psycopg2-binary
+python-dotenv
+werkzeug
+Pillow
+ultralytics
+numpy
+opencv-python
+
+# Redis 和快取
+redis
+flask-caching
+
+# API 文檔
+flask-swagger-ui
+flasgger
+
+# 開發依賴
+pytest
+pytest-cov
+black
+flake8
