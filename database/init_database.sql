@@ -161,7 +161,9 @@ CREATE TABLE disease_library (
 CREATE INDEX idx_disease_name ON disease_library(disease_name);
 CREATE INDEX idx_disease_chinese ON disease_library(chinese_name);
 CREATE INDEX idx_disease_active ON disease_library(is_active);
-CREATE INDEX idx_disease_fulltext ON disease_library USING GIN(to_tsvector('chinese', chinese_name || ' ' || causes));
+-- 全文搜索索引（使用 'simple' 配置，這是 PostgreSQL 默認配置，總是可用）
+-- 如果需要中文全文搜索，需要安裝 zhparser 擴展並創建 'chinese' 配置
+CREATE INDEX idx_disease_fulltext ON disease_library USING GIN(to_tsvector('simple', chinese_name || ' ' || causes));
 
 -- ============================================
 -- 7. 建立檢測記錄表

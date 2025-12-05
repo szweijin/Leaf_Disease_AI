@@ -132,6 +132,7 @@ class DetectionService:
             
             # 6. 儲存到資料庫
             record_id = None
+            image_saved_to_db = False  # 標記是否成功保存到資料庫
             try:
                 # 如果提供了 web_image_path，使用它；否則從 image_path 提取相對路徑
                 db_image_path = image_path
@@ -147,7 +148,7 @@ class DetectionService:
                 
                 logger.info(f"💾 準備保存檢測記錄: user_id={user_id}, disease={disease_name}, path={db_image_path}")
                 
-                record_id = self._save_detection(
+                record_id, image_saved_to_db = self._save_detection(
                     user_id=user_id,
                     disease_name=disease_name,
                     severity=severity,
@@ -159,7 +160,15 @@ class DetectionService:
                     processing_time_ms=processing_time,
                     image_bytes=image_bytes_for_db  # 傳遞圖片位元組用於壓縮存儲
                 )
-                logger.info(f"✅ 檢測記錄已保存: record_id={record_id}")
+                logger.info(f"✅ 檢測記錄已保存: record_id={record_id}, 圖片已存儲到資料庫: {image_saved_to_db}")
+                
+                # 如果成功保存到資料庫，刪除檔案系統中的原檔（節省磁碟空間）
+                if image_saved_to_db and os.path.exists(image_path):
+                    try:
+                        os.remove(image_path)
+                        logger.info(f"🗑️ 已刪除檔案系統原檔: {image_path}（圖片已存儲在資料庫中）")
+                    except Exception as delete_error:
+                        logger.warning(f"⚠️ 刪除原檔失敗（不影響功能）: {str(delete_error)}")
             except Exception as save_error:
                 error_msg = str(save_error)
                 logger.error(f"❌ 儲存檢測記錄失敗: {error_msg}", exc_info=True)
@@ -204,14 +213,21 @@ class DetectionService:
             
             logger.info(f"✅ 檢測完成: {disease_name} (置信度: {confidence:.2%}, 耗時: {processing_time}ms)")
             
+            # 如果圖片已存儲到資料庫，使用資料庫圖片 URL；否則使用原路徑
+            result_image_path = image_path
+            if image_saved_to_db and record_id:
+                # 使用資料庫圖片 API 路徑
+                result_image_path = f"/image/{record_id}"
+            
             return {
                 "disease": disease_name,
                 "severity": severity,
                 "confidence": confidence,
-                "image_path": image_path,
+                "image_path": result_image_path,
                 "disease_info": disease_info,
                 "record_id": record_id,
-                "processing_time_ms": processing_time
+                "processing_time_ms": processing_time,
+                "image_from_db": image_saved_to_db  # 標記圖片是否來自資料庫
             }
             
         except Exception as e:
@@ -322,7 +338,7 @@ class DetectionService:
     def _save_detection(self, user_id: int, disease_name: str, severity: str,
                        confidence: float, image_path: str, image_hash: str = None,
                        image_source: str = 'upload', raw_output: Dict = None,
-                       processing_time_ms: int = None, image_bytes: bytes = None) -> int:
+                       processing_time_ms: int = None, image_bytes: bytes = None) -> tuple[int, bool]:
         """
         儲存檢測記錄到資料庫
         
@@ -339,7 +355,7 @@ class DetectionService:
             image_bytes: 圖片位元組資料（用於壓縮存儲到資料庫）
         
         Returns:
-            記錄 ID
+            (記錄 ID, 是否成功保存圖片到資料庫)
         """
         try:
             # 獲取圖片大小
@@ -430,7 +446,8 @@ class DetectionService:
             
             record_id = result[0]
             logger.debug(f"✅ 檢測記錄已儲存 (ID: {record_id})")
-            return record_id
+            # 返回記錄 ID 和是否成功保存圖片到資料庫的標記
+            return record_id, image_compressed
             
         except Exception as e:
             error_msg = str(e)
@@ -445,13 +462,15 @@ class DetectionService:
                 # 嘗試查詢現有記錄
                 try:
                     existing = db.execute_query(
-                        "SELECT id FROM detection_records WHERE image_hash = %s AND user_id = %s",
+                        "SELECT id, image_compressed FROM detection_records WHERE image_hash = %s AND user_id = %s",
                         (image_hash, user_id),
                         fetch_one=True
                     )
                     if existing:
-                        logger.info(f"   找到現有記錄 ID: {existing[0]}")
-                        return existing[0]
+                        existing_id = existing[0]
+                        existing_compressed = existing[1] if len(existing) > 1 else False
+                        logger.info(f"   找到現有記錄 ID: {existing_id}")
+                        return existing_id, existing_compressed
                 except:
                     pass
             raise  # 重新拋出異常，讓上層處理

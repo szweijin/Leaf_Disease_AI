@@ -785,7 +785,10 @@ def predict():
             image_source=image_source, image_hash=image_hash,
             web_image_path=web_image_path  # 傳遞 web 路徑用於保存到資料庫
         )
-        result["image_path"] = web_image_path
+        # 如果圖片已存儲到資料庫，detection_service.predict 會返回 /image/{record_id}
+        # 否則使用 web_image_path（但原檔可能已被刪除，所以優先使用資料庫圖片）
+        if not result.get("image_from_db", False):
+            result["image_path"] = web_image_path
         
         # 快取結果 1 小時
         redis_manager.set(cache_key, result, expire=3600)
