@@ -35,7 +35,7 @@ class ImageService:
     @staticmethod
     def resize_image(image_bytes: bytes, target_size: Tuple[int, int] = TARGET_SIZE) -> bytes:
         """
-        將圖片 resize 到指定尺寸（保持比例，填充空白）
+        將圖片 resize 到指定尺寸（直接拉伸，不保持比例）
         
         Args:
             image_bytes: 原始圖片位元組
@@ -52,25 +52,15 @@ class ImageService:
             if img.mode != 'RGB':
                 img = img.convert('RGB')
             
-            # 計算縮放比例（保持比例）
-            img.thumbnail(target_size, Image.Resampling.LANCZOS)
-            
-            # 建立新圖片（白色背景）
-            new_img = Image.new('RGB', target_size, (255, 255, 255))
-            
-            # 計算置中位置
-            paste_x = (target_size[0] - img.size[0]) // 2
-            paste_y = (target_size[1] - img.size[1]) // 2
-            
-            # 貼上縮放後的圖片
-            new_img.paste(img, (paste_x, paste_y))
+            # 直接拉伸/縮放到目標尺寸（不保持比例）
+            resized_img = img.resize(target_size, Image.Resampling.LANCZOS)
             
             # 轉換為位元組
             output = io.BytesIO()
-            new_img.save(output, format='JPEG', quality=85)
+            resized_img.save(output, format='JPEG', quality=85)
             output_bytes = output.getvalue()
             
-            logger.debug(f"✅ 圖片已 resize: {img.size} -> {target_size}")
+            logger.debug(f"✅ 圖片已 resize（拉伸）: {img.size} -> {target_size}")
             return output_bytes
             
         except Exception as e:

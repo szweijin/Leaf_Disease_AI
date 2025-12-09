@@ -127,7 +127,7 @@ sequenceDiagram
 
 ---
 
-## 4. 病害檢測 (Predict)
+## 4. 整合檢測流程 (CNN + YOLO)
 
 ```mermaid
 sequenceDiagram
@@ -136,10 +136,11 @@ sequenceDiagram
     participant Backend
     participant Redis
     participant Database
-    participant AI Model
+    participant CNN Model
+    participant YOLO Model
 
-    User->>Frontend: 上傳圖片（Base64）
-    Frontend->>Backend: POST /predict<br/>{image: base64, source: "upload"}
+    User->>Frontend: 上傳圖片（Base64）或拍攝
+    Frontend->>Backend: POST /api/predict<br/>{image: base64, source: "upload"}
 
     Backend->>Backend: 檢查 session<br/>get_user_id_from_session()
 
@@ -150,44 +151,59 @@ sequenceDiagram
         Backend->>Backend: Base64 解碼圖片<br/>base64.b64decode(encoded)
         Backend->>Backend: 處理圖片（調整大小、計算 hash）<br/>ImageService.process_image()
 
-        Backend->>Redis: 檢查快取<br/>get(detection_result:hash:user_id)
+        Backend->>Redis: 檢查快取<br/>get(integrated_detection:hash:user_id)
 
         alt 快取命中
             Redis-->>Backend: 返回快取結果
             Backend->>Database: 記錄 API 請求日誌
-            Backend-->>Frontend: 200 {disease, severity, confidence, ...}
+            Backend-->>Frontend: 200 {cnn_result, yolo_result, final_status, ...}
             Frontend-->>User: 顯示檢測結果（從快取）
         else 快取未命中
             Redis-->>Backend: 返回 null
             Backend->>Backend: 保存圖片到暫存<br/>ImageService.save_image()<br/>uploads/{uuid}.jpg
 
-            Backend->>Database: 檢查重複上傳<br/>SELECT * FROM detection_records<br/>WHERE image_hash = ? AND user_id = ?
+            Backend->>CNN Model: 執行 CNN 分類<br/>cnn_model(image_path)
+            CNN Model-->>Backend: 返回分類結果<br/>{best_class, best_score, mean_score, all_scores}
 
-            alt 重複圖片
-                Database-->>Backend: 返回現有記錄
-                Backend-->>Frontend: 200 {disease, severity, confidence, is_duplicate: true}
-                Frontend-->>User: 顯示檢測結果（重複）
-            else 新圖片
-                Database-->>Backend: 返回空結果
-                Backend->>AI Model: 執行 YOLO 預測<br/>model(image_path)
-                AI Model-->>Backend: 返回檢測結果<br/>{boxes, classes, confidences}
+            Backend->>Backend: 判斷分流邏輯<br/>根據 best_class 決定流程
 
-                Backend->>Backend: 處理預測結果<br/>解析病害名稱、嚴重程度、置信度
-                Backend->>Database: 查詢病害資訊<br/>SELECT * FROM disease_library<br/>WHERE chinese_name = ?
+            alt best_class in ['pepper_bell', 'potato', 'tomato']
+                Backend->>YOLO Model: 執行 YOLO 檢測<br/>yolo_model(image_path)
+                YOLO Model-->>Backend: 返回檢測結果<br/>{boxes, classes, confidences}
+                
+                Backend->>Backend: 處理 YOLO 結果<br/>收集所有檢測到的病害
+                Backend->>Database: 查詢病害資訊<br/>SELECT * FROM disease_library
                 Database-->>Backend: 返回病害詳細資訊
-
-                Backend->>Backend: 壓縮圖片<br/>ImageService.compress_image()
-                Backend->>Database: 保存檢測記錄<br/>INSERT INTO detection_records<br/>(user_id, disease_name, confidence,<br/>image_data, image_hash, ...)
-                Database-->>Backend: 返回 record_id
-
-                Backend->>Backend: 刪除暫存圖片<br/>os.remove(file_path)
-
+                
+                Backend->>Database: 保存預測記錄<br/>INSERT INTO prediction_log<br/>(cnn_result, yolo_result, final_status)
+                Backend->>Database: 保存檢測記錄<br/>INSERT INTO detection_records<br/>(prediction_log_id, ...)
+                Database-->>Backend: 返回 prediction_id, record_id
+                
+                Backend->>Redis: 快取檢測結果（1小時）<br/>set(integrated_detection:hash:user_id, result, expire=3600)
                 Backend->>Database: 記錄活動日誌<br/>INSERT INTO activity_logs
-                Backend->>Redis: 快取檢測結果（1小時）<br/>set(detection_result:hash:user_id, result, expire=3600)
                 Backend->>Database: 記錄 API 請求日誌<br/>INSERT INTO api_logs
-
-                Backend-->>Frontend: 200 {disease, severity, confidence,<br/>image_path: "/image/{record_id}",<br/>disease_info, record_id, ...}
-                Frontend-->>User: 顯示檢測結果
+                
+                Backend-->>Frontend: 200 {cnn_result, yolo_result,<br/>final_status: "yolo_detected", ...}
+                Frontend-->>User: 顯示檢測結果（CNN + YOLO）
+                
+            else best_class == 'whole_plant'
+                Backend->>Database: 保存預測記錄<br/>INSERT INTO prediction_log<br/>(cnn_result, final_status: "need_crop")
+                Database-->>Backend: 返回 prediction_id
+                
+                Backend-->>Frontend: 200 {cnn_result,<br/>final_status: "need_crop",<br/>message: "請裁切..."}
+                Frontend-->>User: 顯示裁切介面
+                
+                User->>Frontend: 裁切圖片
+                Frontend->>Backend: POST /api/predict-crop<br/>{prediction_id, crop_coordinates, cropped_image}
+                Backend->>Backend: 使用裁切圖片重新執行流程
+                Note over Backend: 重新執行 CNN + YOLO 流程
+                
+            else best_class == 'others'
+                Backend->>Database: 保存預測記錄<br/>INSERT INTO prediction_log<br/>(cnn_result, final_status: "not_plant")
+                Database-->>Backend: 返回 prediction_id
+                
+                Backend-->>Frontend: 200 {cnn_result,<br/>final_status: "not_plant",<br/>error: "非植物影像..."}
+                Frontend-->>User: 顯示錯誤訊息
             end
         end
     end

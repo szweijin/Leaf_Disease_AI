@@ -68,7 +68,7 @@ class DatabaseManager:
                 logger.error(f"❌ 資料庫 '{db_name}' 不存在")
                 logger.error(f"   請先創建資料庫，執行以下命令：")
                 logger.error(f"   createdb -U {db_user} -p {db_port} {db_name}")
-                logger.error(f"   或使用初始化腳本：python scripts/init_database.py")
+                logger.error(f"   或使用初始化腳本：python database/database_manager.py init")
             else:
                 logger.error(f"❌ 資料庫連接失敗: {error_msg}")
             raise
@@ -112,7 +112,7 @@ class DatabaseManager:
             error_msg = str(e)
             logger.error(f"❌ 資料庫操作錯誤: {error_msg}")
             if "does not exist" in error_msg.lower():
-                logger.error("   提示: 資料庫表可能不存在，請執行: python scripts/init_database.py")
+                logger.error("   提示: 資料庫表可能不存在，請執行: python database/database_manager.py init")
             elif "connection" in error_msg.lower() or "timeout" in error_msg.lower():
                 logger.error("   提示: 資料庫連接失敗，請檢查資料庫服務是否運行")
             raise
@@ -196,11 +196,15 @@ class DatabaseManager:
                 
                 if fetch_one:
                     result = cursor.fetchone()
-                    logger.debug(f"✅ 查詢完成 (1 條記錄)")
+                    logger.debug(f"✅ 查詢完成 (1 條記錄, dict_cursor={dict_cursor})")
+                    if result and dict_cursor:
+                        logger.debug(f"   結果類型: {type(result)}, 字段: {list(result.keys()) if isinstance(result, dict) else 'N/A'}")
                     return result
                 else:
                     result = cursor.fetchall()
-                    logger.debug(f"✅ 查詢完成 ({len(result) if result else 0} 條記錄)")
+                    logger.debug(f"✅ 查詢完成 ({len(result) if result else 0} 條記錄, dict_cursor={dict_cursor})")
+                    if result and len(result) > 0 and dict_cursor:
+                        logger.debug(f"   第一筆結果類型: {type(result[0])}, 字段: {list(result[0].keys()) if isinstance(result[0], dict) else 'N/A'}")
                     return result
         except psycopg2.ProgrammingError as e:
             error_msg = str(e)
@@ -209,7 +213,7 @@ class DatabaseManager:
             if params:
                 logger.error(f"   參數: {params}")
             if "relation" in error_msg.lower() and "does not exist" in error_msg.lower():
-                logger.error("   提示: 資料庫表不存在，請執行: python scripts/init_database.py")
+                logger.error("   提示: 資料庫表不存在，請執行: python database/database_manager.py init")
             raise
         except psycopg2.OperationalError as e:
             error_msg = str(e)
@@ -270,7 +274,7 @@ class DatabaseManager:
             if params:
                 logger.error(f"   參數: {params}")
             if "relation" in error_msg.lower() and "does not exist" in error_msg.lower():
-                logger.error("   提示: 資料庫表不存在，請執行: python scripts/init_database.py")
+                logger.error("   提示: 資料庫表不存在，請執行: python database/database_manager.py init")
             raise
         except psycopg2.OperationalError as e:
             error_msg = str(e)
@@ -341,7 +345,7 @@ class DatabaseManager:
             if params:
                 logger.error(f"   參數: {params}")
             if "relation" in error_msg.lower() and "does not exist" in error_msg.lower():
-                logger.error("   提示: 資料庫表不存在，請執行: python scripts/init_database.py")
+                logger.error("   提示: 資料庫表不存在，請執行: python database/database_manager.py init")
             raise
         except psycopg2.OperationalError as e:
             error_msg = str(e)
@@ -400,7 +404,7 @@ class DatabaseManager:
             logger.error(f"❌ SQL 語法錯誤: {error_msg}")
             logger.error(f"   SQL: {sql[:200]}")
             if "relation" in error_msg.lower() and "does not exist" in error_msg.lower():
-                logger.error("   提示: 資料庫表不存在，請執行: python scripts/init_database.py")
+                logger.error("   提示: 資料庫表不存在，請執行: python database/database_manager.py init")
             raise
         except psycopg2.Error as e:
             logger.error(f"❌ 批量插入失敗: {str(e)}")

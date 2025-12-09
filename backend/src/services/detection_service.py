@@ -40,7 +40,7 @@ class DetectionService:
             raise
     
     def predict(self, image_path: str, user_id: int, image_source: str = 'upload',
-                image_hash: str = None, web_image_path: str = None) -> Dict[str, Any]:
+                image_hash: str = None, web_image_path: str = None, image_bytes: bytes = None) -> Dict[str, Any]:
         """
         執行病害檢測
         
@@ -121,14 +121,16 @@ class DetectionService:
             # 4. 獲取病害資訊
             disease_info = self._get_disease_info(disease_name)
             
-            # 5. 讀取圖片位元組（用於壓縮存儲到資料庫）
-            image_bytes_for_db = None
-            try:
-                if os.path.exists(image_path):
-                    with open(image_path, 'rb') as f:
-                        image_bytes_for_db = f.read()
-            except Exception as read_error:
-                logger.warning(f"⚠️ 讀取圖片位元組失敗，將不存儲到資料庫: {str(read_error)}")
+            # 5. 獲取圖片位元組（用於壓縮存儲到資料庫）
+            # 優先使用傳入的 image_bytes，否則從文件讀取
+            image_bytes_for_db = image_bytes
+            if not image_bytes_for_db:
+                try:
+                    if os.path.exists(image_path):
+                        with open(image_path, 'rb') as f:
+                            image_bytes_for_db = f.read()
+                except Exception as read_error:
+                    logger.warning(f"⚠️ 讀取圖片位元組失敗，將不存儲到資料庫: {str(read_error)}")
             
             # 6. 儲存到資料庫
             record_id = None
@@ -162,13 +164,14 @@ class DetectionService:
                 )
                 logger.info(f"✅ 檢測記錄已保存: record_id={record_id}, 圖片已存儲到資料庫: {image_saved_to_db}")
                 
-                # 如果成功保存到資料庫，刪除檔案系統中的原檔（節省磁碟空間）
+                # 如果成功保存到資料庫，刪除檔案系統中的臨時文件（節省磁碟空間）
+                # 注意：如果 image_bytes 是從外部傳入的，文件可能是臨時文件，應該刪除
                 if image_saved_to_db and os.path.exists(image_path):
                     try:
                         os.remove(image_path)
-                        logger.info(f"🗑️ 已刪除檔案系統原檔: {image_path}（圖片已存儲在資料庫中）")
+                        logger.info(f"🗑️  已刪除臨時文件: {image_path}（圖片已存儲在資料庫中）")
                     except Exception as delete_error:
-                        logger.warning(f"⚠️ 刪除原檔失敗（不影響功能）: {str(delete_error)}")
+                        logger.warning(f"⚠️  刪除臨時文件失敗（不影響功能）: {str(delete_error)}")
             except Exception as save_error:
                 error_msg = str(save_error)
                 logger.error(f"❌ 儲存檢測記錄失敗: {error_msg}", exc_info=True)
@@ -340,100 +343,56 @@ class DetectionService:
                        image_source: str = 'upload', raw_output: Dict = None,
                        processing_time_ms: int = None, image_bytes: bytes = None) -> tuple[int, bool]:
         """
-        儲存檢測記錄到資料庫
+        儲存檢測記錄到資料庫（圖片儲存在 Cloudinary，不儲存在資料庫）
         
         Args:
             user_id: 使用者 ID
             disease_name: 病害名稱
             severity: 嚴重程度
             confidence: 置信度
-            image_path: 圖片路徑
+            image_path: 圖片路徑（應為 Cloudinary URL）
             image_hash: 圖片 hash
             image_source: 圖片來源
             raw_output: 原始模型輸出
             processing_time_ms: 處理時間（毫秒）
-            image_bytes: 圖片位元組資料（用於壓縮存儲到資料庫）
+            image_bytes: 圖片位元組資料（已不使用，保留用於向後兼容）
         
         Returns:
-            (記錄 ID, 是否成功保存圖片到資料庫)
+            (記錄 ID, True - 圖片已儲存在 Cloudinary)
         """
         try:
-            # 獲取圖片大小
-            image_size = os.path.getsize(image_path) if os.path.exists(image_path) else None
+            # 獲取圖片大小（如果 image_bytes 存在）
+            image_size = len(image_bytes) if image_bytes else None
+            if not image_size and os.path.exists(image_path):
+                image_size = os.path.getsize(image_path)
             
-            # 準備壓縮圖片資料（如果提供）
-            image_data = None
-            image_data_size = None
-            image_compressed = False
-            
-            if image_bytes:
-                try:
-                    from src.services.image_service import ImageService
-                    # 壓縮圖片（品質 75，最大尺寸 640x640）
-                    compressed_bytes = ImageService.compress_image(image_bytes, quality=75, max_size=(640, 640))
-                    image_data = psycopg2.Binary(compressed_bytes)  # 轉換為 PostgreSQL BYTEA
-                    image_data_size = len(compressed_bytes)
-                    image_compressed = True
-                    logger.debug(f"✅ 圖片已壓縮準備存儲: {len(image_bytes)} -> {image_data_size} bytes")
-                except Exception as compress_error:
-                    logger.warning(f"⚠️ 圖片壓縮失敗，將不存儲到資料庫: {str(compress_error)}")
-                    # 繼續執行，不影響主要流程
-            
-            # 構建 SQL 和參數
-            if image_compressed and image_data is not None:
-                # 有壓縮圖片，使用完整 SQL
-                sql = """
-                    INSERT INTO detection_records
-                    (user_id, disease_name, severity, confidence, image_path, image_hash,
-                     image_size, image_source, image_resized, raw_model_output, status,
-                     processing_time_ms, image_data, image_data_size, image_compressed, created_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
-                    RETURNING id
-                """
-                params = (
-                    user_id,
-                    disease_name,
-                    severity,
-                    confidence,
-                    image_path,
-                    image_hash,
-                    image_size,
-                    image_source,
-                    True,  # 假設已經 resize（由 ImageService 處理）
-                    json.dumps(raw_output) if raw_output else None,
-                    'completed',
-                    processing_time_ms,
-                    image_data,  # 壓縮後的圖片資料
-                    image_data_size,  # 壓縮後的大小
-                    image_compressed,  # 是否已壓縮
-                )
-            else:
-                # 沒有壓縮圖片，使用基本 SQL（但欄位仍然存在，只是設為 NULL）
-                sql = """
-                    INSERT INTO detection_records
-                    (user_id, disease_name, severity, confidence, image_path, image_hash,
-                     image_size, image_source, image_resized, raw_model_output, status,
-                     processing_time_ms, image_data, image_data_size, image_compressed, created_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
-                    RETURNING id
-                """
-                params = (
-                    user_id,
-                    disease_name,
-                    severity,
-                    confidence,
-                    image_path,
-                    image_hash,
-                    image_size,
-                    image_source,
-                    True,  # 假設已經 resize（由 ImageService 處理）
-                    json.dumps(raw_output) if raw_output else None,
-                    'completed',
-                    processing_time_ms,
-                    None,  # image_data
-                    None,  # image_data_size
-                    False,  # image_compressed
-                )
+            # 圖片不再儲存在資料庫，只儲存 Cloudinary URL 在 image_path
+            # image_data 相關欄位設為 NULL（保留欄位以維持向後兼容）
+            sql = """
+                INSERT INTO detection_records
+                (user_id, disease_name, severity, confidence, image_path, image_hash,
+                 image_size, image_source, image_resized, raw_model_output, status,
+                 processing_time_ms, image_data, image_data_size, image_compressed, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                RETURNING id
+            """
+            params = (
+                user_id,
+                disease_name,
+                severity,
+                confidence,
+                image_path,  # Cloudinary URL 或本地路徑
+                image_hash,
+                image_size,
+                image_source,
+                True,  # 假設已經 resize（由 ImageService 處理）
+                json.dumps(raw_output) if raw_output else None,
+                'completed',
+                processing_time_ms,
+                None,  # image_data - 不再使用，圖片儲存在 Cloudinary
+                None,  # image_data_size - 不再使用
+                False,  # image_compressed - 不再使用
+            )
             
             logger.debug(f"執行 SQL: {sql[:100]}...")
             logger.debug(f"參數: user_id={user_id}, disease={disease_name}, path={image_path}")
@@ -454,7 +413,7 @@ class DetectionService:
             logger.error(f"❌ 儲存檢測記錄失敗: {error_msg}", exc_info=True)
             # 提供更具體的錯誤訊息
             if "relation" in error_msg.lower() and "does not exist" in error_msg.lower():
-                logger.error("   提示: detection_records 表不存在，請執行: python scripts/init_database.py")
+                logger.error("   提示: detection_records 表不存在，請執行: python database/database_manager.py init")
             elif "foreign key" in error_msg.lower():
                 logger.error(f"   提示: 外鍵約束失敗，可能是 user_id={user_id} 不存在於 users 表中")
             elif "duplicate key" in error_msg.lower() or "unique constraint" in error_msg.lower():

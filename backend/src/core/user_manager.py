@@ -438,7 +438,7 @@ class UserManager:
             error_msg = str(e)
             logger.error(f"❌ 獲取使用者資訊失敗: {error_msg}", exc_info=True)
             if "relation" in error_msg.lower() and "does not exist" in error_msg.lower():
-                logger.error("   提示: users 或 roles 表不存在，請執行: python scripts/init_database.py")
+                logger.error("   提示: users 或 roles 表不存在，請執行: python database/database_manager.py init")
             return None
     
     @staticmethod
@@ -602,31 +602,107 @@ class DetectionQueries:
     """檢測相關查詢"""
     
     @staticmethod
-    def get_user_detections(user_id: int, limit: int = 50) -> List[Dict[str, Any]]:
-        """獲取使用者檢測歷史"""
-        sql = """
-            SELECT id, disease_name, severity, confidence, image_path,
-                   created_at, status, processing_time_ms, image_compressed
-            FROM detection_records
-            WHERE user_id = %s
-            ORDER BY created_at DESC
-            LIMIT %s
+    def get_user_detections(
+        user_id: int, 
+        limit: int = 50, 
+        offset: int = 0,
+        order_by: str = 'created_at',
+        order_dir: str = 'DESC',
+        disease_filter: Optional[str] = None,
+        min_confidence: Optional[float] = None
+    ) -> Tuple[List[Dict[str, Any]], int]:
         """
+        獲取使用者檢測歷史（支持分頁、排序、過濾）
+        
+        Args:
+            user_id: 使用者 ID
+            limit: 每頁記錄數
+            offset: 偏移量（用於分頁）
+            order_by: 排序欄位（created_at, confidence, disease_name）
+            order_dir: 排序方向（ASC, DESC）
+            disease_filter: 病害名稱過濾
+            min_confidence: 最小置信度過濾
+        
+        Returns:
+            (records, total_count) 元組
+        """
+        # 驗證排序欄位和方向
+        valid_order_fields = ['created_at', 'confidence', 'disease_name', 'severity']
+        if order_by not in valid_order_fields:
+            order_by = 'created_at'
+        if order_dir.upper() not in ['ASC', 'DESC']:
+            order_dir = 'DESC'
+        
+        # 構建 WHERE 條件
+        where_conditions = ["user_id = %s"]
+        params = [user_id]
+        
+        if disease_filter:
+            where_conditions.append("disease_name ILIKE %s")
+            params.append(f"%{disease_filter}%")
+        
+        if min_confidence is not None:
+            where_conditions.append("confidence >= %s")
+            params.append(min_confidence)
+        
+        where_clause = " AND ".join(where_conditions)
+        
+        # 查詢總數
+        count_sql = f"""
+            SELECT COUNT(*) as total
+            FROM detection_records
+            WHERE {where_clause}
+        """
+        
+        # 查詢記錄
+        sql = f"""
+            SELECT id, disease_name, severity, confidence, image_path,
+                   created_at, status, processing_time_ms, image_compressed,
+                   image_source, prediction_log_id
+            FROM detection_records
+            WHERE {where_clause}
+            ORDER BY {order_by} {order_dir}
+            LIMIT %s OFFSET %s
+        """
+        
         try:
-            result = db.execute_query(sql, (user_id, limit), dict_cursor=True)
-            logger.info(f"📊 查詢檢測歷史: user_id={user_id}, 返回 {len(result) if result else 0} 筆記錄")
+            # 獲取總數
+            logger.debug(f"🔍 執行 COUNT 查詢: {count_sql}")
+            logger.debug(f"   參數: {tuple(params)}")
+            count_result = db.execute_query(count_sql, tuple(params), fetch_one=True)
+            total_count = count_result[0] if count_result else 0
+            logger.debug(f"✅ COUNT 結果: {total_count}")
+            
+            # 獲取記錄
+            query_params = params + [limit, offset]
+            logger.debug(f"🔍 執行 SELECT 查詢: {sql}")
+            logger.debug(f"   參數: {tuple(query_params)}")
+            logger.debug(f"   limit={limit}, offset={offset}")
+            result = db.execute_query(sql, tuple(query_params), dict_cursor=True)
+            
+            # 驗證返回結果格式
             if result:
-                logger.debug(f"   第一筆記錄範例: {list(result[0].keys()) if result else '無'}")
-                logger.debug(f"   第一筆記錄內容: {result[0] if result else '無'}")
+                logger.debug(f"✅ 查詢返回 {len(result)} 筆記錄")
+                if len(result) > 0:
+                    first_record = result[0]
+                    logger.debug(f"📋 第一筆記錄類型: {type(first_record)}")
+                    logger.debug(f"📋 第一筆記錄內容: {first_record}")
+                    if isinstance(first_record, dict):
+                        logger.debug(f"📋 記錄字段: {list(first_record.keys())}")
+                    else:
+                        logger.warning(f"⚠️ 記錄不是字典格式，而是: {type(first_record)}")
             else:
-                logger.info(f"   ℹ️ 使用者 {user_id} 尚無檢測記錄")
-            return result if result else []
+                logger.debug(f"⚠️ 查詢返回空結果")
+            
+            logger.info(f"📊 查詢檢測歷史: user_id={user_id}, 返回 {len(result) if result else 0}/{total_count} 筆記錄")
+            return (result if result else [], total_count)
+            
         except Exception as e:
             error_msg = str(e)
             logger.error(f"❌ 查詢檢測歷史失敗: {error_msg}", exc_info=True)
             if "relation" in error_msg.lower() and "does not exist" in error_msg.lower():
-                logger.error("   提示: detection_records 表不存在，請執行: python scripts/init_database.py")
-            return []
+                logger.error("   提示: detection_records 表不存在，請執行: python database/database_manager.py init")
+            return ([], 0)
     
     @staticmethod
     def get_disease_statistics(user_id: int) -> List[Dict[str, Any]]:
@@ -649,7 +725,7 @@ class DetectionQueries:
             error_msg = str(e)
             logger.error(f"❌ 查詢病害統計失敗: {error_msg}", exc_info=True)
             if "relation" in error_msg.lower() and "does not exist" in error_msg.lower():
-                logger.error("   提示: detection_records 表不存在，請執行: python scripts/init_database.py")
+                logger.error("   提示: detection_records 表不存在，請執行: python database/database_manager.py init")
             return []
     
     @staticmethod
@@ -668,7 +744,7 @@ class DetectionQueries:
             error_msg = str(e)
             logger.error(f"❌ 查詢嚴重程度分佈失敗: {error_msg}", exc_info=True)
             if "relation" in error_msg.lower() and "does not exist" in error_msg.lower():
-                logger.error("   提示: detection_records 表不存在，請執行: python scripts/init_database.py")
+                logger.error("   提示: detection_records 表不存在，請執行: python database/database_manager.py init")
             return []
 
 
@@ -699,7 +775,7 @@ class LogQueries:
             error_msg = str(e)
             logger.error(f"❌ 查詢活動日誌失敗: {error_msg}", exc_info=True)
             if "relation" in error_msg.lower() and "does not exist" in error_msg.lower():
-                logger.error("   提示: activity_logs 表不存在，請執行: python scripts/init_database.py")
+                logger.error("   提示: activity_logs 表不存在，請執行: python database/database_manager.py init")
             return []
     
     @staticmethod
@@ -720,7 +796,7 @@ class LogQueries:
             error_msg = str(e)
             logger.error(f"❌ 查詢未解決的錯誤失敗: {error_msg}", exc_info=True)
             if "relation" in error_msg.lower() and "does not exist" in error_msg.lower():
-                logger.error("   提示: error_logs 表不存在，請執行: python scripts/init_database.py")
+                logger.error("   提示: error_logs 表不存在，請執行: python database/database_manager.py init")
             return []
     
     @staticmethod
@@ -751,5 +827,5 @@ class LogQueries:
             error_msg = str(e)
             logger.error(f"❌ 查詢 API 性能失敗: {error_msg}", exc_info=True)
             if "relation" in error_msg.lower() and "does not exist" in error_msg.lower():
-                logger.error("   提示: api_logs 表不存在，請執行: python scripts/init_database.py")
+                logger.error("   提示: api_logs 表不存在，請執行: python database/database_manager.py init")
             return []

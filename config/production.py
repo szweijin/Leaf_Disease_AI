@@ -8,3 +8,7 @@ class ProductionConfig(Config):
     DEBUG = False
     TESTING = False
     SESSION_COOKIE_SECURE = True
+    
+    # Swagger 配置（生產環境）
+    SWAGGER_HOST = None  # 自動偵測
+    SWAGGER_SCHEMES = ['https']  # 生產環境使用 HTTPS

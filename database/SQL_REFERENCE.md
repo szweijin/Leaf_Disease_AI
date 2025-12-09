@@ -249,7 +249,7 @@ WHERE id = %s;
 
 執行以下命令初始化資料庫：
 ```bash
-python scripts/init_database.py
+python database/database_manager.py init
 ```
 
 或手動執行 SQL：

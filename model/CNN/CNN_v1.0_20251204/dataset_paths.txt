@@ -1,0 +1,3 @@
+train_dir: /content/dataset_zip/unzipped/2025_project_data_CNN_1204/train
+val_dir  : /content/dataset_zip/unzipped/2025_project_data_CNN_1204/val
+classes  : ['others', 'pepper_bell', 'potato', 'tomato', 'whole_plant']

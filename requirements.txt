@@ -7,6 +7,8 @@ Pillow
 ultralytics
 numpy
 opencv-python
+cloudinary
+requests
 
 # Redis 和快取
 redis

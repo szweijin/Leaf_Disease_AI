@@ -33,7 +33,8 @@ if [ $? -ne 0 ]; then
     echo "⚠️  無法連接到資料庫 '$DB_NAME'"
     echo ""
     echo "   可能的原因："
-    echo "   1. 資料庫不存在 - 請執行: python scripts/init_database.py"
+    echo "   1. 資料庫不存在 - 請執行: python database/database_manager.py init"
+    echo "      （會自動創建資料庫並執行完整初始化，包含所有表、視圖、函數、prediction_log 表、病害資訊資料）"
     echo "   2. PostgreSQL 服務未啟動"
     echo "   3. 連線資訊錯誤（檢查 .env 檔案）"
     echo ""
@@ -43,9 +44,10 @@ if [ $? -ne 0 ]; then
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         echo "🔄 執行資料庫初始化..."
-        python scripts/init_database.py
+        echo "   （將創建資料庫並執行完整初始化腳本，包含所有內容）"
+        python database/database_manager.py init
         if [ $? -eq 0 ]; then
-            echo "✅ 資料庫初始化完成"
+            echo "✅ 資料庫初始化完成（包含所有表、視圖、函數、prediction_log 表、病害資訊資料）"
         else
             echo "❌ 資料庫初始化失敗"
         fi

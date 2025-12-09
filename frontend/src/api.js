@@ -5,6 +5,11 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
 
 export function apiUrl(path) {
+    // 如果是完整的 URL（http:// 或 https://），直接返回（例如 Cloudinary URL）
+    if (path && (path.startsWith("http://") || path.startsWith("https://"))) {
+        return path;
+    }
+    // 處理相對路徑
     if (!path.startsWith("/")) {
         path = `/${path}`;
     }

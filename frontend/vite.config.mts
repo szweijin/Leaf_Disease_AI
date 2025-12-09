@@ -15,6 +15,7 @@ export default defineConfig({
       "/register": "http://localhost:5000",
       "/check-auth": "http://localhost:5000",
       "/predict": "http://localhost:5000",
+      "/api": "http://localhost:5000",
       "/history": "http://localhost:5000",
       "/user": "http://localhost:5000",
       "/uploads": "http://localhost:5000",  // 代理圖片文件請求

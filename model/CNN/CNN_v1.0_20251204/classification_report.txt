@@ -1,0 +1,11 @@
+              precision    recall  f1-score   support
+
+      others     1.0000    0.8940    0.9440       500
+ pepper_bell     0.9357    1.0000    0.9668       495
+      potato     0.9795    0.9977    0.9885       431
+      tomato     0.9842    0.9960    0.9901       500
+ whole_plant     0.9906    1.0000    0.9953       527
+
+    accuracy                         0.9772      2453
+   macro avg     0.9780    0.9775    0.9769      2453
+weighted avg     0.9782    0.9772    0.9768      2453
