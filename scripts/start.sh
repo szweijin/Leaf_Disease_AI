@@ -52,6 +52,19 @@ if [ -z "$DB_HOST" ] || [ -z "$DB_PORT" ] || [ -z "$DB_NAME" ] || [ -z "$DB_USER
     exit 1
 fi
 
+# 檢查 SECRET_KEY
+if [ -z "$SECRET_KEY" ] || [ "$SECRET_KEY" = "your-secret-key-here" ] || [ "$SECRET_KEY" = "dev-secret-key" ]; then
+    echo "⚠️  警告：SECRET_KEY 未設定或使用預設值"
+    echo "   正在生成一個隨機 SECRET_KEY..."
+    # 生成一個隨機的 SECRET_KEY（32 字元）
+    GENERATED_SECRET=$(openssl rand -hex 32)
+    export SECRET_KEY="$GENERATED_SECRET"
+    echo "   ✅ 已生成 SECRET_KEY（僅本次啟動有效）"
+    echo "   💡 建議：將以下內容添加到 .env 檔案中："
+    echo "   SECRET_KEY=$GENERATED_SECRET"
+    echo ""
+fi
+
 # Redis 設定（可選，有預設值）
 export REDIS_HOST=${REDIS_HOST:-localhost}
 export REDIS_PORT=${REDIS_PORT:-6379}
@@ -61,6 +74,8 @@ export PYTHONPATH="$PROJECT_ROOT"
 
 # 檢查資料庫連線
 echo "📊 檢查 PostgreSQL 連線..."
+# 使用 PGPASSWORD 環境變數避免手動輸入密碼
+export PGPASSWORD="$DB_PASSWORD"
 psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "SELECT 1;" > /dev/null 2>&1
 if [ $? -ne 0 ]; then
     echo "⚠️  無法連接到資料庫 '$DB_NAME'"
@@ -122,21 +137,114 @@ fi
 
 # 啟動前端（如果存在）
 if [ -d "$PROJECT_ROOT/frontend" ]; then
-    echo "🎨 啟動 React 前端..."
+    echo "🎨 啟動 React 前端（Tailwind CSS 3.x + PostCSS）..."
     cd "$PROJECT_ROOT/frontend" || exit 1
-    if [ ! -d "node_modules" ]; then
-        echo "📦 安裝前端依賴..."
-        npm install > /dev/null 2>&1
+    
+    # 首先清除可能存在的舊進程和端口佔用
+    echo "🧹 清理舊的前端進程..."
+    PORT_5173_PID=$(lsof -ti:5173 2>/dev/null)
+    if [ -n "$PORT_5173_PID" ]; then
+        echo "   ⚠️  檢測到端口 5173 已被佔用 (PID: $PORT_5173_PID)"
+        echo "   🔄 正在清除佔用端口的進程..."
+        kill $PORT_5173_PID 2>/dev/null
+        sleep 1
+        if kill -0 $PORT_5173_PID 2>/dev/null; then
+            echo "   ⚠️  進程未響應，強制終止..."
+            kill -9 $PORT_5173_PID 2>/dev/null
+            sleep 1
+        fi
     fi
-    npm run dev &
+    
+    # 清除所有 vite 和 npm 相關進程
+    pkill -f "vite" 2>/dev/null
+    pkill -f "npm run dev" 2>/dev/null
+    sleep 1
+    
+    # 確認端口已釋放
+    if lsof -ti:5173 > /dev/null 2>&1; then
+        echo "   ⚠️  警告：端口 5173 仍被佔用，可能需要手動清除"
+    else
+        echo "   ✅ 端口 5173 已準備就緒"
+    fi
+    
+    # 檢查 node_modules 是否存在
+    if [ ! -d "node_modules" ]; then
+        echo "📦 安裝前端依賴（包含 Tailwind CSS、PostCSS、Autoprefixer）..."
+        npm install
+    fi
+    
+    # 檢查 Tailwind CSS 是否已安裝
+    if [ ! -d "node_modules/tailwindcss" ]; then
+        echo "⚠️  Tailwind CSS 未安裝，正在安裝..."
+        npm install -D tailwindcss@^3.4.1 postcss@^8.4.35 autoprefixer@^10.4.17
+    fi
+    
+    # 檢查配置檔案
+    if [ ! -f "tailwind.config.js" ]; then
+        echo "⚠️  警告：tailwind.config.js 不存在"
+    fi
+    if [ ! -f "postcss.config.js" ]; then
+        echo "⚠️  警告：postcss.config.js 不存在"
+    fi
+    
+    echo "🚀 啟動 Vite 開發伺服器..."
+    # 啟動 Vite 並捕獲輸出
+    npm run dev > /tmp/vite-startup.log 2>&1 &
     FRONTEND_PID=$!
     cd "$PROJECT_ROOT" || exit 1
+    
+    # 等待 Vite 啟動（最多等待 20 秒）
+    echo "⏳ 等待前端啟動..."
+    FRONTEND_READY=0
+    for i in {1..20}; do
+        sleep 1
+        # 檢查端口是否被佔用
+        if lsof -ti:5173 > /dev/null 2>&1; then
+            # 額外檢查：確認是 Vite 進程（通過檢查日誌中的 ready 訊息）
+            if grep -q "ready in" /tmp/vite-startup.log 2>/dev/null; then
+                FRONTEND_READY=1
+                echo "   ✅ 前端已成功啟動（等待了 ${i} 秒）"
+                break
+            fi
+        fi
+        # 每 5 秒顯示一次進度
+        if [ $((i % 5)) -eq 0 ]; then
+            echo "   ⏳ 仍在等待... (${i}/20 秒)"
+        fi
+    done
+    
+    if [ $FRONTEND_READY -eq 1 ]; then
+        echo "✅ 前端已成功啟動在 http://localhost:5173"
+        # 顯示 Vite 啟動日誌的前幾行
+        if [ -f /tmp/vite-startup.log ]; then
+            echo "📋 Vite 啟動訊息："
+            grep -E "(Local:|Network:|ready in)" /tmp/vite-startup.log | head -3 | sed 's/^/   /' || head -3 /tmp/vite-startup.log | sed 's/^/   /'
+        fi
+    else
+        echo "⚠️  前端可能未正確啟動"
+        echo "   檢查項目："
+        echo "   1. 查看完整日誌: cat /tmp/vite-startup.log"
+        echo "   2. 檢查端口是否被佔用: lsof -ti:5173"
+        echo "   3. 手動啟動測試: cd frontend && npm run dev"
+        if [ -f /tmp/vite-startup.log ]; then
+            echo ""
+            echo "   📋 最近的日誌輸出："
+            tail -10 /tmp/vite-startup.log | sed 's/^/   /'
+        fi
+        echo ""
+        echo "   💡 提示：前端進程可能仍在後台運行，請檢查 http://localhost:5173"
+    fi
     
     echo ""
     echo "✅ 本地開發環境已啟動"
     echo "   - 後端 API: http://localhost:5000"
     echo "   - Swagger 文檔: http://localhost:5000/api-docs"
-    echo "   - 前端: http://localhost:5173"
+    echo "   - 前端 (Vite + Tailwind CSS 3.x): http://localhost:5173"
+    echo ""
+    echo "💡 提示：如果前端樣式無法顯示，請："
+    echo "   1. 檢查瀏覽器控制台（F12）是否有錯誤"
+    echo "   2. 清除瀏覽器快取並重新載入（Ctrl+Shift+R 或 Cmd+Shift+R）"
+    echo "   3. 查看前端日誌: tail -f /tmp/vite-startup.log"
 else
     echo ""
     echo "✅ 後端服務已啟動"
