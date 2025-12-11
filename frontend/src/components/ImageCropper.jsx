@@ -122,65 +122,18 @@ function ImageCropper({ imageUrl, onCrop, onCancel }) {
 
     if (!imageUrl) {
         return (
-            <div
-                style={{
-                    position: "fixed",
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    backgroundColor: "rgba(0,0,0,0.8)",
-                    zIndex: 1000,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                }}
-            >
-                <div style={{ color: "white" }}>載入圖片中...</div>
+            <div className='fixed inset-0 bg-black/80 z-[1000] flex items-center justify-center'>
+                <div className='text-white'>載入圖片中...</div>
             </div>
         );
     }
 
     return (
-        <div
-            style={{
-                position: "fixed",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: "rgba(0,0,0,0.8)",
-                zIndex: 1000,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "20px",
-            }}
-        >
-            <div
-                style={{
-                    backgroundColor: "white",
-                    padding: "20px",
-                    borderRadius: "8px",
-                    maxWidth: "90%",
-                    maxHeight: "90%",
-                    overflow: "auto",
-                }}
-            >
-                <h3 style={{ marginTop: 0, marginBottom: "15px" }}>✂️ 請裁切圖片中的葉片區域</h3>
+        <div className='fixed inset-0 bg-black/80 z-[1000] flex flex-col items-center justify-center p-5'>
+            <div className='bg-white p-5 rounded-lg max-w-[90%] max-h-[90%] overflow-auto'>
+                <h3 className='mt-0 mb-4 text-lg font-bold'>✂️ 請裁切圖片中的葉片區域</h3>
 
-                <div
-                    style={{
-                        position: "relative",
-                        border: "2px solid #4CAF50",
-                        borderRadius: "4px",
-                        overflow: "hidden",
-                        marginBottom: "15px",
-                        display: "inline-block",
-                        maxWidth: "100%",
-                    }}
-                >
+                <div className='relative border-2 border-primary-500 rounded overflow-hidden mb-4 inline-block max-w-full'>
                     <ReactCrop
                         crop={crop}
                         onChange={(_, percentCrop) => setCrop(percentCrop)}
@@ -193,61 +146,37 @@ function ImageCropper({ imageUrl, onCrop, onCancel }) {
                             src={imageUrl}
                             onLoad={onImageLoad}
                             alt='待裁切圖片'
-                            style={{
-                                maxWidth: "100%",
-                                maxHeight: "70vh",
-                                height: "auto",
-                                display: "block",
-                            }}
+                            className='max-w-full max-h-[70vh] h-auto block'
                         />
                     </ReactCrop>
                 </div>
 
-                <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+                <div className='flex gap-2.5 justify-center'>
                     <button
                         onClick={handleCropImage}
                         disabled={!completedCrop || isProcessing}
-                        style={{
-                            padding: "10px 20px",
-                            backgroundColor: completedCrop && !isProcessing ? "#4CAF50" : "#cccccc",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "4px",
-                            cursor: completedCrop && !isProcessing ? "pointer" : "not-allowed",
-                            fontSize: "16px",
-                            minWidth: "120px",
-                        }}
+                        className={`px-5 py-2.5 text-white border-none rounded text-base min-w-[120px] transition-colors ${
+                            completedCrop && !isProcessing
+                                ? "bg-primary-500 hover:bg-primary-600 cursor-pointer"
+                                : "bg-neutral-400 cursor-not-allowed"
+                        }`}
                     >
                         {isProcessing ? "處理中..." : "✅ 確認裁切"}
                     </button>
                     <button
                         onClick={onCancel}
                         disabled={isProcessing}
-                        style={{
-                            padding: "10px 20px",
-                            backgroundColor: isProcessing ? "#cccccc" : "#f44336",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "4px",
-                            cursor: isProcessing ? "not-allowed" : "pointer",
-                            fontSize: "16px",
-                            minWidth: "120px",
-                        }}
+                        className={`px-5 py-2.5 text-white border-none rounded text-base min-w-[120px] transition-colors ${
+                            isProcessing
+                                ? "bg-neutral-400 cursor-not-allowed"
+                                : "bg-error hover:bg-error-dark cursor-pointer"
+                        }`}
                     >
                         ❌ 取消
                     </button>
                 </div>
 
-                <p
-                    style={{
-                        marginTop: "10px",
-                        fontSize: "12px",
-                        color: "#666",
-                        textAlign: "center",
-                    }}
-                >
-                    提示：拖動綠色框來移動和調整裁切區域
-                </p>
+                <p className='mt-2.5 text-xs text-neutral-600 text-center'>提示：拖動綠色框來移動和調整裁切區域</p>
             </div>
         </div>
     );

@@ -23,7 +23,7 @@ function LeafDetectionView({ imageUrl, onConfirm, onCancel }) {
         const canvas = canvasRef.current;
         if (!canvas || !imageRef.current || !imageLoaded) return;
 
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext("2d");
         const img = imageRef.current;
 
         // 設置 canvas 尺寸
@@ -50,17 +50,17 @@ function LeafDetectionView({ imageUrl, onConfirm, onCancel }) {
         const leafWidth = width * 0.6;
         const leafHeight = height * 0.7;
 
-        ctx.strokeStyle = '#4CAF50';
+        ctx.strokeStyle = "#4CAF50";
         ctx.lineWidth = 3;
         ctx.beginPath();
-        
+
         // 繪製葉片形狀（簡化的心形+橢圓）
         ctx.ellipse(centerX, centerY, leafWidth / 2, leafHeight / 2, 0, 0, Math.PI * 2);
-        
+
         // 添加葉柄
-        ctx.moveTo(centerX + leafWidth / 2 * 0.3, centerY - leafHeight / 2);
-        ctx.lineTo(centerX + leafWidth / 2 * 0.5, centerY - leafHeight / 2 - 20);
-        
+        ctx.moveTo(centerX + (leafWidth / 2) * 0.3, centerY - leafHeight / 2);
+        ctx.lineTo(centerX + (leafWidth / 2) * 0.5, centerY - leafHeight / 2 - 20);
+
         ctx.stroke();
     };
 
@@ -74,121 +74,42 @@ function LeafDetectionView({ imageUrl, onConfirm, onCancel }) {
         // 直接使用原圖進行檢測（不裁切）
         onConfirm({
             cropped_image: imageUrl,
-            crop_coordinates: null
+            crop_coordinates: null,
         });
     };
 
     return (
-        <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.9)',
-            zIndex: 1000,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-        }}>
-            <div style={{
-                backgroundColor: 'white',
-                padding: '20px',
-                borderRadius: '12px',
-                maxWidth: '90%',
-                maxHeight: '90%',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center'
-            }}>
+        <div className='fixed inset-0 bg-black/90 z-[1000] flex flex-col items-center justify-center p-5'>
+            <div className='bg-white p-5 rounded-xl max-w-[90%] max-h-[90%] flex flex-col items-center'>
                 {/* 返回按鈕 */}
                 <button
                     onClick={onCancel}
-                    style={{
-                        alignSelf: 'flex-start',
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: '50%',
-                        backgroundColor: 'rgba(0,0,0,0.1)',
-                        border: 'none',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '20px',
-                        marginBottom: '15px'
-                    }}
+                    className='self-start w-10 h-10 rounded-full bg-black/10 border-none cursor-pointer flex items-center justify-center text-xl mb-4 hover:bg-black/20 transition-colors'
                 >
                     ←
                 </button>
 
                 {/* 圖片和檢測框 */}
-                <div style={{
-                    position: 'relative',
-                    marginBottom: '20px',
-                    border: '2px solid #4CAF50',
-                    borderRadius: '12px',
-                    overflow: 'hidden'
-                }}>
-                    <canvas
-                        ref={canvasRef}
-                        style={{
-                            display: 'block',
-                            maxWidth: '100%',
-                            maxHeight: '60vh'
-                        }}
-                    />
+                <div className='relative mb-5 border-2 border-primary-500 rounded-xl overflow-hidden'>
+                    <canvas ref={canvasRef} className='block max-w-full max-h-[60vh]' />
                 </div>
 
                 {/* 提示文字 */}
-                <p style={{
-                    margin: '0 0 20px 0',
-                    fontSize: '16px',
-                    color: '#333',
-                    textAlign: 'center'
-                }}>
+                <p className='m-0 mb-5 text-base text-neutral-800 text-center'>
                     Check if the leaf is correctly detected.
                 </p>
 
                 {/* 操作按鈕 */}
-                <div style={{
-                    display: 'flex',
-                    gap: '10px',
-                    width: '100%'
-                }}>
+                <div className='flex gap-2.5 w-full'>
                     <button
                         onClick={onCancel}
-                        style={{
-                            flex: 1,
-                            padding: '12px',
-                            backgroundColor: '#f5f5f5',
-                            color: '#333',
-                            border: '1px solid #ddd',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            fontSize: '16px'
-                        }}
+                        className='flex-1 py-3 px-4 bg-neutral-100 text-neutral-800 border border-neutral-300 rounded-lg cursor-pointer text-base hover:bg-neutral-200 transition-colors'
                     >
                         重新拍攝
                     </button>
                     <button
                         onClick={handleConfirm}
-                        style={{
-                            flex: 1,
-                            padding: '12px',
-                            backgroundColor: '#4CAF50',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            fontSize: '16px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px'
-                        }}
+                        className='flex-1 py-3 px-4 bg-primary-500 text-white border-none rounded-lg cursor-pointer text-base flex items-center justify-center gap-2 hover:bg-primary-600 transition-colors'
                     >
                         確認 →
                     </button>
@@ -199,4 +120,3 @@ function LeafDetectionView({ imageUrl, onConfirm, onCancel }) {
 }
 
 export default LeafDetectionView;
-

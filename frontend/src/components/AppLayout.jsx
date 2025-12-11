@@ -1,62 +1,45 @@
-import React, { useState } from "react";
-import DetectionPage from "./DetectionPage.jsx";
-import ProfilePage from "./ProfilePage.jsx";
+import React from "react";
+import { Routes, Route } from "react-router-dom";
+import HomePage from "../pages/HomePage.jsx";
+import HistoryPage from "../pages/HistoryPage.jsx";
+import AccountPage from "../pages/AccountPage.jsx";
+import ResponsiveNavbar from "./ResponsiveNavbar.jsx";
 import { apiFetch } from "../api.js";
 
-// 已登入後的整體框架：上方 navbar + 兩個主分頁
-
+/**
+ * 已登入後的整體框架
+ * 使用響應式導覽列：
+ * - 手機版：底部固定導覽列
+ * - 桌面版：頂部導覽列
+ *
+ * 三個主要頁面路由：
+ * - /home: 檢測功能及單次檢測結果顯示
+ * - /history: 檢測歷史記錄
+ * - /account: 帳號設定相關
+ */
 function AppLayout({ userEmail, onLogout }) {
-  const [page, setPage] = useState("detect"); // 'detect' | 'profile'
+    const handleLogout = async () => {
+        const res = await apiFetch("/logout");
+        if (res.ok) {
+            onLogout();
+        }
+    };
 
-  const handleLogout = async () => {
-    const res = await apiFetch("/logout");
-    if (res.ok) {
-      onLogout();
-    }
-  };
+    return (
+        <div className='app-container'>
+            <ResponsiveNavbar userEmail={userEmail} onLogout={handleLogout} />
 
-  return (
-    <div className="app-container show">
-      <div className="app-navbar">
-        <div className="navbar-content container">
-          <div className="brand">
-            <span>🌿</span>
-            <span>Leaf Disease AI (React)</span>
-          </div>
-          <div className="user-info">
-            <span>{userEmail}</span>
-            <button
-              className="btn-logout"
-              type="button"
-              onClick={() => setPage("detect")}
-            >
-              檢測
-            </button>
-            <button
-              className="btn-logout"
-              type="button"
-              onClick={() => setPage("profile")}
-            >
-              帳號設定
-            </button>
-            <button className="btn-logout" type="button" onClick={handleLogout}>
-              登出
-            </button>
-          </div>
+            <div className='app-main'>
+                <Routes>
+                    <Route path='/home' element={<HomePage />} />
+                    <Route path='/history' element={<HistoryPage />} />
+                    <Route path='/account' element={<AccountPage userEmail={userEmail} />} />
+                    {/* 預設重定向到 home */}
+                    <Route path='/' element={<HomePage />} />
+                </Routes>
+            </div>
         </div>
-      </div>
-
-      <div className="app-main">
-        {page === "detect" ? (
-          <DetectionPage />
-        ) : (
-          <ProfilePage userEmail={userEmail} />
-        )}
-      </div>
-    </div>
-  );
+    );
 }
 
 export default AppLayout;
-
-

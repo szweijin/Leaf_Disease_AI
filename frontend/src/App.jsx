@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from "react";
-import AuthView from "./components/AuthView.jsx";
-import AppLayout from "./components/AppLayout.jsx";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { apiFetch } from "./api.js";
+import ProtectedRoute from "./components/ProtectedRoute.jsx";
+import AppLayout from "./components/AppLayout.jsx";
+import LoginPage from "./pages/LoginPage.jsx";
 
 // App 負責：
-// 1. 啟動時檢查登入狀態（/check-auth）
-// 2. 在登入/登出之間切換 AuthView 與 AppLayout
+// 1. 管理認證狀態
+// 2. 設置路由
+// 3. 提供認證狀態給子組件
 
 function App() {
     const [loading, setLoading] = useState(true);
@@ -13,16 +16,30 @@ function App() {
 
     useEffect(() => {
         const checkAuth = async () => {
+            const timeoutId = setTimeout(() => {
+                setUserEmail(null);
+                setLoading(false);
+            }, 3000);
+
             try {
                 const res = await apiFetch("/check-auth");
+                clearTimeout(timeoutId);
+
+                if (!res.ok) {
+                    setUserEmail(null);
+                    setLoading(false);
+                    return;
+                }
+
                 const data = await res.json();
-                if (res.ok && data.authenticated) {
+                if (data.authenticated) {
                     setUserEmail(data.email);
                 } else {
                     setUserEmail(null);
                 }
             } catch (e) {
-                console.error(e);
+                clearTimeout(timeoutId);
+                setUserEmail(null);
             } finally {
                 setLoading(false);
             }
@@ -41,17 +58,41 @@ function App() {
     if (loading) {
         return (
             <div className='full-screen-center text-white'>
-                <div className='spinner-border text-light me-2' role='status' />
-                <span>載入中...</span>
+                <div className='flex items-center gap-3'>
+                    <div
+                        className='w-6 h-6 border-4 border-white border-t-transparent rounded-full animate-spin'
+                        role='status'
+                    />
+                    <span>載入中...</span>
+                </div>
             </div>
         );
     }
 
-    if (!userEmail) {
-        return <AuthView onLoggedIn={handleLoggedIn} />;
-    }
+    return (
+        <BrowserRouter>
+            <Routes>
+                {/* 登入頁面 */}
+                <Route
+                    path='/login'
+                    element={<LoginPage isAuthenticated={!!userEmail} onLoggedIn={handleLoggedIn} />}
+                />
 
-    return <AppLayout userEmail={userEmail} onLogout={handleLoggedOut} />;
+                {/* 受保護的路由 */}
+                <Route
+                    path='/*'
+                    element={
+                        <ProtectedRoute isAuthenticated={!!userEmail}>
+                            <AppLayout userEmail={userEmail} onLogout={handleLoggedOut} />
+                        </ProtectedRoute>
+                    }
+                />
+
+                {/* 預設重定向 */}
+                <Route path='/' element={<Navigate to={userEmail ? "/home" : "/login"} replace />} />
+            </Routes>
+        </BrowserRouter>
+    );
 }
 
 export default App;

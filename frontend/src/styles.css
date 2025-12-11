@@ -1,405 +1,227 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+/* Tailwind CSS 指令 */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 基礎樣式重置（Tailwind 已包含，這裡僅保留必要的自定義） */
+@layer base {
+  * {
+    @apply box-border;
+  }
+
+  body {
+    @apply min-h-screen overflow-x-hidden;
+    font-family: theme('fontFamily.sans');
+  }
 }
 
-body {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  min-height: 100vh;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  overflow-x: hidden;
-}
+/* 自定義組件樣式（使用 Tailwind 類別） */
+@layer components {
+  /* 全螢幕置中容器 */
+  .full-screen-center {
+    @apply min-h-screen flex items-center justify-center bg-gradient-auth;
+  }
 
-.full-screen-center {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-/* 認證容器 */
-.auth-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  padding: 20px;
-}
-
-.auth-card {
-  background: white;
-  border-radius: 20px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  width: 100%;
-  max-width: 450px;
-  overflow: hidden;
-}
-
-.auth-header {
-  background: linear-gradient(135deg, #198754 0%, #156645 100%);
-  color: white;
-  padding: 40px 30px;
-  text-align: center;
-}
-
-.auth-header h1 {
-  font-size: 2em;
-  font-weight: bold;
-  margin-bottom: 10px;
-}
-
-.auth-header p {
-  font-size: 0.95em;
-  opacity: 0.9;
-}
-
-.auth-body {
-  padding: 40px 30px;
-}
-
-.form-group {
-  margin-bottom: 20px;
-}
-
-.form-group label {
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 8px;
-  display: block;
-  font-size: 0.9em;
-}
-
-.form-group input {
-  width: 100%;
-  padding: 12px 15px;
-  border: 2px solid #e0e0e0;
-  border-radius: 10px;
-  font-size: 1em;
-  transition: all 0.3s ease;
-}
-
-.form-group input:focus {
-  outline: none;
-  border-color: #198754;
-  box-shadow: 0 0 0 3px rgba(25, 135, 84, 0.1);
-}
-
-.btn-auth {
-  width: 100%;
-  padding: 12px 20px;
-  border: none;
-  border-radius: 10px;
-  font-weight: 600;
-  font-size: 1em;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.btn-submit {
-  background: linear-gradient(135deg, #198754 0%, #156645 100%);
-  color: white;
-  margin-bottom: 15px;
-}
-
-.btn-submit:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(25, 135, 84, 0.3);
-}
-
-.toggle-link {
-  text-align: center;
-  color: #666;
-  font-size: 0.95em;
-}
-
-.toggle-link button {
-  background: none;
-  border: none;
-  color: #198754;
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: underline;
-  padding: 0;
-  font-size: 1em;
-}
-
-.toggle-link button:hover {
-  color: #156645;
-}
-
-/* 主應用容器 */
-.app-container {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  padding-bottom: 40px;
-}
-
-/* 導航欄 */
-.app-navbar {
-  background: linear-gradient(135deg, #198754 0%, #156645 100%);
-  color: white;
-  padding: 15px 0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-.app-navbar .navbar-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 20px;
-}
-
-.app-navbar .brand {
-  font-size: 1.5em;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.app-navbar .user-info {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  font-size: 0.9em;
-}
-
-.btn-logout {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  padding: 8px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-weight: 600;
-}
-
-.btn-logout:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-/* 主內容 */
-.app-main {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 30px 20px;
-}
-
-.section-card {
-  background: white;
-  border-radius: 15px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-  margin-bottom: 30px;
-  overflow: hidden;
-}
-
-.section-header {
-  background: linear-gradient(135deg, #198754 0%, #156645 100%);
-  color: white;
-  padding: 20px 30px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.section-header h2 {
-  margin: 0;
-  font-size: 1.3em;
-  font-weight: bold;
-}
-
-.section-body {
-  padding: 30px;
-}
-
-/* 檢測區域 */
-.detection-container {
-  text-align: center;
-}
-
-.upload-area {
-  border: 3px dashed #198754;
-  border-radius: 15px;
-  padding: 40px;
-  background: #f0f8f5;
-  margin-bottom: 20px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.upload-area:hover {
-  background: #e8f5f0;
-  border-color: #156645;
-}
-
-.preview-container {
-  margin: 20px 0;
-}
-
-.preview-img {
-  max-height: 300px;
-  border-radius: 15px;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-  display: none;
-}
-
-.preview-img.show {
-  display: block;
-}
-
-.btn-predict {
-  background: linear-gradient(135deg, #198754 0%, #156645 100%);
-  color: white;
-  border: none;
-  padding: 15px 40px;
-  border-radius: 10px;
-  font-size: 1.1em;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.btn-predict:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 24px rgba(25, 135, 84, 0.4);
-}
-
-.btn-predict:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* 歷史記錄 */
-.history-list {
-  display: grid;
-  gap: 15px;
-}
-
-.history-item {
-  background: #f8f9fa;
-  padding: 20px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  border-left: 5px solid #198754;
-  transition: all 0.3s ease;
-}
-
-.history-item:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transform: translateX(5px);
-}
-
-.history-img {
-  width: 80px;
-  height: 80px;
-  object-fit: cover;
-  border-radius: 10px;
-  flex-shrink: 0;
-}
-
-.history-img.no-img {
-  background: #e0e0e0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #999;
-}
-
-.history-content {
-  flex: 1;
-}
-
-.history-disease {
-  font-size: 1.1em;
-  font-weight: bold;
-  color: #198754;
-  margin-bottom: 5px;
-}
-
-.history-detail {
-  font-size: 0.9em;
-  color: #666;
-  margin-bottom: 3px;
-}
-
-.confidence-badge {
-  background: linear-gradient(135deg, #198754 0%, #156645 100%);
-  color: white;
-  padding: 5px 15px;
-  border-radius: 20px;
-  font-weight: bold;
-  font-size: 0.9em;
-  display: inline-block;
-}
-
-/* 空狀態 */
-.empty-state {
-  text-align: center;
-  padding: 40px 20px;
-  color: #999;
-}
-
-.empty-state-icon {
-  font-size: 3em;
-  margin-bottom: 15px;
-  opacity: 0.5;
-}
-
-/* 統計卡片 */
-.stats-card {
-  color: white;
-  padding: 20px;
-  border-radius: 10px;
-  text-align: center;
-}
-
-.stats-card-green {
-  background: linear-gradient(135deg, #198754 0%, #156645 100%);
-}
-
-.stats-card-purple {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.stats-number {
-  font-size: 2.5em;
-  font-weight: bold;
-  margin-bottom: 10px;
-}
-
-/* 響應式設計 */
-@media (max-width: 768px) {
+  /* 認證卡片 */
   .auth-card {
-    max-width: 100%;
+    @apply bg-white rounded-4xl shadow-large w-full max-w-md overflow-hidden;
+  }
+
+  .auth-header {
+    @apply bg-gradient-primary text-white py-10 px-8 text-center;
   }
 
   .auth-header h1 {
-    font-size: 1.5em;
+    @apply text-3xl md:text-4xl font-bold mb-2;
   }
 
-  .app-navbar .user-info {
-    flex-direction: column;
-    gap: 10px;
-    font-size: 0.8em;
+  .auth-header p {
+    @apply text-base opacity-90;
+  }
+
+  .auth-body {
+    @apply p-8 md:p-10;
+  }
+
+  .form-group {
+    @apply mb-5;
+  }
+
+  .form-group label {
+    @apply font-semibold text-neutral-700 mb-2 block text-sm;
+  }
+
+  .form-group input {
+    @apply w-full px-4 py-3 border-2 border-neutral-300 rounded-xl text-base transition-all;
+    @apply focus:outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100;
+  }
+
+  .btn-auth {
+    @apply w-full py-3 px-5 border-none rounded-xl font-semibold text-base cursor-pointer transition-all duration-300;
+  }
+
+  .btn-submit {
+    @apply bg-gradient-primary text-white mb-4;
+    @apply hover:-translate-y-0.5 hover:shadow-glow;
+  }
+
+  .toggle-link {
+    @apply text-center text-neutral-600 text-sm;
+  }
+
+  .toggle-link button {
+    @apply bg-transparent border-none text-primary-600 font-semibold cursor-pointer underline p-0 text-base;
+    @apply hover:text-primary-700;
+  }
+
+  /* 主應用容器 */
+  .app-container {
+    @apply min-h-screen bg-gradient-app pb-10 md:pb-16;
+  }
+
+  /* 主內容區域 */
+  .app-main {
+    @apply max-w-7xl mx-auto px-4 md:px-6 lg:px-8;
+    /* 手機版：為底部導覽列留出空間 */
+    @apply pb-20 md:pb-8;
+    /* 桌面版：為頂部導覽列留出空間 */
+    @apply pt-20 md:pt-24;
+  }
+
+  /* 區塊卡片 */
+  .section-card {
+    @apply bg-white rounded-2xl shadow-medium mb-8 overflow-hidden;
+  }
+
+  .section-header {
+    @apply bg-gradient-primary text-white py-5 px-6 md:px-8 flex justify-between items-center;
+  }
+
+  .section-header h2 {
+    @apply m-0 text-xl md:text-2xl font-bold;
+  }
+
+  .section-body {
+    @apply p-6 md:p-8;
+  }
+
+  /* 檢測區域 */
+  .detection-container {
+    @apply text-center;
+  }
+
+  .upload-area {
+    @apply border-4 border-dashed border-primary-600 rounded-2xl p-10 bg-primary-50 mb-5 cursor-pointer transition-all duration-300;
+    @apply hover:bg-primary-100 hover:border-primary-700;
+  }
+
+  .preview-container {
+    @apply my-5;
+  }
+
+  .preview-img {
+    @apply max-h-80 rounded-2xl shadow-large;
+  }
+
+  .preview-img.show {
+    @apply block;
+  }
+
+  .btn-predict {
+    @apply bg-gradient-primary text-white border-none py-4 px-10 rounded-xl text-lg font-bold cursor-pointer transition-all duration-300;
+    @apply hover:-translate-y-1 hover:shadow-glow;
+  }
+
+  .btn-predict:disabled {
+    @apply opacity-60 cursor-not-allowed translate-y-0;
+  }
+
+  /* 歷史記錄 */
+  .history-list {
+    @apply grid gap-4;
   }
 
   .history-item {
-    flex-direction: column;
-    text-align: center;
+    @apply bg-neutral-50 p-5 rounded-xl flex items-center gap-5 border-l-4 border-primary-600 transition-all duration-300;
+    @apply hover:shadow-medium hover:translate-x-1;
   }
 
   .history-img {
-    width: 120px;
-    height: 120px;
+    @apply w-20 h-20 object-cover rounded-xl flex-shrink-0;
+  }
+
+  .history-img.no-img {
+    @apply bg-neutral-300 flex items-center justify-center text-neutral-500;
+  }
+
+  .history-content {
+    @apply flex-1;
+  }
+
+  .history-disease {
+    @apply text-lg font-bold text-primary-600 mb-1;
+  }
+
+  .history-detail {
+    @apply text-sm text-neutral-600 mb-1;
+  }
+
+  .confidence-badge {
+    @apply bg-gradient-primary text-white py-1 px-4 rounded-full font-bold text-sm inline-block;
+  }
+
+  /* 空狀態 */
+  .empty-state {
+    @apply text-center py-10 px-5 text-neutral-500;
+  }
+
+  .empty-state-icon {
+    @apply text-5xl mb-4 opacity-50;
+  }
+
+  /* 統計卡片 */
+  .stats-card {
+    @apply text-white p-5 rounded-xl text-center;
+  }
+
+  .stats-card-green {
+    @apply bg-gradient-primary;
+  }
+
+  .stats-card-purple {
+    @apply bg-gradient-secondary;
+  }
+
+  .stats-number {
+    @apply text-4xl font-bold mb-2;
+  }
+
+  /* 響應式調整 */
+  @media (max-width: 768px) {
+    .history-item {
+      @apply flex-col text-center;
+    }
+
+    .history-img {
+      @apply w-32 h-32;
+    }
+  }
+}
+
+/* 工具類別（自定義） */
+@layer utilities {
+  /* 自定義動畫 */
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 0.6;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
+  .animate-pulse-custom {
+    animation: pulse 1.5s ease-in-out infinite;
   }
 }
 
