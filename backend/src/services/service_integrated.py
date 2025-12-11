@@ -1,5 +1,7 @@
-# integrated_detection_service.py
-# 整合檢測服務 - CNN + YOLO 完整流程
+"""
+整合檢測服務
+整合 CNN 分類和 YOLO 檢測功能
+"""
 
 import os
 import json
@@ -9,11 +11,20 @@ import logging
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
-from src.core.db_manager import db, ActivityLogger, ErrorLogger, PerformanceLogger
-from src.services.cnn_classifier_service import CNNClassifierService
-from src.services.detection_service import DetectionService
-from src.services.image_service import ImageService
+from src.core.core_db_manager import db, ActivityLogger, ErrorLogger, PerformanceLogger
+from src.services.service_cnn import CNNClassifierService
+from src.services.service_yolo import DetectionService
+from src.services.service_image import ImageService
 
+# 導入 YOLO 模組（用於直接使用模組功能）
+from modules.yolo_detect import yolo_detect
+from modules.yolo_postprocess import postprocess_yolo_result
+
+# 設定日誌
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 
@@ -96,36 +107,25 @@ class IntegratedDetectionService:
                 workflow_step = 'cnn_yolo'
                 
                 yolo_start = time.time()
-                # 使用 YOLO 服務進行檢測
-                yolo_detections = []
+                # 使用 YOLO 模組進行檢測
                 try:
-                    # 使用 YOLO 模型進行檢測（與 DetectionService 一致）
-                    yolo_results = self.yolo_service.model(image_path)[0]
-                    boxes = yolo_results.boxes
+                    # 使用 YOLO 模組進行檢測
+                    yolo_results = yolo_detect(self.yolo_service.model, image_path)
+                    processed_result = postprocess_yolo_result(yolo_results)
                     
-                    if len(boxes) > 0:
-                        yolo_detected = True
-                        for box in boxes:
-                            cls_id = int(box.cls)
-                            confidence = float(box.conf)
-                            class_name = yolo_results.names[cls_id]
-                            
-                            yolo_detections.append({
-                                'class': class_name,
-                                'confidence': confidence,
-                                'bbox': box.xyxy.tolist() if hasattr(box.xyxy, 'tolist') else []
-                            })
-                        
-                        logger.info(f"✅ YOLO 檢測完成: 發現 {len(yolo_detections)} 個病害")
+                    yolo_detected = processed_result['detected']
+                    yolo_result = processed_result['detections']
+                    
+                    if yolo_detected:
+                        logger.info(f"✅ YOLO 檢測完成: 發現 {len(yolo_result)} 個病害")
                     else:
                         logger.info("✅ YOLO 檢測完成: 未發現病害（健康）")
-                        yolo_detections.append({
+                        yolo_result = [{
                             'class': 'Healthy',
                             'confidence': 1.0,
                             'bbox': []
-                        })
+                        }]
                     
-                    yolo_result = yolo_detections
                     yolo_time = int((time.time() - yolo_start) * 1000)
                     logger.info(f"   YOLO 耗時: {yolo_time}ms")
                     
@@ -502,25 +502,16 @@ class IntegratedDetectionService:
             
             yolo_start = time.time()
             try:
-                yolo_detections = []
-                yolo_results = self.yolo_service.model(cropped_image_path)
+                # 使用 YOLO 模組進行檢測
+                yolo_results = yolo_detect(self.yolo_service.model, cropped_image_path)
+                processed_result = postprocess_yolo_result(yolo_results)
                 
-                for result in yolo_results:
-                    boxes = result.boxes
-                    if len(boxes) > 0:
-                        for box in boxes:
-                            yolo_detections.append({
-                                'class': result.names[int(box.cls)],
-                                'confidence': float(box.conf),
-                                'bbox': box.xyxy[0].tolist() if hasattr(box.xyxy, '__len__') else []
-                            })
-                
-                yolo_detected = len(yolo_detections) > 0
-                yolo_result = yolo_detections if yolo_detected else []
+                yolo_detected = processed_result['detected']
+                yolo_result = processed_result['detections']
                 yolo_time = int((time.time() - yolo_start) * 1000)
                 
                 if yolo_detected:
-                    logger.info(f"✅ YOLO 檢測完成: 發現 {len(yolo_detections)} 個病害區域")
+                    logger.info(f"✅ YOLO 檢測完成: 發現 {len(yolo_result)} 個病害區域")
                     final_status = 'yolo_detected'
                 else:
                     logger.info(f"✅ YOLO 檢測完成: 未發現病害（健康）")

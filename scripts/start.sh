@@ -1,4 +1,12 @@
 #!/bin/bash
+
+# 獲取腳本所在目錄的絕對路徑
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# 切換到專案根目錄
+cd "$PROJECT_ROOT" || exit 1
+
 echo "🌿 啟動 Leaf Disease AI 本地開發環境..."
 
 # 檢查環境變數檔案
@@ -7,9 +15,34 @@ if [ ! -f ".env" ]; then
     echo "   建議創建 .env 檔案並設定資料庫和 Redis 連線資訊"
 fi
 
-# 載入環境變數（如果存在）
+# 載入環境變數（如果存在）- 安全地處理註釋和特殊字符
 if [ -f ".env" ]; then
-    export $(cat .env | grep -v '^#' | xargs)
+    # 使用 set -a 來自動導出變數
+    set -a
+    # 安全地載入 .env 文件，過濾註釋和空行
+    while IFS= read -r line || [ -n "$line" ]; do
+        # 跳過空行
+        if [[ -z "$line" ]]; then
+            continue
+        fi
+        # 跳過以 # 開頭的註釋行
+        if [[ "$line" =~ ^[[:space:]]*# ]]; then
+            continue
+        fi
+        # 移除行尾的註釋（# 後面的內容），但保留值中的 #
+        # 只移除行尾的註釋，不影響值本身
+        if [[ "$line" =~ ^[^#]*=.*# ]]; then
+            # 如果有 = 號，且 # 在 = 號之後，則移除 # 及其後面的內容
+            line="${line%%[[:space:]]*#*}"
+        fi
+        # 移除前後空白
+        line=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        # 如果有等號且不是空值，則導出
+        if [[ "$line" =~ = ]] && [[ -n "$line" ]]; then
+            export "$line" 2>/dev/null || true
+        fi
+    done < .env
+    set +a
 fi
 
 # 檢查必要的環境變數
@@ -24,7 +57,7 @@ export REDIS_HOST=${REDIS_HOST:-localhost}
 export REDIS_PORT=${REDIS_PORT:-6379}
 
 # 設定 Python 模組搜尋路徑
-export PYTHONPATH=$(pwd)
+export PYTHONPATH="$PROJECT_ROOT"
 
 # 檢查資料庫連線
 echo "📊 檢查 PostgreSQL 連線..."
@@ -72,10 +105,10 @@ mkdir -p data/logs
 
 # 啟動後端
 echo "🚀 啟動 Flask 後端..."
-cd backend
+cd "$PROJECT_ROOT/backend" || exit 1
 python app.py &
 BACKEND_PID=$!
-cd ..
+cd "$PROJECT_ROOT" || exit 1
 
 # 等待後端啟動
 echo "⏳ 等待後端啟動..."
@@ -88,16 +121,16 @@ if ! kill -0 $BACKEND_PID 2>/dev/null; then
 fi
 
 # 啟動前端（如果存在）
-if [ -d "frontend" ]; then
+if [ -d "$PROJECT_ROOT/frontend" ]; then
     echo "🎨 啟動 React 前端..."
-    cd frontend
+    cd "$PROJECT_ROOT/frontend" || exit 1
     if [ ! -d "node_modules" ]; then
         echo "📦 安裝前端依賴..."
         npm install > /dev/null 2>&1
     fi
     npm run dev &
     FRONTEND_PID=$!
-    cd ..
+    cd "$PROJECT_ROOT" || exit 1
     
     echo ""
     echo "✅ 本地開發環境已啟動"

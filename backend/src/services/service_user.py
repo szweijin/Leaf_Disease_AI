@@ -1,13 +1,20 @@
-# user_service.py
-# 使用者相關的 API 業務邏輯
+"""
+使用者個人資料服務
+提供使用者個人資料相關功能（get_profile, change_password, get_stats）
+"""
 
 from flask import request, jsonify
 from datetime import datetime
-from src.core.user_manager import UserManager, DetectionQueries
-from src.core.helpers import get_user_id_from_session, log_api_request
-from src.core.redis_manager import redis_manager
+from src.core.core_user_manager import UserManager, DetectionQueries
+from src.core.core_helpers import get_user_id_from_session, log_api_request
+from src.core.core_redis_manager import redis_manager
 import logging
 
+# 設定日誌
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 
@@ -28,8 +35,14 @@ class UserService:
             created_at = user_info.get("created_at")
             last_login = user_info.get("last_login")
             execution_time = int((datetime.now() - start_time).total_seconds() * 1000)
-            log_api_request(user_id=user_id, endpoint="/user/profile", method="GET",
-                           status_code=200, execution_time_ms=execution_time)
+            log_api_request(
+                user_id=user_id, 
+                endpoint="/user/profile", 
+                method="GET",
+                status_code=200, 
+                execution_time_ms=execution_time,
+                error_message=None
+            )
             return jsonify({
                 "email": user_info.get("email"),
                 "created_at": created_at.isoformat() if created_at else "未記錄",
@@ -53,13 +66,20 @@ class UserService:
             if not old_password or not new_password:
                 return jsonify({"error": "請輸入舊密碼和新密碼"}), 400
             success, message = UserManager.change_password(
-                user_id=user_id, old_password=old_password,
-                new_password=new_password, ip_address=request.remote_addr
+                user_id=user_id, 
+                old_password=old_password,
+                new_password=new_password, 
+                ip_address=request.remote_addr
             )
             execution_time = int((datetime.now() - start_time).total_seconds() * 1000)
-            log_api_request(user_id=user_id, endpoint="/user/change-password", method="POST",
-                           status_code=200 if success else 400, execution_time_ms=execution_time,
-                           error_message=None if success else message)
+            log_api_request(
+                user_id=user_id, 
+                endpoint="/user/change-password", 
+                method="POST",
+                status_code=200 if success else 400, 
+                execution_time_ms=execution_time,
+                error_message=None if success else message
+            )
             if not success:
                 return jsonify({"error": message}), 400
             return jsonify({"status": message})
@@ -98,8 +118,14 @@ class UserService:
             redis_manager.set(cache_key, result, expire=300)
             
             execution_time = int((datetime.now() - start_time).total_seconds() * 1000)
-            log_api_request(user_id=user_id, endpoint="/user/stats", method="GET",
-                           status_code=200, execution_time_ms=execution_time)
+            log_api_request(
+                user_id=user_id, 
+                endpoint="/user/stats", 
+                method="GET",
+                status_code=200, 
+                execution_time_ms=execution_time,
+                error_message=None
+            )
             return jsonify(result)
         except Exception as e:
             logger.error(f"❌ 獲取統計資料失敗: {str(e)}")

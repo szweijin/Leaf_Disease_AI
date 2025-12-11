@@ -1,5 +1,7 @@
-# image_service.py
-# 圖片處理服務 - 包含 resize、hash、驗證等功能
+"""
+圖片處理服務
+提供圖片處理相關功能（resize, validate, process, compress, save）
+"""
 
 import os
 import hashlib
@@ -8,6 +10,11 @@ import io
 import logging
 from typing import Tuple, Optional
 
+# 設定日誌
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 

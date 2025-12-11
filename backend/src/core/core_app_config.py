@@ -1,5 +1,7 @@
-# app_config.py
-# 應用程式配置和初始化
+"""
+應用程式配置和初始化
+負責創建 Flask 應用程式並載入所有配置
+"""
 
 import os
 import sys
@@ -9,10 +11,10 @@ from flask_caching import Cache
 from flasgger import Swagger
 from dotenv import load_dotenv
 from config.development import DevelopmentConfig
-from src.core.redis_manager import redis_manager
-from src.services.detection_service import DetectionService
-from src.services.integrated_detection_service import IntegratedDetectionService
-from src.services.cloudinary_storage import init_cloudinary_storage
+from src.core.core_redis_manager import redis_manager
+from src.services.service_yolo import DetectionService
+from src.services.service_integrated import IntegratedDetectionService
+from src.services.service_cloudinary import init_cloudinary_storage
 
 # 設定日誌
 logging.basicConfig(
@@ -23,16 +25,24 @@ logger = logging.getLogger(__name__)
 
 
 def get_base_dir():
-    """獲取專案根目錄"""
-    # __file__ 是 backend/src/core/app_config.py
+    """
+    獲取專案根目錄
+    
+    Returns:
+        專案根目錄的絕對路徑
+    """
+    # __file__ 是 backend/src/core/core_app_config.py
     # 需要上三層：core -> src -> backend -> 專案根目錄
     current_file = os.path.abspath(__file__)
-    # 從 backend/src/core/app_config.py 到專案根目錄
+    # 從 backend/src/core/core_app_config.py 到專案根目錄
     return os.path.abspath(os.path.join(os.path.dirname(current_file), '..', '..', '..'))
 
 
 def setup_paths():
-    """設定 Python 路徑"""
+    """
+    設定 Python 路徑
+    將專案根目錄添加到 Python 路徑中，以便導入模組
+    """
     BASE_DIR = get_base_dir()
     sys.path.insert(0, BASE_DIR)
     return BASE_DIR
@@ -54,11 +64,19 @@ def create_app():
     app.static_folder = BASE_DIR
     app.static_url_path = ''
     
+    # 驗證應用程式配置
+    try:
+        DevelopmentConfig.validate_app_config()
+    except ValueError as e:
+        logger.error(f"❌ 應用程式配置驗證失敗: {str(e)}")
+        logger.error("   請確保 .env 檔案存在並包含所有必要的設定")
+        raise
+    
     # 驗證資料庫配置
     try:
         DevelopmentConfig.validate_db_config()
     except ValueError as e:
-        logger.error(f"❌ 配置驗證失敗: {str(e)}")
+        logger.error(f"❌ 資料庫配置驗證失敗: {str(e)}")
         logger.error("   請確保 .env 檔案存在並包含所有必要的資料庫設定")
         raise
     
@@ -89,7 +107,10 @@ def create_app():
 
 
 def setup_cache(app: Flask) -> Cache:
-    """配置快取"""
+    """
+    配置快取
+    設置 Flask-Caching，優先使用 Redis，否則使用簡單記憶體快取
+    """
     try:
         if redis_manager.is_available():
             cache = Cache(app, config={
@@ -118,7 +139,10 @@ def setup_cache(app: Flask) -> Cache:
 
 
 def setup_swagger(app: Flask, config) -> Swagger:
-    """配置 Swagger 文檔（從 config 讀取配置）"""
+    """
+    配置 Swagger 文檔
+    從 config 讀取配置並設置 Swagger API 文檔
+    """
     swagger_config = {
         "headers": [],
         "specs": [
@@ -172,7 +196,10 @@ def setup_swagger(app: Flask, config) -> Swagger:
 
 
 def setup_upload_folder(base_dir: str, config) -> str:
-    """設定上傳資料夾（從 config 讀取路徑）"""
+    """
+    設定上傳資料夾
+    從 config 讀取路徑並創建上傳資料夾
+    """
     # 從 config 讀取上傳資料夾相對路徑
     upload_folder_relative = getattr(config, 'UPLOAD_FOLDER_RELATIVE', 'uploads')
     upload_folder = os.path.join(base_dir, upload_folder_relative)
@@ -193,7 +220,10 @@ def setup_upload_folder(base_dir: str, config) -> str:
 
 
 def load_model(base_dir: str, config) -> DetectionService:
-    """載入 YOLO 模型（從 config 讀取路徑）- 向後兼容"""
+    """
+    載入 YOLO 模型
+    從 config 讀取路徑並載入 YOLO 模型（向後兼容）
+    """
     # 從 config 讀取模型相對路徑
     model_path_relative = getattr(config, 'MODEL_PATH_RELATIVE', 'model/yolov11/best_v1_50.pt')
     model_path = os.path.join(base_dir, model_path_relative)
@@ -208,7 +238,10 @@ def load_model(base_dir: str, config) -> DetectionService:
 
 
 def load_integrated_models(base_dir: str, config) -> IntegratedDetectionService:
-    """載入整合模型（CNN + YOLO）"""
+    """
+    載入整合模型
+    載入 CNN 和 YOLO 模型並創建整合檢測服務
+    """
     # 從 config 讀取模型相對路徑
     cnn_model_path_relative = getattr(config, 'CNN_MODEL_PATH_RELATIVE', 'model/CNN/CNN_v1.0_20251204/best_mobilenetv3_large.pth')
     yolo_model_path_relative = getattr(config, 'YOLO_MODEL_PATH_RELATIVE', 'model/yolov11/best_v1_50.pt')
@@ -228,7 +261,10 @@ def load_integrated_models(base_dir: str, config) -> IntegratedDetectionService:
 
 
 def setup_cloudinary(config):
-    """設定 Cloudinary 儲存服務"""
+    """
+    設定 Cloudinary 儲存服務
+    從 config 讀取 Cloudinary 配置並初始化儲存服務
+    """
     use_cloudinary = getattr(config, 'USE_CLOUDINARY', False)
     
     if not use_cloudinary:

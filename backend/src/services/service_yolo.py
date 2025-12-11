@@ -1,29 +1,42 @@
-# detection_service.py
-# 檢測服務 - 處理 YOLO 預測、資料庫儲存等
+"""
+檢測服務
+整合 YOLO 模組功能，提供高層服務接口
+"""
 
 import os
 import json
 import time
 import logging
 from typing import Dict, Any, Optional, Tuple
-from ultralytics import YOLO
-import sys
-import os
+
+# 導入 YOLO 模組
+from modules.yolo_load import load_yolo_model
+from modules.yolo_detect import yolo_detect
+from modules.yolo_postprocess import postprocess_yolo_result, parse_severity
+from modules.yolo_utils import get_disease_info
 
 # 確保可以匯入專案模組
+import sys
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-from src.core.db_manager import db, ActivityLogger, ErrorLogger, PerformanceLogger
-from src.services.image_service import ImageService
-import psycopg2
+from src.core.core_db_manager import db, ActivityLogger, ErrorLogger, PerformanceLogger
+from src.services.service_image import ImageService
 
+# 設定日誌
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 
 class DetectionService:
-    """檢測服務類"""
+    """
+    檢測服務類
+    整合 YOLO 模組功能，提供統一的服務接口
+    """
     
     def __init__(self, model_path: str):
         """
@@ -33,8 +46,8 @@ class DetectionService:
             model_path: YOLO 模型路徑
         """
         try:
-            self.model = YOLO(model_path)
-            logger.info(f"✅ YOLO 模型載入成功: {model_path}")
+            self.model = load_yolo_model(model_path)
+            logger.info("✅ YOLO 檢測服務初始化完成")
         except Exception as e:
             logger.error(f"❌ 模型載入失敗: {str(e)}")
             raise
@@ -75,7 +88,7 @@ class DetectionService:
                             "severity": "Unknown",
                             "confidence": float(existing['confidence']),
                             "image_path": image_path,
-                            "disease_info": self._get_disease_info(existing['disease_name']),
+                            "disease_info": get_disease_info(existing['disease_name']),
                             "is_duplicate": True,
                             "duplicate_id": existing['id']
                         }
@@ -84,42 +97,33 @@ class DetectionService:
                     logger.warning(f"⚠️ 檢查重複圖片失敗，繼續處理: {error_msg}")
                     # 繼續執行，不影響主要流程
             
-            # 2. 執行 YOLO 預測
-            results = self.model(image_path)[0]
-            boxes = results.boxes
+            # 2. 執行 YOLO 檢測
+            results = yolo_detect(self.model, image_path)
+            processed_result = postprocess_yolo_result(results)
             
             processing_time = int((time.time() - start_time) * 1000)
             
             # 3. 處理預測結果
-            if len(boxes) == 0:
+            if not processed_result['detected'] or len(processed_result['detections']) == 0:
                 # 沒有檢測到病害
                 disease_name = "Healthy"
                 severity = "Healthy"
                 confidence = 0.0
-                raw_output = {"boxes": [], "message": "No disease detected"}
+                raw_output = processed_result['raw_output']
             else:
-                cls_id = int(boxes[0].cls)
-                confidence = float(boxes[0].conf)
-                disease_name = results.names[cls_id]
+                # 使用第一個檢測結果
+                primary_detection = processed_result['detections'][0]
+                disease_name = primary_detection['class']
+                confidence = primary_detection['confidence']
                 
                 # 解析嚴重程度
-                severity = self._parse_severity(disease_name)
+                severity = parse_severity(disease_name)
                 
                 # 儲存完整模型輸出
-                raw_output = {
-                    "boxes": [
-                        {
-                            "cls": int(box.cls),
-                            "conf": float(box.conf),
-                            "xyxy": box.xyxy.tolist() if hasattr(box.xyxy, 'tolist') else []
-                        }
-                        for box in boxes
-                    ],
-                    "names": results.names
-                }
+                raw_output = processed_result['raw_output']
             
             # 4. 獲取病害資訊
-            disease_info = self._get_disease_info(disease_name)
+            disease_info = get_disease_info(disease_name)
             
             # 5. 獲取圖片位元組（用於壓縮存儲到資料庫）
             # 優先使用傳入的 image_bytes，否則從文件讀取
@@ -255,89 +259,6 @@ class DetectionService:
             logger.error(f"❌ 檢測失敗: {str(e)}")
             raise
     
-    def _parse_severity(self, disease_name: str) -> str:
-        """
-        從病害名稱解析嚴重程度
-        
-        Args:
-            disease_name: 病害名稱
-        
-        Returns:
-            嚴重程度 ('Mild', 'Moderate', 'Severe', 'Healthy', 'Unknown')
-        """
-        # 簡單規則：根據命名或預設值
-        if disease_name == "Healthy":
-            return "Healthy"
-        
-        # 可以根據實際模型輸出調整
-        # 目前先返回 Unknown，後續可根據實際需求調整
-        return "Unknown"
-    
-    def _get_disease_info(self, disease_name: str) -> Optional[Dict[str, Any]]:
-        """
-        從資料庫或 JSON 檔案獲取病害詳細資訊
-        
-        Args:
-            disease_name: 病害名稱
-        
-        Returns:
-            病害資訊字典或 None
-        """
-        try:
-            # 先嘗試從資料庫獲取
-            try:
-                result = db.execute_query(
-                    """
-                    SELECT chinese_name, causes, features, pesticides, management_measures
-                    FROM disease_library
-                    WHERE disease_name = %s AND is_active = TRUE
-                    """,
-                    (disease_name,),
-                    fetch_one=True,
-                    dict_cursor=True
-                )
-                
-                if result:
-                    return {
-                        "name": result.get('chinese_name', disease_name),
-                        "causes": result.get('causes', ''),
-                        "feature": result.get('features', ''),
-                        "solution": {
-                            "pesticide": result.get('pesticides', []),
-                            "management": result.get('management_measures', [])
-                        }
-                    }
-            except Exception as db_error:
-                error_msg = str(db_error)
-                logger.warning(f"⚠️ 從資料庫獲取病害資訊失敗: {error_msg}")
-                if "relation" in error_msg.lower() and "does not exist" in error_msg.lower():
-                    logger.warning("   提示: disease_library 表不存在，將嘗試從 JSON 檔案讀取")
-                # 繼續嘗試從 JSON 檔案讀取
-            
-            # 如果資料庫沒有，嘗試從 JSON 檔案讀取（向後兼容）
-            disease_info_file = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-                "data", "disease_info.json"
-            )
-            
-            if os.path.exists(disease_info_file):
-                with open(disease_info_file, 'r', encoding='utf-8') as f:
-                    disease_db = json.load(f)
-                    if disease_name in disease_db:
-                        info = disease_db[disease_name]
-                        return {
-                            "name": info.get("name", disease_name),
-                            "causes": info.get("causes", ''),
-                            "feature": info.get("feature", ''),
-                            "solution": info.get("solution", {})
-                        }
-            
-            return None
-            
-        except Exception as e:
-            logger.error(f"❌ 獲取病害資訊失敗: {str(e)}")
-            return None
-    
     def _save_detection(self, user_id: int, disease_name: str, severity: str,
                        confidence: float, image_path: str, image_hash: str = None,
                        image_source: str = 'upload', raw_output: Dict = None,
@@ -406,6 +327,7 @@ class DetectionService:
             record_id = result[0]
             logger.debug(f"✅ 檢測記錄已儲存 (ID: {record_id})")
             # 返回記錄 ID 和是否成功保存圖片到資料庫的標記
+            image_compressed = False  # 圖片不再儲存在資料庫
             return record_id, image_compressed
             
         except Exception as e:
@@ -433,4 +355,3 @@ class DetectionService:
                 except:
                     pass
             raise  # 重新拋出異常，讓上層處理
-

@@ -1,5 +1,7 @@
-# cloudinary_storage.py
-# Cloudinary 圖片儲存服務
+"""
+Cloudinary 圖片儲存服務
+提供 Cloudinary 圖片上傳、刪除、轉換等功能
+"""    
 
 import cloudinary
 import cloudinary.uploader
@@ -9,6 +11,11 @@ from typing import Optional, Dict, Any, Tuple
 import io
 from PIL import Image
 
+# 設定日誌
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 

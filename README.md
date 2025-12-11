@@ -143,8 +143,8 @@ docker run -d -p 6379:6379 redis:latest
 **方式一：使用啟動腳本**
 
 ```bash
-chmod +x start.sh
-./start.sh
+chmod +x scripts/start.sh
+./scripts/start.sh
 ```
 
 **方式二：手動啟動**
@@ -176,40 +176,66 @@ npm run dev
 Leaf_Disease_AI_local/
 ├── backend/                    # Flask 後端
 │   ├── app.py                  # 主應用程式（路由定義）
+│   ├── modules/                # AI 模型模組
+│   │   ├── cnn_*.py            # CNN 相關模組
+│   │   └── yolo_*.py           # YOLO 相關模組
 │   └── src/
 │       ├── core/               # 核心模組
-│       │   ├── app_config.py  # 應用程式配置和初始化
-│       │   ├── db_manager.py   # 資料庫管理
-│       │   ├── helpers.py      # 核心輔助函數（認證、日誌）
-│       │   ├── redis_manager.py # Redis 快取管理
-│       │   └── user_manager.py # 使用者管理
+│       │   ├── __init__.py
+│       │   ├── core_app_config.py    # 應用程式配置和初始化
+│       │   ├── core_db_manager.py    # 資料庫管理
+│       │   ├── core_helpers.py       # 核心輔助函數（認證、日誌）
+│       │   ├── core_redis_manager.py # Redis 快取管理
+│       │   └── core_user_manager.py  # 使用者管理
 │       └── services/           # 業務服務
-│           ├── auth_service.py          # 認證服務
-│           ├── detection_api_service.py # 檢測 API 服務
-│           ├── detection_service.py    # AI 檢測服務
-│           ├── image_service.py        # 圖片處理服務
-│           └── user_service.py         # 使用者服務
+│           ├── __init__.py
+│           ├── service_auth.py              # 認證服務
+│           ├── service_cnn.py                # CNN 分類服務
+│           ├── service_cloudinary.py         # Cloudinary 儲存服務
+│           ├── service_image.py              # 圖片處理服務
+│           ├── service_image_manager.py      # 圖片管理器
+│           ├── service_integrated.py         # 整合檢測服務
+│           ├── service_integrated_api.py     # 整合檢測 API 服務
+│           ├── service_user.py               # 使用者服務
+│           ├── service_yolo.py               # YOLO 檢測服務
+│           └── service_yolo_api.py           # YOLO 檢測 API 服務
 ├── config/                     # 配置檔案
+│   ├── __init__.py
 │   ├── base.py                 # 基礎配置
 │   ├── development.py           # 開發環境配置
 │   └── production.py           # 生產環境配置
-├── frontend/                    # React 前端
+├── database/                   # 資料庫腳本和工具
+│   ├── init_database.sql       # 完整資料庫初始化
+│   ├── database_manager.py     # 資料庫管理腳本（init/reset）
+│   ├── README.md               # 資料庫說明
+│   └── SQL_REFERENCE.md        # SQL 語句參考文檔
+├── docs/                       # 文檔
+│   ├── complete_documentation.md # 完整系統文檔
+│   └── sequences_diagram.md    # 系統序列圖
+├── frontend/                   # React 前端
 │   ├── src/
-│   └── package.json
-├── model/                       # AI 模型
-│   └── yolov11/
+│   │   ├── api.js              # API 調用封裝
+│   │   ├── App.jsx             # 主應用組件
+│   │   ├── main.jsx            # 入口文件
+│   │   ├── styles.css          # 樣式文件
+│   │   └── components/         # React 組件
+│   ├── package.json
+│   └── vite.config.mts         # Vite 配置
+├── model/                      # AI 模型
+│   ├── CNN/                    # CNN 模型
+│   │   └── CNN_v1.0_20251204/
+│   └── yolov11/                # YOLO 模型
 │       └── best_v1_50.pt
-├── database/                    # 資料庫腳本和工具
-│   ├── init_database.sql        # 完整資料庫初始化（包含所有內容：表結構、視圖、函數、觸發器、prediction_log 表、病害資訊資料）
-│   ├── database_manager.py      # 資料庫管理腳本（init/reset）
-│   ├── README.md                # 資料庫說明
-│   └── SQL_REFERENCE.md         # SQL 語句參考文檔
-├── docs/                        # 文檔
-│   ├── complete_documentation.md # 完整系統文檔（整合所有文檔）
-│   └── sequences_diagram.md     # 系統序列圖
-├── uploads/                     # 上傳圖片暫存
-├── requirements.txt             # Python 依賴
-└── start.sh                     # 啟動腳本
+├── scripts/                    # 腳本文件
+│   └── start.sh                # 啟動腳本
+├── tests/                      # 測試文件（預留）
+│   ├── __init__.py
+│   └── README.md
+├── uploads/                    # 上傳圖片暫存（自動創建）
+├── .env.example                # 環境變數範例
+├── .gitignore                  # Git 忽略文件
+├── requirements.txt            # Python 依賴
+└── README.md                   # 專案說明文檔
 ```
 
 ## 主要功能說明
@@ -268,10 +294,10 @@ Leaf_Disease_AI_local/
 2. 確保 PostgreSQL 和 Redis 服務已啟動
 3. 模型檔案 `model/yolov11/best_v1_50.pt` 需要存在
 4. 圖片儲存：
-   - **Cloudinary（推薦）**：圖片現在完全儲存在 Cloudinary 雲端，不再儲存在資料庫 BLOB
-   - 預設啟用 Cloudinary，需要在 `.env` 中設定 `CLOUDINARY_API_SECRET`
-   - 如果未設定 Cloudinary，系統會使用本地文件儲存（`uploads/` 目錄）
-   - 資料庫優化已包含在 `init_database.sql` 中，無需單獨執行
+    - **Cloudinary（推薦）**：圖片現在完全儲存在 Cloudinary 雲端，不再儲存在資料庫 BLOB
+    - 預設啟用 Cloudinary，需要在 `.env` 中設定 `CLOUDINARY_API_SECRET`
+    - 如果未設定 Cloudinary，系統會使用本地文件儲存（`uploads/` 目錄）
+    - 資料庫優化已包含在 `init_database.sql` 中，無需單獨執行
 
 ## 故障排除
 

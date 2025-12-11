@@ -1,5 +1,7 @@
-# local/backend/app.py
-# Flask 應用程式主文件 - 僅包含路由定義
+"""
+Flask 應用程式主文件
+定義所有 API 路由和端點
+"""
 
 from flask import Flask, jsonify, send_from_directory
 from flask_caching import Cache
@@ -7,13 +9,13 @@ import logging
 import os
 
 # 導入配置和服務
-from src.core.app_config import create_app
-from src.core.redis_manager import redis_manager
-from src.services.auth_service import AuthService
-from src.services.user_service import UserService
-from src.services.detection_api_service import DetectionAPIService
-from src.services.integrated_detection_api_service import IntegratedDetectionAPIService
-from src.services.image_manager import init_image_manager
+from src.core.core_app_config import create_app
+from src.core.core_redis_manager import redis_manager
+from src.services.service_auth import AuthService
+from src.services.service_user import UserService
+from src.services.service_yolo_api import DetectionAPIService
+from src.services.service_integrated_api import IntegratedDetectionAPIService
+from src.services.service_image_manager import init_image_manager
 
 # 設定日誌
 logging.basicConfig(
@@ -48,8 +50,8 @@ except Exception as e:
 # 初始化服務實例
 auth_service = AuthService()
 user_service = UserService()
-detection_api_service = DetectionAPIService(detection_service, upload_folder)
-integrated_detection_api_service = IntegratedDetectionAPIService(integrated_service, image_manager) if integrated_service else None
+yolo_api_service = DetectionAPIService(detection_service, upload_folder)
+integrated_api_service = IntegratedDetectionAPIService(integrated_service, image_manager) if integrated_service else None
 
 
 # ==================== 認證相關路由 ====================
@@ -419,10 +421,10 @@ def predict():
         description: 系統錯誤（模型未載入或其他錯誤）
     """
     # 使用整合檢測服務（如果可用），否則使用舊的檢測服務
-    if integrated_detection_api_service:
-        return integrated_detection_api_service.predict()
+    if integrated_api_service:
+        return integrated_api_service.predict()
     else:
-        return detection_api_service.predict()
+        return yolo_api_service.predict()
 
 
 @app.route("/api/predict", methods=["POST"])
@@ -461,9 +463,9 @@ def api_predict():
       500:
         description: 系統錯誤
     """
-    if not integrated_detection_api_service:
+    if not integrated_api_service:
         return jsonify({"error": "整合檢測服務未載入"}), 500
-    return integrated_detection_api_service.predict()
+    return integrated_api_service.predict()
 
 
 @app.route("/api/predict-crop", methods=["POST"])
@@ -504,9 +506,9 @@ def api_predict_crop():
       500:
         description: 系統錯誤
     """
-    if not integrated_detection_api_service:
+    if not integrated_api_service:
         return jsonify({"error": "整合檢測服務未載入"}), 500
-    return integrated_detection_api_service.predict_with_crop()
+    return integrated_api_service.predict_with_crop()
 
 
 @app.route("/history", methods=["GET"])
@@ -564,7 +566,7 @@ def history():
       500:
         description: 系統錯誤
     """
-    return detection_api_service.get_history()
+    return yolo_api_service.get_history()
 
 
 @app.route("/uploads/<filename>")
@@ -588,7 +590,7 @@ def serve_uploaded_file(filename):
       404:
         description: 文件不存在
     """
-    return detection_api_service.serve_uploaded_file(filename)
+    return yolo_api_service.serve_uploaded_file(filename)
 
 
 @app.route("/image/<int:record_id>")
@@ -618,7 +620,7 @@ def get_image_from_db(record_id):
       401:
         description: 未登入或無權限
     """
-    return detection_api_service.get_image_from_db(record_id)
+    return yolo_api_service.get_image_from_db(record_id)
 
 
 @app.route("/image/prediction/<prediction_id>")
@@ -650,8 +652,8 @@ def get_prediction_image(prediction_id):
         description: 未登入或無權限
     """
     from flask import Response, redirect
-    from src.core.helpers import get_user_id_from_session
-    from src.core.db_manager import db
+    from src.core.core_helpers import get_user_id_from_session
+    from src.core.core_db_manager import db
     
     user_id = get_user_id_from_session()
     if not user_id:

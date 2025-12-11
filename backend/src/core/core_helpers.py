@@ -1,11 +1,18 @@
-# helpers.py
-# 核心輔助函數集合
+"""
+核心輔助函數集合
+提供認證相關和 API 日誌記錄的輔助函數
+"""
 
 from flask import request, session
-from src.core.db_manager import db, APILogger
+from src.core.core_db_manager import db, APILogger
 from typing import Optional
 import logging
 
+# 設定日誌
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 

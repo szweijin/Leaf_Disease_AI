@@ -1,5 +1,4 @@
-# redis_manager.py
-# Redis 快取管理器
+# Redis 本地快取管理器
 
 import redis
 import json
@@ -9,6 +8,11 @@ from typing import Optional, Any, Union
 from functools import wraps
 from datetime import timedelta
 
+# 設定日誌
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 

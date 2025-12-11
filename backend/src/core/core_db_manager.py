@@ -1,5 +1,4 @@
-# db_manager.py
-# PostgreSQL 資料庫連接管理器 - psycopg2
+# PostgreSQL 資料庫連接管理器(get_connection, get_cursor, execute_query, execute_update, execute_returning, execute_batch, call_function, transaction, close_all)
 
 import psycopg2
 import psycopg2.extras

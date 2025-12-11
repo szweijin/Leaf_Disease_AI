@@ -1,7 +1,9 @@
-# user_manager.py
-# 使用者管理模組 - psycopg2 實現
+"""
+使用者管理模組
+提供使用者認證、權限管理、資料查詢等功能
+"""
 
-from src.core.db_manager import db, ActivityLogger, ErrorLogger, AuditLogger
+from src.core.core_db_manager import db, ActivityLogger, ErrorLogger, AuditLogger
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 import re
@@ -9,6 +11,11 @@ from datetime import datetime, timedelta
 import secrets
 from typing import Tuple, Optional, Dict, List, Any
 
+# 設定日誌
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 
@@ -594,9 +601,10 @@ class UserManager:
             return False, "系統錯誤"
 
 
-# ============================================================
-# 查詢示例
-# ============================================================
+"""
+查詢示例
+以下為使用 UserManager 和 DetectionQueries 的示例
+"""
 
 class DetectionQueries:
     """檢測相關查詢"""

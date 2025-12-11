@@ -1,13 +1,20 @@
-# auth_service.py
-# 認證相關的 API 業務邏輯
+"""
+使用者認證服務
+提供使用者註冊、登入、登出、認證檢查等功能
+"""
 
 from flask import request, jsonify, session
 from datetime import datetime
-from src.core.user_manager import UserManager
-from src.core.redis_manager import redis_manager
-from src.core.helpers import get_user_id_from_session, log_api_request
+from src.core.core_user_manager import UserManager
+from src.core.core_redis_manager import redis_manager
+from src.core.core_helpers import get_user_id_from_session, log_api_request
 import logging
 
+# 設定日誌
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 
@@ -46,9 +53,14 @@ class AuthService:
             )
             
             execution_time = int((datetime.now() - start_time).total_seconds() * 1000)
-            log_api_request(user_id=user_id, endpoint="/register", method="POST",
-                           status_code=200 if success else 400, execution_time_ms=execution_time,
-                           error_message=None if success else message)
+            log_api_request(
+                            user_id=user_id, 
+                            endpoint="/register", 
+                            method="POST",
+                            status_code=200 if success else 400, 
+                            execution_time_ms=execution_time,
+                            error_message=None if success else message
+                            )
             
             if not success:
                 logger.warning(f"⚠️ 註冊失敗：{message} (email={email})")
@@ -60,9 +72,14 @@ class AuthService:
             error_msg = str(e)
             logger.error(f"❌ 註冊錯誤: {error_msg}", exc_info=True)
             execution_time = int((datetime.now() - start_time).total_seconds() * 1000)
-            log_api_request(endpoint="/register", method="POST",
-                           status_code=500, execution_time_ms=execution_time,
-                           error_message=error_msg)
+            log_api_request(
+                            endpoint="/register", 
+                            method="POST",
+                            user_id=None,
+                            status_code=500, 
+                            execution_time_ms=execution_time,
+                            error_message=error_msg
+                            )
             # 返回更具體的錯誤訊息（不暴露敏感資訊）
             if "資料庫" in error_msg or "database" in error_msg.lower():
                 return jsonify({"error": "資料庫連接錯誤，請稍後再試"}), 500
@@ -88,15 +105,21 @@ class AuthService:
                 return jsonify({"error": "登入嘗試次數過多，請稍後再試"}), 429
             
             success, message, user_id, session_token = UserManager.login(
-                email=email, password=password,
+                email=email, 
+                password=password,
                 ip_address=request.remote_addr,
                 user_agent=request.user_agent.string if request.user_agent else None
             )
             
             execution_time = int((datetime.now() - start_time).total_seconds() * 1000)
-            log_api_request(user_id=user_id, endpoint="/login", method="POST",
-                           status_code=200 if success else 401, execution_time_ms=execution_time,
-                           error_message=None if success else message)
+            log_api_request(
+                user_id=user_id, 
+                endpoint="/login", 
+                method="POST",
+                status_code=200 if success else 401, 
+                execution_time_ms=execution_time,
+                error_message=None if success else message
+                )
             
             if not success:
                 # 記錄失敗嘗試
@@ -123,8 +146,14 @@ class AuthService:
                 UserManager.logout(user_id=user_id)
             session.clear()
             execution_time = int((datetime.now() - start_time).total_seconds() * 1000)
-            log_api_request(user_id=user_id, endpoint="/logout", method=request.method,
-                           status_code=200, execution_time_ms=execution_time)
+            log_api_request(
+                user_id=user_id, 
+                endpoint="/logout", 
+                method=request.method,
+                status_code=200, 
+                execution_time_ms=execution_time,
+                error_message=None
+            )
             return jsonify({"status": "logged_out"})
         except Exception as e:
             logger.error(f"❌ 登出錯誤: {str(e)}")

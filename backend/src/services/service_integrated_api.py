@@ -1,16 +1,23 @@
-# integrated_detection_api_service.py
-# 整合檢測 API 服務 - CNN + YOLO 完整流程
+"""
+整合檢測 API 服務
+處理 CNN + YOLO 整合檢測的 HTTP 請求
+"""
 
 from flask import request, jsonify
 from datetime import datetime
 import os
 import traceback
-from src.core.helpers import get_user_id_from_session, log_api_request
-from src.core.redis_manager import redis_manager
-from src.services.integrated_detection_service import IntegratedDetectionService
-from src.services.image_manager import ImageManager
+from src.core.core_helpers import get_user_id_from_session, log_api_request
+from src.core.core_redis_manager import redis_manager
+from src.services.service_integrated import IntegratedDetectionService
+from src.services.service_image_manager import ImageManager
 import logging
 
+# 設定日誌
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 
@@ -59,8 +66,14 @@ class IntegratedDetectionAPIService:
             if cached_result:
                 logger.info(f"✅ 從快取獲取檢測結果: hash={image_hash[:8]}...")
                 execution_time = int((datetime.now() - start_time).total_seconds() * 1000)
-                log_api_request(user_id=user_id, endpoint="/api/predict", method="POST",
-                               status_code=200, execution_time_ms=execution_time)
+                log_api_request(
+                    user_id=user_id, 
+                    endpoint="/api/predict", 
+                    method="POST",
+                    status_code=200, 
+                    execution_time_ms=execution_time,
+                    error_message=None
+                )
                 return jsonify(cached_result)
             
             # 4. 上傳圖片到 Cloudinary（如果啟用）
@@ -116,15 +129,26 @@ class IntegratedDetectionAPIService:
             
             # 7. 記錄 API 日誌
             execution_time = int((datetime.now() - start_time).total_seconds() * 1000)
-            log_api_request(user_id=user_id, endpoint="/api/predict", method="POST",
-                           status_code=200, execution_time_ms=execution_time)
-            
+            log_api_request(
+                user_id=user_id, 
+                endpoint="/api/predict", 
+                method="POST",
+                status_code=200, 
+                execution_time_ms=execution_time,
+                error_message=None
+            )
             return jsonify(result)
             
         except ValueError as e:
             execution_time = int((datetime.now() - start_time).total_seconds() * 1000)
-            log_api_request(user_id=user_id, endpoint="/api/predict", method="POST",
-                           status_code=400, execution_time_ms=execution_time, error_message=str(e))
+            log_api_request(
+                user_id=user_id, 
+                endpoint="/api/predict", 
+                method="POST",
+                status_code=400, 
+                execution_time_ms=execution_time,
+                error_message=str(e)
+            )
             return jsonify({"error": str(e)}), 400
         except Exception as e:
             error_traceback = traceback.format_exc()
@@ -136,8 +160,14 @@ class IntegratedDetectionAPIService:
                 current_user_id = get_user_id_from_session()
             except:
                 current_user_id = None
-            log_api_request(user_id=current_user_id, endpoint="/api/predict", method="POST",
-                           status_code=500, execution_time_ms=execution_time, error_message=str(e))
+            log_api_request(
+                user_id=current_user_id, 
+                endpoint="/api/predict", 
+                method="POST",
+                status_code=500, 
+                execution_time_ms=execution_time,
+                error_message=str(e)
+            )
             # 在開發環境中返回詳細錯誤信息
             if os.getenv('FLASK_ENV') == 'development' or os.getenv('ENV') == 'development':
                 return jsonify({

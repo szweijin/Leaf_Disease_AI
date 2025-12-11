@@ -1,5 +1,7 @@
-# image_manager.py
-# 圖片管理服務 - 統一管理圖片上傳、暫存、裁切、儲存等操作
+"""
+圖片管理服務
+統一管理圖片處理流程（上傳、裁切、臨時文件、Cloudinary 儲存等）
+"""
 
 import os
 import base64
@@ -10,9 +12,13 @@ from typing import Tuple, Optional, Dict, Any
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
+from src.services.service_image import ImageService
 
-from src.services.image_service import ImageService
-
+# 設定日誌
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 

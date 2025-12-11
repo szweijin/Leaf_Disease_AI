@@ -7,10 +7,19 @@ from datetime import timedelta
 class Config:
     """所有環境的基礎配置"""
     
-    # 應用
-    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')
-    DEBUG = False
+    # 應用（必須從 .env 檔案設定）
+    SECRET_KEY = os.getenv('SECRET_KEY', '')
+    DEBUG = os.getenv('DEBUG', 'false').lower() == 'true'
     TESTING = False
+    
+    @classmethod
+    def validate_secret_key(cls):
+        """驗證 SECRET_KEY 是否設定"""
+        if not cls.SECRET_KEY or cls.SECRET_KEY == 'your-secret-key-here' or cls.SECRET_KEY == 'dev-secret-key':
+            raise ValueError(
+                "SECRET_KEY 未設定或使用預設值，這在生產環境中是不安全的\n"
+                "請在 .env 檔案中設定一個強隨機字串作為 SECRET_KEY"
+            )
     
     # PostgreSQL - 必須從 .env 檔案設定
     DB_HOST = os.getenv('DB_HOST')
@@ -18,6 +27,12 @@ class Config:
     DB_NAME = os.getenv('DB_NAME')
     DB_USER = os.getenv('DB_USER')
     DB_PASSWORD = os.getenv('DB_PASSWORD')
+    
+    # 驗證必要的應用設定
+    @classmethod
+    def validate_app_config(cls):
+        """驗證應用程式基本配置"""
+        cls.validate_secret_key()
     
     # 驗證必要的資料庫設定
     @classmethod
@@ -48,23 +63,23 @@ class Config:
     REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
     REDIS_DB = int(os.getenv('REDIS_DB', 0))
     REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', None)
-    CACHE_DEFAULT_TIMEOUT = 3600  # 預設快取時間 1 小時
+    CACHE_DEFAULT_TIMEOUT = int(os.getenv('CACHE_DEFAULT_TIMEOUT', 3600))  # 預設快取時間 1 小時
     
-    # 會話
-    PERMANENT_SESSION_LIFETIME = timedelta(hours=1)
-    SESSION_COOKIE_SECURE = False
-    SESSION_COOKIE_HTTPONLY = True
-    SESSION_COOKIE_SAMESITE = 'Lax'
+    # 會話（可從 .env 檔案設定）
+    PERMANENT_SESSION_LIFETIME = timedelta(hours=int(os.getenv('PERMANENT_SESSION_LIFETIME_HOURS', 1)))
+    SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'false').lower() == 'true'
+    SESSION_COOKIE_HTTPONLY = os.getenv('SESSION_COOKIE_HTTPONLY', 'true').lower() == 'true'
+    SESSION_COOKIE_SAMESITE = os.getenv('SESSION_COOKIE_SAMESITE', 'Lax')
     
-    # 上傳
-    MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB
-    UPLOAD_FOLDER_RELATIVE = 'uploads'  # 相對於專案根目錄的上傳資料夾
+    # 上傳（可從 .env 檔案設定）
+    MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 5 * 1024 * 1024))  # 5MB
+    UPLOAD_FOLDER_RELATIVE = os.getenv('UPLOAD_FOLDER_RELATIVE', 'uploads')  # 相對於專案根目錄的上傳資料夾
     ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif'}
     
-    # Cloudinary 配置（強制啟用）
+    # Cloudinary 配置（必須從 .env 檔案設定）
     USE_CLOUDINARY = os.getenv('USE_CLOUDINARY', 'true').lower() == 'true'  # 預設啟用
-    CLOUDINARY_CLOUD_NAME = os.getenv('CLOUDINARY_CLOUD_NAME', 'dcqts6ryi')
-    CLOUDINARY_API_KEY = os.getenv('CLOUDINARY_API_KEY', '398648383382972')
+    CLOUDINARY_CLOUD_NAME = os.getenv('CLOUDINARY_CLOUD_NAME', '')
+    CLOUDINARY_API_KEY = os.getenv('CLOUDINARY_API_KEY', '')
     CLOUDINARY_API_SECRET = os.getenv('CLOUDINARY_API_SECRET', '')
     CLOUDINARY_SECURE = os.getenv('CLOUDINARY_SECURE', 'true').lower() == 'true'
     CLOUDINARY_FOLDER = os.getenv('CLOUDINARY_FOLDER', 'leaf_disease_ai')  # Cloudinary 資料夾路徑
@@ -89,22 +104,22 @@ class Config:
                 f"請在 .env 檔案中設定這些變數，或設定 USE_CLOUDINARY=false 以使用本地儲存"
             )
     
-    # AI 模型配置
-    CNN_MODEL_PATH_RELATIVE = 'model/CNN/CNN_v1.0_20251204/best_mobilenetv3_large.pth'  # CNN 模型路徑
-    YOLO_MODEL_PATH_RELATIVE = 'model/yolov11/best_v1_50.pt'  # YOLO 模型路徑
+    # AI 模型配置（可從 .env 檔案設定）
+    CNN_MODEL_PATH_RELATIVE = os.getenv('CNN_MODEL_PATH_RELATIVE', 'model/CNN/CNN_v1.0_20251204/best_mobilenetv3_large.pth')  # CNN 模型路徑
+    YOLO_MODEL_PATH_RELATIVE = os.getenv('YOLO_MODEL_PATH_RELATIVE', 'model/yolov11/best_v1_50.pt')  # YOLO 模型路徑
     
     # 向後兼容
-    MODEL_PATH_RELATIVE = 'model/yolov11/best_v1_50.pt'  # 相對於專案根目錄的模型路徑
+    MODEL_PATH_RELATIVE = os.getenv('MODEL_PATH_RELATIVE', os.getenv('YOLO_MODEL_PATH_RELATIVE', 'model/yolov11/best_v1_50.pt'))  # 相對於專案根目錄的模型路徑
     
-    # Swagger API 文檔配置
-    SWAGGER_TITLE = 'Leaf Disease AI API'
-    SWAGGER_DESCRIPTION = '葉片病害檢測 AI 系統 API 文檔'
-    SWAGGER_VERSION = '2.0.0'
-    SWAGGER_HOST = 'localhost:5000'  # 可在子類別中覆蓋
-    SWAGGER_BASE_PATH = '/'
-    SWAGGER_SCHEMES = ['http']  # 生產環境可改為 ['https']
+    # Swagger API 文檔配置（可從 .env 檔案設定）
+    SWAGGER_TITLE = os.getenv('SWAGGER_TITLE', 'Leaf Disease AI API')
+    SWAGGER_DESCRIPTION = os.getenv('SWAGGER_DESCRIPTION', '葉片病害檢測 AI 系統 API 文檔')
+    SWAGGER_VERSION = os.getenv('SWAGGER_VERSION', '2.0.0')
+    SWAGGER_HOST = os.getenv('SWAGGER_HOST', 'localhost:5000')  # 可在子類別中覆蓋
+    SWAGGER_BASE_PATH = os.getenv('SWAGGER_BASE_PATH', '/')
+    SWAGGER_SCHEMES = os.getenv('SWAGGER_SCHEMES', 'http').split(',')  # 生產環境可改為 'https'
     
-    # 日誌
-    LOG_FILE = 'data/logs/app.log'
-    LOG_MAX_SIZE = 10485760  # 10MB
-    LOG_BACKUP_COUNT = 10
+    # 日誌（可從 .env 檔案設定）
+    LOG_FILE = os.getenv('LOG_FILE', 'data/logs/app.log')
+    LOG_MAX_SIZE = int(os.getenv('LOG_MAX_SIZE', 10485760))  # 10MB
+    LOG_BACKUP_COUNT = int(os.getenv('LOG_BACKUP_COUNT', 10))

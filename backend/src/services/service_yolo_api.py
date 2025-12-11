@@ -1,19 +1,26 @@
-# detection_api_service.py
-# 檢測相關的 API 業務邏輯
+"""
+檢測 API 服務
+處理 YOLO 檢測的 HTTP 請求（向後兼容，建議使用 IntegratedDetectionAPIService）
+"""
 
 from flask import request, jsonify, Response, send_from_directory
 from datetime import datetime
 import base64
 import os
 import uuid
-from src.core.helpers import get_user_id_from_session, log_api_request
-from src.core.db_manager import db
-from src.core.redis_manager import redis_manager
-from src.core.user_manager import DetectionQueries
-from src.services.detection_service import DetectionService
-from src.services.image_service import ImageService
+from src.core.core_helpers import get_user_id_from_session, log_api_request
+from src.core.core_db_manager import db
+from src.core.core_redis_manager import redis_manager
+from src.core.core_user_manager import DetectionQueries
+from src.services.service_yolo import DetectionService
+from src.services.service_image import ImageService
 import logging
 
+# 設定日誌
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 
@@ -52,9 +59,15 @@ class DetectionAPIService:
             cached_result = redis_manager.get(cache_key)
             if cached_result:
                 logger.info(f"✅ 從快取獲取檢測結果: hash={image_hash[:8]}...")
-                execution_time = int((datetime.now() - start_time).total_seconds() * 1000)
-                log_api_request(user_id=user_id, endpoint="/predict", method="POST",
-                               status_code=200, execution_time_ms=execution_time)
+                execution_time = int((datetime.now() - start_time).total_seconds() * 1000) 
+                log_api_request(
+                    user_id=user_id, 
+                    endpoint="/predict", 
+                    method="POST",
+                    status_code=200, 
+                    execution_time_ms=execution_time,
+                    error_message=None
+                )
                 return jsonify(cached_result)
             
             # 創建臨時文件用於模型推理（模型需要文件路徑）
@@ -77,7 +90,7 @@ class DetectionAPIService:
                     image_bytes=processed_bytes  # 傳遞圖片位元組用於存儲到資料庫
                 )
             finally:
-                # 確保臨時文件被刪除（無論成功或失敗）
+                # 確保臨時文件被刪除（無論預測順利完成或發生錯誤）
                 if temp_file_path and os.path.exists(temp_file_path):
                     try:
                         os.remove(temp_file_path)
@@ -94,19 +107,37 @@ class DetectionAPIService:
             redis_manager.set(cache_key, result, expire=3600)
             
             execution_time = int((datetime.now() - start_time).total_seconds() * 1000)
-            log_api_request(user_id=user_id, endpoint="/predict", method="POST",
-                           status_code=200, execution_time_ms=execution_time)
+            log_api_request(
+                user_id=user_id, 
+                endpoint="/predict", 
+                method="POST",
+                status_code=200, 
+                execution_time_ms=execution_time,
+                error_message=None
+            )
             return jsonify(result)
         except ValueError as e:
             execution_time = int((datetime.now() - start_time).total_seconds() * 1000)
-            log_api_request(user_id=user_id, endpoint="/predict", method="POST",
-                           status_code=400, execution_time_ms=execution_time, error_message=str(e))
+            log_api_request(
+                user_id=user_id, 
+                endpoint="/predict", 
+                method="POST",
+                status_code=400, 
+                execution_time_ms=execution_time,
+                error_message=str(e)
+            )
             return jsonify({"error": str(e)}), 400
         except Exception as e:
             logger.error(f"❌ 預測錯誤: {str(e)}")
             execution_time = int((datetime.now() - start_time).total_seconds() * 1000)
-            log_api_request(user_id=user_id, endpoint="/predict", method="POST",
-                           status_code=500, execution_time_ms=execution_time, error_message=str(e))
+            log_api_request(
+                user_id=user_id, 
+                endpoint="/predict", 
+                method="POST",
+                status_code=500, 
+                execution_time_ms=execution_time,
+                error_message=str(e)
+            )
             return jsonify({"error": "系統發生錯誤"}), 500
     
     def get_history(self):
@@ -143,7 +174,7 @@ class DetectionAPIService:
             logger.info(f"📊 查詢到 {len(records)}/{total_count} 筆檢測記錄 (user_id={user_id}, page={page}, per_page={per_page})")
             if records:
                 logger.debug(f"📋 原始記錄樣本: {records[0]}")
-                logger.debug(f"📋 記錄字段: {list(records[0].keys()) if records else []}")
+                logger.debug(f"📋 記錄字段: {list[str](records[0].keys()) if records else []}")
             else:
                 logger.warning(f"⚠️ 沒有查詢到任何記錄 (user_id={user_id})")
             
@@ -154,54 +185,25 @@ class DetectionAPIService:
                 record_id = record.get('id')
                 disease_name = record.get('disease_name')
                 
-                # 處理圖片路徑：優先使用 Cloudinary URL，然後是資料庫存儲的圖片
-                image_compressed = record.get('image_compressed', False)
+                # 處理圖片路徑：資料庫存儲的是 Cloudinary URL（https://res.cloudinary.com 開頭）
                 image_url = None
                 
                 if image_path:
-                    # 優先檢查是否為 Cloudinary URL（http:// 或 https://）
+                    # 檢查是否為 URL（http:// 或 https://）
                     if image_path.startswith('http://') or image_path.startswith('https://'):
                         # Cloudinary URL，直接使用
                         image_url = image_path
                         logger.debug(f"✅ 使用 Cloudinary URL: {image_url}")
-                    elif image_path.startswith('/image/'):
-                        # 資料庫 URL，直接使用
-                        image_url = image_path
-                        logger.debug(f"✅ 使用資料庫 URL: {image_url}")
-                    elif image_compressed and record_id:
-                        # 如果標記為已壓縮但路徑不是 /image/，使用資料庫圖片 API
-                        image_url = f"/image/{record_id}"
-                        logger.debug(f"✅ 使用資料庫圖片 API: {image_url}")
-                    elif os.path.isabs(image_path) and '/uploads/' in image_path:
-                        # 絕對路徑包含 /uploads/
-                        uploads_index = image_path.find('/uploads/')
-                        if uploads_index >= 0:
-                            image_path = image_path[uploads_index:]
-                            image_url = image_path
-                            logger.debug(f"✅ 從絕對路徑提取: {image_url}")
-                    elif image_path.startswith('/uploads/'):
-                        # 相對路徑 /uploads/
-                        image_url = image_path
-                        logger.debug(f"✅ 使用上傳路徑: {image_url}")
-                    elif not image_path.startswith('/'):
-                        # 相對路徑，轉換為 /uploads/ 路徑
-                        filename = os.path.basename(image_path)
-                        image_url = f"/uploads/{filename}"
-                        logger.debug(f"✅ 轉換相對路徑: {image_url}")
                     else:
-                        # 其他情況，直接使用
-                        image_url = image_path
-                        logger.debug(f"✅ 使用原始路徑: {image_url}")
-                elif image_compressed and record_id:
-                    # 沒有 image_path 但標記為已壓縮，使用資料庫圖片 API
-                    image_url = f"/image/{record_id}"
-                    logger.debug(f"✅ 使用資料庫圖片 API（無路徑）: {image_url}")
+                        # 其他路徑格式不支援（圖片應存儲在 Cloudinary）
+                        image_url = None
+                        logger.warning(f"⚠️  記錄 {record_id} 的圖片路徑格式不支援（應為 Cloudinary URL）: {image_path}")
                 else:
                     # 沒有圖片路徑
                     image_url = None
                     logger.warning(f"⚠️  記錄 {record_id} 沒有圖片路徑")
                 
-                # 處理病害名稱顯示（將 "others" 轉換為更友好的名稱）
+                # 處理病害名稱顯示
                 display_disease = disease_name
                 if disease_name == 'others':
                     display_disease = '非植物影像'
@@ -222,12 +224,12 @@ class DetectionAPIService:
                 
                 formatted_records.append({
                     "id": record_id,
-                    "disease": display_disease,  # 使用友好的顯示名稱
-                    "disease_name": disease_name,  # 保留原始名稱
+                    "disease": display_disease,  
+                    "disease_name": disease_name,  
                     "severity": record.get('severity', 'Unknown'),
                     "confidence": float(record.get('confidence', 0)),
                     "image_path": image_url,
-                    "image_compressed": image_compressed,
+                    "image_compressed": record.get('image_compressed', False),
                     "image_source": record.get('image_source', 'upload'),
                     "status": record.get('status', 'completed'),
                     "processing_time_ms": record.get('processing_time_ms'),
@@ -254,18 +256,26 @@ class DetectionAPIService:
             logger.debug(f"📤 響應數據樣本: {response_data['records'][0] if formatted_records else '無記錄'}")
             
             execution_time = int((datetime.now() - start_time).total_seconds() * 1000)
-            log_api_request(user_id=user_id, endpoint="/history", method="GET",
-                           status_code=200, execution_time_ms=execution_time)
-            
+            log_api_request(
+                user_id=user_id, 
+                endpoint="/history", 
+                method="GET",
+                status_code=200, 
+                execution_time_ms=execution_time,
+                error_message=None
+            )
             return jsonify(response_data)
             
         except Exception as e:
             logger.error(f"❌ 查詢歷史失敗: {str(e)}", exc_info=True)
             execution_time = int((datetime.now() - start_time).total_seconds() * 1000)
-            log_api_request(user_id=user_id if 'user_id' in locals() else None, 
-                          endpoint="/history", method="GET",
-                          status_code=500, execution_time_ms=execution_time, 
-                          error_message=str(e))
+            log_api_request(
+                user_id=user_id if 'user_id' in locals() else None, 
+                endpoint="/history", method="GET",
+                status_code=500, 
+                execution_time_ms=execution_time, 
+                error_message=str(e)
+            )
             return jsonify({"error": "系統錯誤", "message": str(e)}), 500
     
     def serve_uploaded_file(self, filename: str):
