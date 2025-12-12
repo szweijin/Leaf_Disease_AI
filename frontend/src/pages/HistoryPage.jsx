@@ -1,5 +1,10 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { apiFetch, apiUrl } from "../api.js";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 /**
  * HISTORY 頁面 - 檢測歷史記錄
@@ -131,66 +136,71 @@ function HistoryPage() {
     }, []);
 
     return (
-        <div className='section-card'>
-            <div className='section-header'>
-                <h2>📊 檢測歷史</h2>
-                <div className='flex gap-2.5 items-center'>
-                    <button
-                        className='px-4 py-2 bg-white/20 hover:bg-white/30 border border-white/30 rounded-lg font-semibold text-sm transition-all duration-200 text-white'
+        <Card>
+            <CardHeader className='bg-neutral-900 text-white'>
+                <div className='flex justify-between items-center'>
+                    <CardTitle>📊 檢測歷史</CardTitle>
+                    <Button
+                        variant='outline'
+                        size='sm'
                         type='button'
                         onClick={() => loadHistory(historyPagination.page)}
                         disabled={historyLoading}
+                        className='bg-neutral-800 border-neutral-700 text-white hover:bg-neutral-700'
                     >
                         {historyLoading ? "載入中..." : "重新載入"}
-                    </button>
+                    </Button>
                 </div>
-            </div>
+            </CardHeader>
 
             {/* 過濾器 */}
             <div className='p-4 border-b border-neutral-200 flex gap-2.5 flex-wrap items-center bg-neutral-50'>
-                <input
+                <Input
                     type='text'
                     placeholder='搜尋病害名稱...'
                     value={historyFilters.disease}
                     onChange={(e) => handleHistoryFilterChange("disease", e.target.value)}
-                    className='px-3 py-2 rounded border border-neutral-300 bg-white text-neutral-800 flex-1 min-w-[200px] placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500'
+                    className='flex-1 min-w-[200px]'
                 />
-                <select
+                <Select
                     value={historyFilters.order_by}
-                    onChange={(e) => handleHistoryFilterChange("order_by", e.target.value)}
-                    className='px-3 py-2 rounded border border-neutral-300 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-primary-500'
+                    onValueChange={(value) => handleHistoryFilterChange("order_by", value)}
                 >
-                    <option value='created_at'>按時間排序</option>
-                    <option value='confidence'>按置信度排序</option>
-                    <option value='disease_name'>按病害名稱排序</option>
-                </select>
-                <select
+                    <SelectTrigger className='w-[180px]'>
+                        <SelectValue placeholder='排序方式' />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value='created_at'>按時間排序</SelectItem>
+                        <SelectItem value='confidence'>按置信度排序</SelectItem>
+                        <SelectItem value='disease_name'>按病害名稱排序</SelectItem>
+                    </SelectContent>
+                </Select>
+                <Select
                     value={historyFilters.order_dir}
-                    onChange={(e) => handleHistoryFilterChange("order_dir", e.target.value)}
-                    className='px-3 py-2 rounded border border-neutral-300 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-primary-500'
+                    onValueChange={(value) => handleHistoryFilterChange("order_dir", value)}
                 >
-                    <option value='DESC'>降序</option>
-                    <option value='ASC'>升序</option>
-                </select>
-                <button
-                    onClick={applyHistoryFilters}
-                    className='px-4 py-2 rounded border-none bg-primary-500 text-white cursor-pointer hover:bg-primary-600 transition-colors'
-                >
-                    套用
-                </button>
+                    <SelectTrigger className='w-[120px]'>
+                        <SelectValue placeholder='排序方向' />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value='DESC'>降序</SelectItem>
+                        <SelectItem value='ASC'>升序</SelectItem>
+                    </SelectContent>
+                </Select>
+                <Button onClick={applyHistoryFilters}>套用</Button>
             </div>
 
-            <div className='section-body'>
+            <CardContent className='pt-6'>
                 {historyLoading ? (
                     <div className='text-center py-10 text-neutral-500'>
                         <div>載入中...</div>
                     </div>
                 ) : (
                     <>
-                        <div className='history-list'>
+                        <div className='grid gap-4'>
                             {history.length === 0 ? (
-                                <div className='empty-state'>
-                                    <div className='empty-state-icon'>📝</div>
+                                <div className='text-center py-10 text-neutral-500'>
+                                    <div className='text-5xl mb-4 opacity-50'>📝</div>
                                     <div>尚無檢測紀錄</div>
                                 </div>
                             ) : (
@@ -200,67 +210,82 @@ function HistoryPage() {
                                     const severityDisplay = r.severity || "Unknown";
 
                                     return (
-                                        <div
+                                        <Card
                                             key={r.id || r.timestamp || `record-${Math.random()}`}
-                                            className='history-item'
+                                            className='border-l-4 border-l-neutral-900'
                                         >
-                                            {r.image_path ? (
-                                                <img
-                                                    src={apiUrl(r.image_path)}
-                                                    alt={diseaseDisplay}
-                                                    className='history-img'
-                                                    loading='lazy'
-                                                    onError={(e) => {
-                                                        console.error("圖片載入失敗:", r.image_path, r);
-                                                        e.target.style.display = "none";
-                                                        if (!e.target.parentNode.querySelector(".no-img")) {
-                                                            const noImgDiv = document.createElement("div");
-                                                            noImgDiv.className = "history-img no-img";
-                                                            noImgDiv.textContent = "No Img";
-                                                            e.target.parentNode.appendChild(noImgDiv);
-                                                        }
-                                                    }}
-                                                    onLoad={() => {
-                                                        const noImgDiv = document.querySelector(".no-img");
-                                                        if (noImgDiv) {
-                                                            noImgDiv.style.display = "none";
-                                                        }
-                                                    }}
-                                                />
-                                            ) : (
-                                                <div className='history-img no-img'>No Img</div>
-                                            )}
-                                            <div className='history-content'>
-                                                <div className='history-disease'>{diseaseDisplay}</div>
-                                                <div className='history-detail'>嚴重程度: {severityDisplay}</div>
-                                                <div className='history-detail'>
-                                                    時間:{" "}
-                                                    {r.created_at
-                                                        ? new Date(r.created_at).toLocaleString("zh-TW")
-                                                        : r.timestamp
-                                                        ? new Date(r.timestamp).toLocaleString("zh-TW")
-                                                        : "剛剛"}
+                                            <CardContent className='pt-6'>
+                                                <div className='flex items-center gap-5'>
+                                                    {r.image_path ? (
+                                                        <img
+                                                            src={apiUrl(r.image_path)}
+                                                            alt={diseaseDisplay}
+                                                            className='w-20 h-20 object-cover rounded-xl flex-shrink-0'
+                                                            loading='lazy'
+                                                            decoding='async'
+                                                            fetchPriority='low'
+                                                            onError={(e) => {
+                                                                console.error("圖片載入失敗:", r.image_path, r);
+                                                                e.target.style.display = "none";
+                                                                if (!e.target.parentNode.querySelector(".no-img")) {
+                                                                    const noImgDiv = document.createElement("div");
+                                                                    noImgDiv.className =
+                                                                        "w-20 h-20 bg-neutral-300 flex items-center justify-center text-neutral-500 rounded-xl flex-shrink-0";
+                                                                    noImgDiv.textContent = "No Img";
+                                                                    e.target.parentNode.appendChild(noImgDiv);
+                                                                }
+                                                            }}
+                                                            onLoad={() => {
+                                                                const noImgDiv = document.querySelector(".no-img");
+                                                                if (noImgDiv) {
+                                                                    noImgDiv.style.display = "none";
+                                                                }
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <div className='w-20 h-20 bg-neutral-300 flex items-center justify-center text-neutral-500 rounded-xl flex-shrink-0'>
+                                                            No Img
+                                                        </div>
+                                                    )}
+                                                    <div className='flex-1'>
+                                                        <div className='text-lg font-bold text-neutral-900 mb-1'>
+                                                            {diseaseDisplay}
+                                                        </div>
+                                                        <div className='text-sm text-neutral-600 mb-1'>
+                                                            嚴重程度: {severityDisplay}
+                                                        </div>
+                                                        <div className='text-sm text-neutral-600 mb-1'>
+                                                            時間:{" "}
+                                                            {r.created_at
+                                                                ? new Date(r.created_at).toLocaleString("zh-TW")
+                                                                : r.timestamp
+                                                                ? new Date(r.timestamp).toLocaleString("zh-TW")
+                                                                : "剛剛"}
+                                                        </div>
+                                                        {r.processing_time_ms && (
+                                                            <div className='text-xs text-neutral-500'>
+                                                                處理時間: {r.processing_time_ms}ms
+                                                            </div>
+                                                        )}
+                                                        {r.image_source && (
+                                                            <div className='text-xs text-neutral-500'>
+                                                                來源:{" "}
+                                                                {r.image_source === "crop"
+                                                                    ? "裁切"
+                                                                    : r.image_source === "camera"
+                                                                    ? "相機"
+                                                                    : "上傳"}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <Badge className='bg-neutral-900 text-white'>
+                                                            {scorePercent}%
+                                                        </Badge>
+                                                    </div>
                                                 </div>
-                                                {r.processing_time_ms && (
-                                                    <div className='history-detail text-xs opacity-70'>
-                                                        處理時間: {r.processing_time_ms}ms
-                                                    </div>
-                                                )}
-                                                {r.image_source && (
-                                                    <div className='history-detail text-xs opacity-70'>
-                                                        來源:{" "}
-                                                        {r.image_source === "crop"
-                                                            ? "裁切"
-                                                            : r.image_source === "camera"
-                                                            ? "相機"
-                                                            : "上傳"}
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div>
-                                                <span className='confidence-badge'>{scorePercent}%</span>
-                                            </div>
-                                        </div>
+                                            </CardContent>
+                                        </Card>
                                     );
                                 })
                             )}
@@ -268,39 +293,29 @@ function HistoryPage() {
 
                         {/* 分頁控制 */}
                         {historyPagination.total_pages > 1 && (
-                            <div className='flex justify-center items-center gap-2.5 py-5 border-t border-neutral-200'>
-                                <button
+                            <div className='flex justify-center items-center gap-2.5 py-5 border-t border-neutral-200 mt-6'>
+                                <Button
                                     onClick={() => handleHistoryPageChange(historyPagination.page - 1)}
                                     disabled={!historyPagination.has_prev || historyLoading}
-                                    className={`px-4 py-2 rounded border-none text-white transition-colors ${
-                                        historyPagination.has_prev && !historyLoading
-                                            ? "bg-primary-500 hover:bg-primary-600 cursor-pointer"
-                                            : "bg-neutral-400 cursor-not-allowed"
-                                    }`}
                                 >
                                     上一頁
-                                </button>
+                                </Button>
                                 <span className='text-neutral-700'>
                                     第 {historyPagination.page} / {historyPagination.total_pages} 頁 （共{" "}
                                     {historyPagination.total} 筆）
                                 </span>
-                                <button
+                                <Button
                                     onClick={() => handleHistoryPageChange(historyPagination.page + 1)}
                                     disabled={!historyPagination.has_next || historyLoading}
-                                    className={`px-4 py-2 rounded border-none text-white transition-colors ${
-                                        historyPagination.has_next && !historyLoading
-                                            ? "bg-primary-500 hover:bg-primary-600 cursor-pointer"
-                                            : "bg-neutral-400 cursor-not-allowed"
-                                    }`}
                                 >
                                     下一頁
-                                </button>
+                                </Button>
                             </div>
                         )}
                     </>
                 )}
-            </div>
-        </div>
+            </CardContent>
+        </Card>
     );
 }
 

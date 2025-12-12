@@ -6,34 +6,41 @@ export default {
         extend: {
             // 顏色系統 - 集中管理，方便後續修改
             colors: {
-                // 主色調（綠色系 - 符合植物主題）
+                // shadcn/ui CSS 變數顏色系統
+                border: "hsl(var(--border))",
+                input: "hsl(var(--input))",
+                ring: "hsl(var(--ring))",
+                background: "hsl(var(--background))",
+                foreground: "hsl(var(--foreground))",
                 primary: {
-                    50: "#f0fdf4",
-                    100: "#dcfce7",
-                    200: "#bbf7d0",
-                    300: "#86efac",
-                    400: "#4ade80",
-                    500: "#22c55e", // 主色
-                    600: "#16a34a", // 深一點的主色
-                    700: "#15803d",
-                    800: "#166534",
-                    900: "#14532d",
-                    950: "#052e16",
+                    DEFAULT: "hsl(var(--primary))",
+                    foreground: "hsl(var(--primary-foreground))",
                 },
-                // 次要色調（紫色系 - 用於漸變背景）
                 secondary: {
-                    50: "#faf5ff",
-                    100: "#f3e8ff",
-                    200: "#e9d5ff",
-                    300: "#d8b4fe",
-                    400: "#c084fc",
-                    500: "#a855f7",
-                    600: "#9333ea",
-                    700: "#7e22ce",
-                    800: "#6b21a8",
-                    900: "#581c87",
-                    950: "#3b0764",
+                    DEFAULT: "hsl(var(--secondary))",
+                    foreground: "hsl(var(--secondary-foreground))",
                 },
+                destructive: {
+                    DEFAULT: "hsl(var(--destructive))",
+                    foreground: "hsl(var(--destructive-foreground))",
+                },
+                muted: {
+                    DEFAULT: "hsl(var(--muted))",
+                    foreground: "hsl(var(--muted-foreground))",
+                },
+                accent: {
+                    DEFAULT: "hsl(var(--accent))",
+                    foreground: "hsl(var(--accent-foreground))",
+                },
+                popover: {
+                    DEFAULT: "hsl(var(--popover))",
+                    foreground: "hsl(var(--popover-foreground))",
+                },
+                card: {
+                    DEFAULT: "hsl(var(--card))",
+                    foreground: "hsl(var(--card-foreground))",
+                },
+                // 保留原有的中性色
                 // 中性色（用於文字、背景等）
                 neutral: {
                     50: "#fafafa",
@@ -104,6 +111,9 @@ export default {
             },
             // 圓角系統
             borderRadius: {
+                lg: "var(--radius)",
+                md: "calc(var(--radius) - 2px)",
+                sm: "calc(var(--radius) - 4px)",
                 "4xl": "2rem",
                 "5xl": "2.5rem",
             },
@@ -114,13 +124,7 @@ export default {
                 large: "0 8px 32px rgba(0, 0, 0, 0.16)",
                 glow: "0 0 20px rgba(34, 197, 94, 0.3)",
             },
-            // 漸變背景
-            backgroundImage: {
-                "gradient-primary": "linear-gradient(135deg, #198754 0%, #156645 100%)",
-                "gradient-secondary": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                "gradient-app": "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)",
-                "gradient-auth": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-            },
+            // 漸變背景（已移除，改用灰階配色）
             // 容器設定
             container: {
                 center: true,

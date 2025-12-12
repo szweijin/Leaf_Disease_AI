@@ -38,6 +38,7 @@ def postprocess_cnn_result(output: torch.Tensor, classes: List[str] = None) -> D
         # 應用 softmax 獲取機率
         probabilities = F.softmax(output, dim=1)
         probabilities = probabilities.cpu().numpy()[0]  # 移除 batch 維度
+        logger.info(f"probabilities: {probabilities}")
         
         # 計算結果
         mean_score = float(probabilities.mean())

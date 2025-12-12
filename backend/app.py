@@ -156,6 +156,8 @@ def login():
             error:
               type: string
               example: Email 或密碼錯誤
+      405:
+        description: 方法不允許（應使用 POST 方法）
       500:
         description: 系統錯誤
     """

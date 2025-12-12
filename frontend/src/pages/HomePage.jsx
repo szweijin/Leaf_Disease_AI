@@ -3,6 +3,10 @@ import { apiFetch, apiUrl } from "../api.js";
 import ImageCropper from "../components/ImageCropper.jsx";
 import CameraView from "../components/CameraView.jsx";
 import LeafDetectionView from "../components/LeafDetectionView.jsx";
+import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 
 /**
  * HOME 頁面 - 檢測功能及單次檢測結果顯示
@@ -185,29 +189,35 @@ function HomePage() {
     if (identifying) {
         return (
             <div className='min-h-screen flex flex-col items-center justify-center bg-neutral-100 p-5'>
-                <div className='bg-white rounded-4xl p-10 max-w-md w-full text-center shadow-medium'>
+                <Card className='p-10 max-w-md w-full text-center'>
                     {previewUrl && (
                         <div className='w-full aspect-square border-2 border-neutral-300 rounded-xl mb-8 overflow-hidden bg-neutral-50 flex items-center justify-center'>
-                            <img src={previewUrl} alt='預覽' className='w-full h-full object-contain' />
+                            <img
+                                src={previewUrl}
+                                alt='預覽'
+                                className='w-full h-full object-contain'
+                                loading='eager'
+                                decoding='async'
+                            />
                         </div>
                     )}
-                    <h2 className='mb-4 text-neutral-800 text-2xl font-bold'>Identifying your plant...</h2>
+                    <CardTitle className='mb-4 text-2xl'>Identifying your plant...</CardTitle>
                     <p className='text-neutral-600 mb-8 text-sm leading-relaxed'>
                         This may take a few moments. Please don't close the app.
                     </p>
                     <div className='w-full h-1 bg-neutral-300 rounded-sm overflow-hidden mb-5'>
-                        <div className='w-full h-full bg-primary-500 animate-pulse-custom' />
+                        <div className='w-full h-full bg-neutral-900 animate-pulse-custom' />
                     </div>
-                    <button
+                    <Button
+                        variant='outline'
                         onClick={() => {
                             setIdentifying(false);
                             setSubmitting(false);
                         }}
-                        className='px-6 py-3 bg-white border border-neutral-300 rounded-lg cursor-pointer text-base text-neutral-800 hover:bg-neutral-50 transition-colors'
                     >
                         Cancel
-                    </button>
-                </div>
+                    </Button>
+                </Card>
             </div>
         );
     }
@@ -252,26 +262,25 @@ function HomePage() {
             )}
 
             {/* 主頁面 */}
-            <div className='section-card'>
-                <div className='section-header'>
-                    <h2>🖼️ 圖像檢測</h2>
-                </div>
-                <div className='section-body detection-container'>
+            <Card className='mb-8'>
+                <CardHeader className='bg-neutral-900 text-white'>
+                    <CardTitle>🖼️ 圖像檢測</CardTitle>
+                </CardHeader>
+                <CardContent className='pt-6 text-center'>
                     {/* 主操作按鈕區域 */}
                     {!previewUrl && (
                         <div className='flex flex-col gap-4 mb-5'>
-                            <button
-                                onClick={() => setShowCamera(true)}
-                                className='w-full py-4.5 px-6 bg-white border-2 border-neutral-800 rounded-xl cursor-pointer text-lg font-medium text-neutral-800 flex items-center justify-center gap-2.5 transition-all duration-300 hover:bg-neutral-50'
-                            >
+                            <Button variant='outline' size='lg' onClick={() => setShowCamera(true)} className='w-full'>
                                 📷 Take Photo
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                                variant='outline'
+                                size='lg'
                                 onClick={() => document.getElementById("imageInput-react")?.click()}
-                                className='w-full py-4.5 px-6 bg-white border-2 border-neutral-800 rounded-xl cursor-pointer text-lg font-medium text-neutral-800 flex items-center justify-center gap-2.5 transition-all duration-300 hover:bg-neutral-50'
+                                className='w-full'
                             >
                                 📁 Upload Image
-                            </button>
+                            </Button>
                             <input
                                 id='imageInput-react'
                                 type='file'
@@ -286,90 +295,95 @@ function HomePage() {
                     {previewUrl && (
                         <div className='mb-5 text-center'>
                             <div className='w-full max-w-md mx-auto border-2 border-neutral-300 rounded-xl overflow-hidden bg-neutral-50'>
-                                <img src={previewUrl} alt='預覽' className='w-full h-auto block' />
+                                <img
+                                    src={previewUrl}
+                                    alt='預覽'
+                                    className='w-full h-auto block'
+                                    loading='eager'
+                                    decoding='async'
+                                />
                             </div>
                             <div className='flex gap-2.5 justify-center mt-4'>
-                                <button
+                                <Button
+                                    variant='outline'
                                     onClick={() => {
                                         setPreviewUrl("");
                                         setBase64Image("");
                                         setResult(null);
                                     }}
-                                    className='px-5 py-2.5 bg-neutral-100 border border-neutral-300 rounded-lg cursor-pointer text-sm text-neutral-800 hover:bg-neutral-200 transition-colors'
                                 >
                                     重新選擇
-                                </button>
-                                <button
+                                </Button>
+                                <Button
                                     onClick={() =>
                                         handlePredict(base64Image.includes("data:image") ? "camera" : "upload")
                                     }
                                     disabled={submitting || loadingImage}
-                                    className={`px-5 py-2.5 bg-primary-500 border-none rounded-lg text-sm text-white transition-all ${
-                                        submitting || loadingImage
-                                            ? "opacity-60 cursor-not-allowed"
-                                            : "cursor-pointer hover:bg-primary-600"
-                                    }`}
                                 >
                                     {submitting ? "⏳ 分析中..." : "🚀 開始分析"}
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     )}
-                </div>
-            </div>
+                </CardContent>
+            </Card>
 
             {/* 檢測結果顯示 */}
             {result && (
-                <div className='section-card mt-3'>
-                    <div className='section-header'>
-                        <h2>🌱 檢測結果</h2>
-                    </div>
-                    <div className='section-body'>
+                <Card>
+                    <CardHeader className='bg-neutral-900 text-white'>
+                        <CardTitle>🌱 檢測結果</CardTitle>
+                    </CardHeader>
+                    <CardContent className='pt-6'>
                         {/* CNN 分類結果 */}
                         {result.cnn_result && (
-                            <div className='mb-5 p-4 bg-neutral-100 rounded-lg'>
-                                <h4 className='mt-0 mb-3 font-bold text-lg'>🔍 CNN 分類結果</h4>
-                                <p className='mb-2'>
-                                    <strong>最佳分類：</strong>
-                                    {result.cnn_result.best_class}
-                                </p>
-                                <p className='mb-2'>
-                                    <strong>分數：</strong>
-                                    {(result.cnn_result.best_score * 100).toFixed(1)}%
-                                </p>
-                                <p className='mb-2'>
-                                    <strong>平均分數：</strong>
-                                    {(result.cnn_result.mean_score * 100).toFixed(1)}%
-                                </p>
-                                {result.cnn_result.all_scores && (
-                                    <div className='mt-2.5'>
-                                        <strong>所有類別分數：</strong>
-                                        <ul className='mt-1.5 pl-5 list-disc'>
-                                            {Object.entries(result.cnn_result.all_scores).map(([cls, score]) => (
-                                                <li key={cls}>
-                                                    {cls}: {(score * 100).toFixed(1)}%
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
-                            </div>
+                            <Card className='mb-5'>
+                                <CardContent className='pt-6'>
+                                    <h4 className='mt-0 mb-3 font-bold text-lg'>🔍 CNN 分類結果</h4>
+                                    <p className='mb-2'>
+                                        <strong>最佳分類：</strong>
+                                        {result.cnn_result.best_class}
+                                    </p>
+                                    <p className='mb-2'>
+                                        <strong>分數：</strong>
+                                        {(result.cnn_result.best_score * 100).toFixed(1)}%
+                                    </p>
+                                    <p className='mb-2'>
+                                        <strong>平均分數：</strong>
+                                        {(result.cnn_result.mean_score * 100).toFixed(1)}%
+                                    </p>
+                                    {result.cnn_result.all_scores && (
+                                        <div className='mt-2.5'>
+                                            <strong>所有類別分數：</strong>
+                                            <ul className='mt-1.5 pl-5 list-disc'>
+                                                {Object.entries(result.cnn_result.all_scores).map(([cls, score]) => (
+                                                    <li key={cls}>
+                                                        {cls}: {(score * 100).toFixed(1)}%
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
                         )}
 
                         {/* 需要裁切提示 */}
                         {result.final_status === "need_crop" && (
-                            <div className='p-4 bg-warning-light rounded-lg mb-4'>
-                                <p className='m-0 font-bold'>✂️ {result.message || "請裁切圖片中的葉片區域"}</p>
-                            </div>
+                            <Alert className='mb-4 bg-yellow-50 border-yellow-200'>
+                                <AlertDescription className='font-bold'>
+                                    ✂️ {result.message || "請裁切圖片中的葉片區域"}
+                                </AlertDescription>
+                            </Alert>
                         )}
 
                         {/* 非植物錯誤 */}
                         {result.final_status === "not_plant" && (
-                            <div className='p-4 bg-error-light rounded-lg mb-4'>
-                                <p className='m-0 font-bold text-error-dark'>
+                            <Alert variant='destructive' className='mb-4'>
+                                <AlertDescription className='font-bold'>
                                     ❌ {result.error || "非植物影像，請上傳植物葉片圖片"}
-                                </p>
-                            </div>
+                                </AlertDescription>
+                            </Alert>
                         )}
 
                         {/* YOLO 檢測結果 */}
@@ -381,17 +395,19 @@ function HomePage() {
                                 result.yolo_result.detections.length > 0 ? (
                                     <div className='grid gap-2.5'>
                                         {result.yolo_result.detections.map((detection, idx) => (
-                                            <div
-                                                key={idx}
-                                                className='p-4 bg-primary-50 rounded-lg border border-primary-500'
-                                            >
-                                                <p className='m-0 font-bold text-neutral-800'>
-                                                    {detection.class || "Unknown"}
-                                                </p>
-                                                <p className='mt-1.5 mb-0 text-neutral-600'>
-                                                    置信度: {(detection.confidence * 100).toFixed(1)}%
-                                                </p>
-                                            </div>
+                                            <Card key={idx} className='border-neutral-300'>
+                                                <CardContent className='pt-6'>
+                                                    <div className='flex items-center justify-between'>
+                                                        <p className='m-0 font-bold text-neutral-800'>
+                                                            {detection.class || "Unknown"}
+                                                        </p>
+                                                        <Badge>{(detection.confidence * 100).toFixed(1)}%</Badge>
+                                                    </div>
+                                                    <p className='mt-1.5 mb-0 text-sm text-neutral-600'>
+                                                        置信度: {(detection.confidence * 100).toFixed(1)}%
+                                                    </p>
+                                                </CardContent>
+                                            </Card>
                                         ))}
                                     </div>
                                 ) : (
@@ -407,6 +423,9 @@ function HomePage() {
                                     src={apiUrl(result.image_path)}
                                     alt='結果圖像'
                                     className='max-h-96 max-w-full rounded-lg'
+                                    loading='lazy'
+                                    decoding='async'
+                                    fetchPriority='low'
                                     onError={(e) => {
                                         console.error("結果圖片載入失敗:", result.image_path);
                                         e.target.style.display = "none";
@@ -423,8 +442,8 @@ function HomePage() {
                                 {result.yolo_time_ms && ` (YOLO: ${result.yolo_time_ms}ms)`}
                             </p>
                         )}
-                    </div>
-                </div>
+                    </CardContent>
+                </Card>
             )}
         </>
     );

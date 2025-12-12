@@ -3,13 +3,62 @@
 @tailwind components;
 @tailwind utilities;
 
+/* shadcn/ui CSS 變數 - 灰階配色 */
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 3.9%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 0 0% 83.1%;
+  }
+}
+
 /* 基礎樣式重置（Tailwind 已包含，這裡僅保留必要的自定義） */
 @layer base {
   * {
-    @apply box-border;
+    @apply border-border;
   }
 
   body {
+    @apply bg-background text-foreground;
     @apply min-h-screen overflow-x-hidden;
     font-family: theme('fontFamily.sans');
   }
@@ -17,66 +66,9 @@
 
 /* 自定義組件樣式（使用 Tailwind 類別） */
 @layer components {
-  /* 全螢幕置中容器 */
-  .full-screen-center {
-    @apply min-h-screen flex items-center justify-center bg-gradient-auth;
-  }
-
-  /* 認證卡片 */
-  .auth-card {
-    @apply bg-white rounded-4xl shadow-large w-full max-w-md overflow-hidden;
-  }
-
-  .auth-header {
-    @apply bg-gradient-primary text-white py-10 px-8 text-center;
-  }
-
-  .auth-header h1 {
-    @apply text-3xl md:text-4xl font-bold mb-2;
-  }
-
-  .auth-header p {
-    @apply text-base opacity-90;
-  }
-
-  .auth-body {
-    @apply p-8 md:p-10;
-  }
-
-  .form-group {
-    @apply mb-5;
-  }
-
-  .form-group label {
-    @apply font-semibold text-neutral-700 mb-2 block text-sm;
-  }
-
-  .form-group input {
-    @apply w-full px-4 py-3 border-2 border-neutral-300 rounded-xl text-base transition-all;
-    @apply focus:outline-none focus:border-primary-600 focus:ring-4 focus:ring-primary-100;
-  }
-
-  .btn-auth {
-    @apply w-full py-3 px-5 border-none rounded-xl font-semibold text-base cursor-pointer transition-all duration-300;
-  }
-
-  .btn-submit {
-    @apply bg-gradient-primary text-white mb-4;
-    @apply hover:-translate-y-0.5 hover:shadow-glow;
-  }
-
-  .toggle-link {
-    @apply text-center text-neutral-600 text-sm;
-  }
-
-  .toggle-link button {
-    @apply bg-transparent border-none text-primary-600 font-semibold cursor-pointer underline p-0 text-base;
-    @apply hover:text-primary-700;
-  }
-
   /* 主應用容器 */
   .app-container {
-    @apply min-h-screen bg-gradient-app pb-10 md:pb-16;
+    @apply min-h-screen bg-neutral-50 pb-10 md:pb-16;
   }
 
   /* 主內容區域 */
@@ -86,125 +78,6 @@
     @apply pb-20 md:pb-8;
     /* 桌面版：為頂部導覽列留出空間 */
     @apply pt-20 md:pt-24;
-  }
-
-  /* 區塊卡片 */
-  .section-card {
-    @apply bg-white rounded-2xl shadow-medium mb-8 overflow-hidden;
-  }
-
-  .section-header {
-    @apply bg-gradient-primary text-white py-5 px-6 md:px-8 flex justify-between items-center;
-  }
-
-  .section-header h2 {
-    @apply m-0 text-xl md:text-2xl font-bold;
-  }
-
-  .section-body {
-    @apply p-6 md:p-8;
-  }
-
-  /* 檢測區域 */
-  .detection-container {
-    @apply text-center;
-  }
-
-  .upload-area {
-    @apply border-4 border-dashed border-primary-600 rounded-2xl p-10 bg-primary-50 mb-5 cursor-pointer transition-all duration-300;
-    @apply hover:bg-primary-100 hover:border-primary-700;
-  }
-
-  .preview-container {
-    @apply my-5;
-  }
-
-  .preview-img {
-    @apply max-h-80 rounded-2xl shadow-large;
-  }
-
-  .preview-img.show {
-    @apply block;
-  }
-
-  .btn-predict {
-    @apply bg-gradient-primary text-white border-none py-4 px-10 rounded-xl text-lg font-bold cursor-pointer transition-all duration-300;
-    @apply hover:-translate-y-1 hover:shadow-glow;
-  }
-
-  .btn-predict:disabled {
-    @apply opacity-60 cursor-not-allowed translate-y-0;
-  }
-
-  /* 歷史記錄 */
-  .history-list {
-    @apply grid gap-4;
-  }
-
-  .history-item {
-    @apply bg-neutral-50 p-5 rounded-xl flex items-center gap-5 border-l-4 border-primary-600 transition-all duration-300;
-    @apply hover:shadow-medium hover:translate-x-1;
-  }
-
-  .history-img {
-    @apply w-20 h-20 object-cover rounded-xl flex-shrink-0;
-  }
-
-  .history-img.no-img {
-    @apply bg-neutral-300 flex items-center justify-center text-neutral-500;
-  }
-
-  .history-content {
-    @apply flex-1;
-  }
-
-  .history-disease {
-    @apply text-lg font-bold text-primary-600 mb-1;
-  }
-
-  .history-detail {
-    @apply text-sm text-neutral-600 mb-1;
-  }
-
-  .confidence-badge {
-    @apply bg-gradient-primary text-white py-1 px-4 rounded-full font-bold text-sm inline-block;
-  }
-
-  /* 空狀態 */
-  .empty-state {
-    @apply text-center py-10 px-5 text-neutral-500;
-  }
-
-  .empty-state-icon {
-    @apply text-5xl mb-4 opacity-50;
-  }
-
-  /* 統計卡片 */
-  .stats-card {
-    @apply text-white p-5 rounded-xl text-center;
-  }
-
-  .stats-card-green {
-    @apply bg-gradient-primary;
-  }
-
-  .stats-card-purple {
-    @apply bg-gradient-secondary;
-  }
-
-  .stats-number {
-    @apply text-4xl font-bold mb-2;
-  }
-
-  /* 響應式調整 */
-  @media (max-width: 768px) {
-    .history-item {
-      @apply flex-col text-center;
-    }
-
-    .history-img {
-      @apply w-32 h-32;
-    }
   }
 }
 

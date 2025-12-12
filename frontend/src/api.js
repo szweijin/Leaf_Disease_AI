@@ -17,10 +17,26 @@ export function apiUrl(path) {
 }
 
 export async function apiFetch(path, options = {}) {
-    const res = await fetch(apiUrl(path), {
-        // 後端使用 Flask Session，建議攜帶 cookie
-        credentials: "include",
-        ...options,
-    });
-    return res;
+    // 添加超時機制，防止請求一直掛起
+    const timeout = options.timeout || 5000; // 默認 5 秒超時
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+        const res = await fetch(apiUrl(path), {
+            // 後端使用 Flask Session，建議攜帶 cookie
+            credentials: "include",
+            signal: controller.signal,
+            ...options,
+        });
+        clearTimeout(timeoutId);
+        return res;
+    } catch (error) {
+        clearTimeout(timeoutId);
+        // 如果是超時錯誤，拋出更友好的錯誤訊息
+        if (error.name === "AbortError") {
+            throw new Error(`請求超時（${timeout}ms）`);
+        }
+        throw error;
+    }
 }

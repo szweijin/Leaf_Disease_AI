@@ -2,6 +2,8 @@
 // 葉片檢測視圖（裁切確認）
 
 import React, { useRef, useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 function LeafDetectionView({ imageUrl, onConfirm, onCancel }) {
     const canvasRef = useRef(null);
@@ -79,18 +81,20 @@ function LeafDetectionView({ imageUrl, onConfirm, onCancel }) {
     };
 
     return (
-        <div className='fixed inset-0 bg-black/90 z-[1000] flex flex-col items-center justify-center p-5'>
-            <div className='bg-white p-5 rounded-xl max-w-[90%] max-h-[90%] flex flex-col items-center'>
+        <Dialog open={true} onOpenChange={onCancel}>
+            <DialogContent className='bg-white p-5 max-w-[90%] max-h-[90%] flex flex-col items-center'>
                 {/* 返回按鈕 */}
-                <button
+                <Button
+                    variant='ghost'
+                    size='icon'
                     onClick={onCancel}
-                    className='self-start w-10 h-10 rounded-full bg-black/10 border-none cursor-pointer flex items-center justify-center text-xl mb-4 hover:bg-black/20 transition-colors'
+                    className='self-start w-10 h-10 rounded-full mb-4'
                 >
                     ←
-                </button>
+                </Button>
 
                 {/* 圖片和檢測框 */}
-                <div className='relative mb-5 border-2 border-primary-500 rounded-xl overflow-hidden'>
+                <div className='relative mb-5 border-2 border-neutral-900 rounded-xl overflow-hidden'>
                     <canvas ref={canvasRef} className='block max-w-full max-h-[60vh]' />
                 </div>
 
@@ -101,21 +105,15 @@ function LeafDetectionView({ imageUrl, onConfirm, onCancel }) {
 
                 {/* 操作按鈕 */}
                 <div className='flex gap-2.5 w-full'>
-                    <button
-                        onClick={onCancel}
-                        className='flex-1 py-3 px-4 bg-neutral-100 text-neutral-800 border border-neutral-300 rounded-lg cursor-pointer text-base hover:bg-neutral-200 transition-colors'
-                    >
+                    <Button variant='outline' onClick={onCancel} className='flex-1'>
                         重新拍攝
-                    </button>
-                    <button
-                        onClick={handleConfirm}
-                        className='flex-1 py-3 px-4 bg-primary-500 text-white border-none rounded-lg cursor-pointer text-base flex items-center justify-center gap-2 hover:bg-primary-600 transition-colors'
-                    >
+                    </Button>
+                    <Button onClick={handleConfirm} className='flex-1'>
                         確認 →
-                    </button>
+                    </Button>
                 </div>
-            </div>
-        </div>
+            </DialogContent>
+        </Dialog>
     );
 }
 
