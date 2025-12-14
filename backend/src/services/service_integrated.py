@@ -8,6 +8,7 @@ import json
 import time
 import uuid
 import logging
+import traceback
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
@@ -18,7 +19,7 @@ from src.services.service_image import ImageService
 
 # 導入 YOLO 模組（用於直接使用模組功能）
 from modules.yolo_detect import yolo_detect
-from modules.yolo_postprocess import postprocess_yolo_result
+from modules.yolo_postprocess import postprocess_yolo_result, draw_boxes_on_image
 
 # 設定日誌
 logging.basicConfig(
@@ -159,10 +160,23 @@ class IntegratedDetectionService:
                 except:
                     pass
             
-            # 圖片不再儲存在資料庫，只儲存 Cloudinary URL 在 image_path
+            # 圖片不再儲存在資料庫，只儲存 Cloudinary URL 或資料庫 URL 在 image_path
             # image_data 相關欄位設為 NULL（保留欄位以維持向後兼容）
-            final_image_path = web_image_path or image_path
-            is_cloudinary = final_image_path and (final_image_path.startswith('http://') or final_image_path.startswith('https://'))
+            # 確定圖片路徑：優先使用 web_image_path（可能是 Cloudinary URL），否則使用資料庫 URL
+            if web_image_path and (web_image_path.startswith('http://') or web_image_path.startswith('https://')):
+                # 使用 Cloudinary URL 或其他外部 URL
+                final_image_path = web_image_path
+                is_cloudinary = True
+                logger.info(f"✅ 使用外部圖片 URL: {final_image_path}")
+            else:
+                # 使用資料庫 URL（符合資料庫約束要求）
+                final_image_path = f"/image/prediction/{prediction_id}"
+                is_cloudinary = False
+                logger.info(f"✅ 使用資料庫圖片 URL: {final_image_path}")
+            
+            # 注意：帶框圖片的生成和上傳將在 API 層處理
+            # 因為 IntegratedDetectionService 不直接訪問 ImageManager
+            predict_img_url = None  # 將在 API 層設置
             
             # 插入 prediction_log
             try:
@@ -173,13 +187,13 @@ class IntegratedDetectionService:
                         image_data, image_data_size, image_compressed,
                         cnn_mean_score, cnn_best_class, cnn_best_score, cnn_all_scores,
                         yolo_result, yolo_detected, final_status, workflow_step,
-                        crop_coordinates, created_at
+                        crop_coordinates, predict_img_url, created_at
                     ) VALUES (
                         %s, %s, %s, %s, %s, %s,
                         %s, %s, %s,
                         %s, %s, %s, %s,
                         %s, %s, %s, %s,
-                        %s, NOW()
+                        %s, %s, NOW()
                     )
                     """,
                     (
@@ -189,7 +203,8 @@ class IntegratedDetectionService:
                         False,  # image_compressed - 不再使用
                         mean_score, best_class, best_score, json.dumps(all_scores),
                         json.dumps(yolo_result) if yolo_result else None, yolo_detected, final_status, workflow_step,
-                        json.dumps(crop_coordinates) if crop_coordinates else None
+                        json.dumps(crop_coordinates) if crop_coordinates else None,
+                        predict_img_url  # 帶框圖片 URL（將在 API 層設置）
                     )
                 )
                 storage_type = "Cloudinary" if is_cloudinary else "本地路徑"
@@ -200,6 +215,7 @@ class IntegratedDetectionService:
             
             # 儲存到 detection_records（無論是否有 YOLO 檢測結果，包括 "others" 類別）
             # 這樣可以確保所有檢測結果都顯示在歷史記錄中
+            record_id = None
             try:
                 # 確定病害名稱和置信度
                 if yolo_detected and yolo_result:
@@ -228,6 +244,15 @@ class IntegratedDetectionService:
                     # 使用資料庫 URL（向後兼容）
                     db_image_path = f"/image/prediction/{prediction_id}"
                 
+                logger.info(f"💾 準備儲存檢測記錄: user_id={user_id}, disease={disease_name}, confidence={confidence}, image_path={db_image_path}")
+                
+                # 確定原始圖片 URL（優先使用 Cloudinary URL）
+                original_image_url = None
+                if web_image_path and (web_image_path.startswith('http://') or web_image_path.startswith('https://')):
+                    original_image_url = web_image_path
+                elif final_image_path and (final_image_path.startswith('http://') or final_image_path.startswith('https://')):
+                    original_image_url = final_image_path
+                
                 # 儲存到 detection_records（圖片不再儲存在資料庫，只儲存 URL）
                 record_result = db.execute_returning(
                     """
@@ -236,13 +261,13 @@ class IntegratedDetectionService:
                         image_path, image_hash, image_size, image_source,
                         raw_model_output, status, processing_time_ms,
                         image_data, image_data_size, image_compressed,
-                        prediction_log_id, created_at
+                        prediction_log_id, original_image_url, annotated_image_url, created_at
                     ) VALUES (
                         %s, %s, %s, %s,
                         %s, %s, %s, %s,
                         %s, %s, %s,
                         %s, %s, %s,
-                        %s, NOW()
+                        %s, %s, %s, NOW()
                     )
                     RETURNING id
                     """,
@@ -253,30 +278,49 @@ class IntegratedDetectionService:
                         None,  # image_data - 不再使用，圖片儲存在 Cloudinary
                         None,  # image_data_size - 不再使用
                         False,  # image_compressed - 不再使用
-                        prediction_id
+                        prediction_id,
+                        original_image_url,  # 原始圖片 URL
+                        None  # annotated_image_url - 將在 API 層更新
                     ),
                     fetch_one=True
                 )
+                
+                if not record_result:
+                    raise ValueError("INSERT 操作未返回 record_id")
+                
                 record_id = record_result[0] if record_result else None
+                
+                if not record_id:
+                    raise ValueError(f"無法獲取 record_id，record_result: {record_result}")
+                
+                logger.info(f"✅ 檢測記錄已插入: record_id={record_id}")
                 
                 # 如果使用資料庫 URL，更新為正確的 record_id URL
                 if not (web_image_path and (web_image_path.startswith('http://') or web_image_path.startswith('https://'))):
-                    final_db_image_path = f"/image/{record_id}"
-                    db.execute_update(
-                        """
-                        UPDATE detection_records
-                        SET image_path = %s
-                        WHERE id = %s
-                        """,
-                        (final_db_image_path, record_id)
-                    )
-                    db_image_path = final_db_image_path
+                    if record_id:
+                        final_db_image_path = f"/image/{record_id}"
+                        db.execute_update(
+                            """
+                            UPDATE detection_records
+                            SET image_path = %s
+                            WHERE id = %s
+                            """,
+                            (final_db_image_path, record_id)
+                        )
+                        db_image_path = final_db_image_path
+                        logger.info(f"✅ 已更新圖片路徑: {final_db_image_path}")
+                    else:
+                        logger.warning(f"⚠️  無法更新圖片路徑，record_id 為 None")
                 
                 storage_type = "Cloudinary" if (db_image_path.startswith('http://') or db_image_path.startswith('https://')) else "本地路徑"
-                logger.info(f"✅ 檢測記錄已儲存: record_id={record_id}, disease={disease_name}, 圖片儲存: {storage_type}")
+                logger.info(f"✅ 檢測記錄已儲存: record_id={record_id}, disease={disease_name}, confidence={confidence:.4f}, 圖片儲存: {storage_type}")
             except Exception as e:
-                logger.warning(f"⚠️  儲存檢測記錄失敗: {str(e)}")
-                # 不中斷流程，繼續返回結果
+                error_traceback = traceback.format_exc()
+                logger.error(f"❌ 儲存檢測記錄失敗: {str(e)}")
+                logger.error(f"   錯誤堆疊:\n{error_traceback}")
+                logger.error(f"   參數: user_id={user_id}, disease={disease_name}, prediction_id={prediction_id}")
+                # 不中斷流程，繼續返回結果，但記錄詳細錯誤
+                record_id = None
             
             # ========== 階段 4: 構建回應 ==========
             # 使用圖片 URL（可能是 Cloudinary URL 或資料庫 URL）
@@ -530,6 +574,7 @@ class IntegratedDetectionService:
         
         # ========== 階段 3: 更新 detection_records（如果存在） ==========
         total_time = int((time.time() - start_time) * 1000)
+        record_id = None
         
         # 查找是否有對應的 detection_records
         try:
@@ -553,6 +598,8 @@ class IntegratedDetectionService:
                     primary_detection = yolo_result[0]
                     disease_name = primary_detection['class']
                     confidence = primary_detection['confidence']
+                
+                logger.info(f"💾 準備更新檢測記錄: record_id={record_id}, disease={disease_name}, confidence={confidence}")
                 
                 # 查詢現有記錄的 image_path（可能是 Cloudinary URL）
                 existing_path = db.execute_query(
@@ -594,58 +641,77 @@ class IntegratedDetectionService:
                     )
                 )
                 storage_type = "Cloudinary" if (db_image_path.startswith('http://') or db_image_path.startswith('https://')) else "本地路徑"
-                logger.info(f"✅ 檢測記錄已更新: record_id={record_id}, 圖片儲存: {storage_type}")
+                logger.info(f"✅ 檢測記錄已更新: record_id={record_id}, disease={disease_name}, confidence={confidence:.4f}, 圖片儲存: {storage_type}")
             else:
                 # 如果沒有現有記錄，創建新記錄（向後兼容）
                 if yolo_detected and yolo_result:
                     primary_detection = yolo_result[0]
                     disease_name = primary_detection['class']
                     confidence = primary_detection['confidence']
-                    
-                    # 先插入記錄（使用臨時路徑，稍後更新）
-                    record_result = db.execute_returning(
-                        """
-                        INSERT INTO detection_records (
-                            user_id, disease_name, severity, confidence,
-                            image_path, image_hash, image_size, image_source,
-                            raw_model_output, status, processing_time_ms,
-                            image_data, image_data_size, image_compressed,
-                            prediction_log_id, created_at
-                        ) VALUES (
-                            %s, %s, %s, %s,
-                            %s, %s, %s, %s,
-                            %s, %s, %s,
-                            %s, %s, %s,
-                            %s, NOW()
-                        )
-                        RETURNING id
-                        """,
-                        (
-                            user_id, disease_name, 'Unknown', confidence,
-                            'temp_path', image_hash, image_size, image_source,  # 臨時路徑，稍後更新
-                            json.dumps({'yolo_detections': yolo_result}), 'completed', total_time,
-                            None,  # image_data - 不再使用，圖片儲存在 Cloudinary
-                            None,  # image_data_size - 不再使用
-                            False,  # image_compressed - 不再使用
-                            prediction_log_id
-                        ),
-                        fetch_one=True
+                else:
+                    disease_name = best_class
+                    confidence = best_score
+                
+                logger.info(f"💾 準備創建檢測記錄: user_id={user_id}, disease={disease_name}, confidence={confidence}, prediction_log_id={prediction_log_id}")
+                
+                # 先插入記錄（使用臨時路徑，稍後更新）
+                record_result = db.execute_returning(
+                    """
+                    INSERT INTO detection_records (
+                        user_id, disease_name, severity, confidence,
+                        image_path, image_hash, image_size, image_source,
+                        raw_model_output, status, processing_time_ms,
+                        image_data, image_data_size, image_compressed,
+                        prediction_log_id, created_at
+                    ) VALUES (
+                        %s, %s, %s, %s,
+                        %s, %s, %s, %s,
+                        %s, %s, %s,
+                        %s, %s, %s,
+                        %s, NOW()
                     )
-                    record_id = record_result[0] if record_result else None
-                    
-                    # 更新為正確的資料庫 URL
-                    db_image_path = f"/image/{record_id}"
-                    db.execute_update(
-                        """
-                        UPDATE detection_records
-                        SET image_path = %s
-                        WHERE id = %s
-                        """,
-                        (db_image_path, record_id)
-                    )
-                    logger.info(f"✅ 檢測記錄已創建: record_id={record_id}, path={db_image_path}")
+                    RETURNING id
+                    """,
+                    (
+                        user_id, disease_name, 'Unknown', confidence,
+                        'temp_path', image_hash, image_size, image_source,  # 臨時路徑，稍後更新
+                        json.dumps({'yolo_detections': yolo_result} if yolo_result else {'cnn_class': best_class, 'cnn_score': best_score}), 'completed', total_time,
+                        None,  # image_data - 不再使用，圖片儲存在 Cloudinary
+                        None,  # image_data_size - 不再使用
+                        False,  # image_compressed - 不再使用
+                        prediction_log_id
+                    ),
+                    fetch_one=True
+                )
+                
+                if not record_result:
+                    raise ValueError("INSERT 操作未返回 record_id")
+                
+                record_id = record_result[0] if record_result else None
+                
+                if not record_id:
+                    raise ValueError(f"無法獲取 record_id，record_result: {record_result}")
+                
+                logger.info(f"✅ 檢測記錄已插入: record_id={record_id}")
+                
+                # 更新為正確的資料庫 URL
+                db_image_path = f"/image/{record_id}"
+                db.execute_update(
+                    """
+                    UPDATE detection_records
+                    SET image_path = %s
+                    WHERE id = %s
+                    """,
+                    (db_image_path, record_id)
+                )
+                logger.info(f"✅ 檢測記錄已創建: record_id={record_id}, path={db_image_path}")
         except Exception as e:
-            logger.warning(f"⚠️  更新檢測記錄失敗: {str(e)}")
+            error_traceback = traceback.format_exc()
+            logger.error(f"❌ 更新/創建檢測記錄失敗: {str(e)}")
+            logger.error(f"   錯誤堆疊:\n{error_traceback}")
+            logger.error(f"   參數: user_id={user_id}, prediction_log_id={prediction_log_id}")
+            # 不中斷流程，繼續返回結果，但記錄詳細錯誤
+            record_id = None
         
         # ========== 階段 4: 構建回應 ==========
         # 查詢圖片 URL（可能是 Cloudinary URL 或資料庫 URL）

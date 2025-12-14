@@ -7,8 +7,12 @@ from flask import request, jsonify
 from datetime import datetime
 import os
 import traceback
+import io
+import numpy as np
+from PIL import Image
 from src.core.core_helpers import get_user_id_from_session, log_api_request
 from src.core.core_redis_manager import redis_manager
+from src.core.core_db_manager import db
 from src.services.service_integrated import IntegratedDetectionService
 from src.services.service_image_manager import ImageManager
 import logging
@@ -76,22 +80,7 @@ class IntegratedDetectionAPIService:
                 )
                 return jsonify(cached_result)
             
-            # 4. 上傳圖片到 Cloudinary（如果啟用）
-            cloudinary_original_url = None
-            cloudinary_public_id = None
-            if self.image_manager.use_cloudinary:
-                try:
-                    upload_result = self.image_manager.upload_to_cloudinary(processed_bytes)
-                    cloudinary_public_id = upload_result.get('public_id')
-                    cloudinary_original_url = upload_result.get('secure_url')
-                    logger.info(f"✅ 圖片已上傳到 Cloudinary: {cloudinary_original_url}")
-                    logger.info(f"   Public ID: {cloudinary_public_id}")
-                except Exception as e:
-                    logger.error(f"❌ Cloudinary 上傳失敗: {str(e)}", exc_info=True)
-                    # 上傳失敗不應該阻止預測，繼續使用本地儲存
-                    logger.warning(f"⚠️  將使用本地儲存繼續預測")
-            
-            # 5. 創建臨時文件並執行檢測（使用上下文管理器自動清理）
+            # 4. 創建臨時文件並執行檢測（使用上下文管理器自動清理）
             # 注意：儲存到資料庫的是原始 URL，轉換後的 URL 只用於預測驗證
             try:
                 with self.image_manager.create_temp_file(processed_bytes, suffix='.jpg') as temp_file_path:
@@ -105,15 +94,133 @@ class IntegratedDetectionAPIService:
                     file_size = os.path.getsize(temp_file_path)
                     logger.debug(f"📁 臨時文件已創建: {temp_file_path}, 大小: {file_size} bytes")
                     
-                    # 8. 執行整合檢測（傳遞原始 Cloudinary URL 用於儲存）
+                    # 5. 執行整合檢測（先執行預測以獲取 prediction_id）
                     result = self.integrated_service.predict(
                         image_path=temp_file_path,
                         user_id=user_id,
                         image_source=image_source,
                         image_hash=image_hash,
-                        web_image_path=cloudinary_original_url,  # 傳遞原始 Cloudinary URL（用於儲存到資料庫）
+                        web_image_path=None,  # 先不傳 URL，稍後更新
                         image_bytes=processed_bytes  # 傳遞圖片位元組
                     )
+                    
+                    # 6. 上傳原始圖片到 Cloudinary（如果啟用）- 存儲到 origin 資料夾
+                    prediction_id = result.get('prediction_id')
+                    cloudinary_original_url = None
+                    if prediction_id and self.image_manager.use_cloudinary:
+                        try:
+                            upload_result = self.image_manager.upload_to_cloudinary(
+                                processed_bytes,
+                                public_id=f"origin/{prediction_id}",
+                                folder="leaf_disease_ai/origin"
+                            )
+                            cloudinary_original_url = upload_result.get('secure_url')
+                            logger.info(f"✅ 原始圖片已上傳到 Cloudinary (origin): {cloudinary_original_url}")
+                            
+                            # 更新資料庫中的 image_path 和 original_image_url
+                            db.execute_update(
+                                """
+                                UPDATE prediction_log
+                                SET image_path = %s, original_image_url = %s
+                                WHERE id = %s
+                                """,
+                                (cloudinary_original_url, cloudinary_original_url, prediction_id)
+                            )
+                            logger.info(f"✅ 已更新資料庫中的原始圖片 URL")
+                            
+                            # 同時更新 detection_records 表中的 original_image_url
+                            db.execute_update(
+                                """
+                                UPDATE detection_records
+                                SET original_image_url = %s
+                                WHERE prediction_log_id = %s AND user_id = %s
+                                """,
+                                (cloudinary_original_url, prediction_id, user_id)
+                            )
+                            logger.info(f"✅ 已更新 detection_records 中的原始圖片 URL")
+                            
+                            result['image_path'] = cloudinary_original_url
+                        except Exception as e:
+                            logger.warning(f"⚠️  上傳原始圖片到 Cloudinary 失敗: {str(e)}")
+                            # 不中斷流程，繼續執行
+                    
+                    # 10. 如果有 YOLO 檢測結果，使用 YOLO predict() 方法生成帶框圖片並上傳到 Cloudinary
+                    yolo_result = result.get('yolo_result')
+                    if prediction_id and yolo_result and yolo_result.get('detected') and yolo_result.get('detections'):
+                        try:
+                            detections = yolo_result.get('detections', [])
+                            if len(detections) > 0:
+                                # 使用 YOLO 模型的 predict() 方法生成帶框圖片（不包含文字）
+                                yolo_model = self.integrated_service.yolo_service.model
+                                predict_results = yolo_model.predict(
+                                    source=temp_file_path,
+                                    save=False,  # 不保存到硬碟，我們要手動處理
+                                    conf=0.75  # 設定最小置信度
+                                )
+                                
+                                # 從結果中獲取帶框的圖片（numpy array）
+                                if predict_results and len(predict_results) > 0:
+                                    annotated_image_array = predict_results[0].plot(
+                                        labels=False,  # 不顯示文字
+                                        boxes=True,  # 顯示框
+                                        line_width=2  # 框線寬度
+                                    )
+                                    
+                                    # 將 numpy array 轉換為 PIL Image，再轉換為 bytes
+                                    annotated_image = Image.fromarray(annotated_image_array)
+                                    img_bytes = io.BytesIO()
+                                    annotated_image.save(img_bytes, format='JPEG', quality=95)
+                                    annotated_image_bytes = img_bytes.getvalue()
+                                    
+                                    logger.info(f"✅ 已使用 YOLO predict() 生成帶檢測框的圖片（無文字）")
+                                    
+                                    # 上傳到 Cloudinary（如果啟用）- 存儲到 predictions 資料夾
+                                    predict_img_url = None
+                                    if self.image_manager.use_cloudinary:
+                                        try:
+                                            upload_result = self.image_manager.upload_to_cloudinary(
+                                                annotated_image_bytes,
+                                                public_id=f"predictions/{prediction_id}",
+                                                folder="leaf_disease_ai/predictions"
+                                            )
+                                            predict_img_url = upload_result.get('secure_url')
+                                            logger.info(f"✅ 帶框圖片已上傳到 Cloudinary (predictions): {predict_img_url}")
+                                            
+                                            # 更新資料庫中的 predict_img_url
+                                            db.execute_update(
+                                                """
+                                                UPDATE prediction_log
+                                                SET predict_img_url = %s
+                                                WHERE id = %s
+                                                """,
+                                                (predict_img_url, prediction_id)
+                                            )
+                                            logger.info(f"✅ 已更新資料庫中的帶框圖片 URL")
+                                            
+                                            # 同時更新 detection_records 表中的 annotated_image_url
+                                            db.execute_update(
+                                                """
+                                                UPDATE detection_records
+                                                SET annotated_image_url = %s
+                                                WHERE prediction_log_id = %s AND user_id = %s
+                                                """,
+                                                (predict_img_url, prediction_id, user_id)
+                                            )
+                                            logger.info(f"✅ 已更新 detection_records 中的帶框圖片 URL")
+                                            
+                                            # 在返回結果中添加 predict_img_url
+                                            result['predict_img_url'] = predict_img_url
+                                            
+                                        except Exception as e:
+                                            logger.warning(f"⚠️  上傳帶框圖片到 Cloudinary 失敗: {str(e)}")
+                                            # 不中斷流程，繼續返回結果
+                                    else:
+                                        logger.info("ℹ️  Cloudinary 未啟用，跳過帶框圖片上傳")
+                                else:
+                                    logger.warning("⚠️  YOLO predict() 未返回結果")
+                        except Exception as e:
+                            logger.warning(f"⚠️  生成帶框圖片失敗: {str(e)}", exc_info=True)
+                            # 不中斷流程，繼續返回結果
             except FileNotFoundError as e:
                 logger.error(f"❌ 臨時文件錯誤: {str(e)}", exc_info=True)
                 raise
@@ -218,22 +325,7 @@ class IntegratedDetectionAPIService:
                 logger.error(f"❌ 裁切圖片處理錯誤: {str(e)}")
                 return jsonify({"error": "裁切圖片處理失敗"}), 400
             
-            # 3. 上傳圖片到 Cloudinary（如果啟用）
-            cloudinary_original_url = None
-            cloudinary_public_id = None
-            if self.image_manager.use_cloudinary:
-                try:
-                    upload_result = self.image_manager.upload_to_cloudinary(processed_bytes)
-                    cloudinary_public_id = upload_result.get('public_id')
-                    cloudinary_original_url = upload_result.get('secure_url')
-                    logger.info(f"✅ 裁切圖片已上傳到 Cloudinary: {cloudinary_original_url}")
-                    logger.info(f"   Public ID: {cloudinary_public_id}")
-                except Exception as e:
-                    logger.error(f"❌ Cloudinary 上傳失敗: {str(e)}", exc_info=True)
-                    # 上傳失敗不應該阻止預測，繼續使用本地儲存
-                    logger.warning(f"⚠️  將使用本地儲存繼續預測")
-            
-            # 4. 創建臨時文件並執行檢測（使用上下文管理器自動清理）
+            # 3. 創建臨時文件並執行檢測（使用上下文管理器自動清理）
             # 注意：儲存到資料庫的是原始 URL，轉換後的 URL 只用於預測驗證
             # 注意：臨時文件僅用於模型推理，檢測完成後會自動刪除
             # 圖片只存儲在資料庫中，不存儲在文件系統
@@ -249,17 +341,133 @@ class IntegratedDetectionAPIService:
                     file_size = os.path.getsize(temp_file_path)
                     logger.debug(f"📁 臨時文件已創建: {temp_file_path}, 大小: {file_size} bytes")
                     
-                    # 7. 執行檢測（傳遞原始 Cloudinary URL 用於儲存）
+                    # 4. 執行檢測（先執行預測以獲取 prediction_id）
                     result = self.integrated_service.predict_with_crop(
                         cropped_image_path=temp_file_path,
                         user_id=user_id,
                         prediction_log_id=prediction_log_id,
                         crop_coordinates=crop_coordinates,
-                        image_source='crop',
-                        web_image_path=cloudinary_original_url,  # 傳遞原始 Cloudinary URL（用於儲存到資料庫）
-                        image_bytes=processed_bytes  # 傳遞圖片位元組
+                        web_image_path=None,  # 先不傳 URL，稍後更新
+                        image_bytes=processed_bytes
                     )
                     
+                    # 5. 上傳裁切後的原始圖片到 Cloudinary（如果啟用）- 存儲到 origin 資料夾
+                    prediction_id = result.get('prediction_id')
+                    cloudinary_original_url = None
+                    if prediction_id and self.image_manager.use_cloudinary:
+                        try:
+                            upload_result = self.image_manager.upload_to_cloudinary(
+                                processed_bytes,
+                                public_id=f"origin/{prediction_id}",
+                                folder="leaf_disease_ai/origin"
+                            )
+                            cloudinary_original_url = upload_result.get('secure_url')
+                            logger.info(f"✅ 裁切原始圖片已上傳到 Cloudinary (origin): {cloudinary_original_url}")
+                            
+                            # 更新資料庫中的 image_path 和 original_image_url
+                            db.execute_update(
+                                """
+                                UPDATE prediction_log
+                                SET image_path = %s, original_image_url = %s
+                                WHERE id = %s
+                                """,
+                                (cloudinary_original_url, cloudinary_original_url, prediction_id)
+                            )
+                            logger.info(f"✅ 已更新資料庫中的原始圖片 URL（裁切後）")
+                            
+                            # 同時更新 detection_records 表中的 original_image_url
+                            db.execute_update(
+                                """
+                                UPDATE detection_records
+                                SET original_image_url = %s
+                                WHERE prediction_log_id = %s AND user_id = %s
+                                """,
+                                (cloudinary_original_url, prediction_id, user_id)
+                            )
+                            logger.info(f"✅ 已更新 detection_records 中的原始圖片 URL（裁切後）")
+                            
+                            result['image_path'] = cloudinary_original_url
+                        except Exception as e:
+                            logger.warning(f"⚠️  上傳原始圖片到 Cloudinary 失敗: {str(e)}")
+                            # 不中斷流程，繼續執行
+                    
+                    # 9. 如果有 YOLO 檢測結果，使用 YOLO predict() 方法生成帶框圖片並上傳到 Cloudinary
+                    yolo_result = result.get('yolo_result')
+                    if prediction_id and yolo_result and yolo_result.get('detected') and yolo_result.get('detections'):
+                        try:
+                            detections = yolo_result.get('detections', [])
+                            if len(detections) > 0:
+                                # 使用 YOLO 模型的 predict() 方法生成帶框圖片（不包含文字）
+                                yolo_model = self.integrated_service.yolo_service.model
+                                predict_results = yolo_model.predict(
+                                    source=temp_file_path,
+                                    save=False,  # 不保存到硬碟，我們要手動處理
+                                    conf=0.75  # 設定最小置信度
+                                )
+                                
+                                # 從結果中獲取帶框的圖片（numpy array）
+                                if predict_results and len(predict_results) > 0:
+                                    annotated_image_array = predict_results[0].plot(
+                                        labels=False,  # 不顯示文字
+                                        boxes=True,  # 顯示框
+                                        line_width=2  # 框線寬度
+                                    )
+                                    
+                                    # 將 numpy array 轉換為 PIL Image，再轉換為 bytes
+                                    annotated_image = Image.fromarray(annotated_image_array)
+                                    img_bytes = io.BytesIO()
+                                    annotated_image.save(img_bytes, format='JPEG', quality=95)
+                                    annotated_image_bytes = img_bytes.getvalue()
+                                    
+                                    logger.info(f"✅ 已使用 YOLO predict() 生成帶檢測框的圖片（無文字，裁切後）")
+                                    
+                                    # 上傳到 Cloudinary（如果啟用）- 存儲到 predictions 資料夾
+                                    predict_img_url = None
+                                    if self.image_manager.use_cloudinary:
+                                        try:
+                                            upload_result = self.image_manager.upload_to_cloudinary(
+                                                annotated_image_bytes,
+                                                public_id=f"predictions/{prediction_id}",
+                                                folder="leaf_disease_ai/predictions"
+                                            )
+                                            predict_img_url = upload_result.get('secure_url')
+                                            logger.info(f"✅ 帶框圖片已上傳到 Cloudinary (predictions): {predict_img_url}")
+                                            
+                                            # 更新資料庫中的 predict_img_url
+                                            db.execute_update(
+                                                """
+                                                UPDATE prediction_log
+                                                SET predict_img_url = %s
+                                                WHERE id = %s
+                                                """,
+                                                (predict_img_url, prediction_id)
+                                            )
+                                            logger.info(f"✅ 已更新資料庫中的帶框圖片 URL（裁切後）")
+                                            
+                                            # 同時更新 detection_records 表中的 annotated_image_url
+                                            db.execute_update(
+                                                """
+                                                UPDATE detection_records
+                                                SET annotated_image_url = %s
+                                                WHERE prediction_log_id = %s AND user_id = %s
+                                                """,
+                                                (predict_img_url, prediction_id, user_id)
+                                            )
+                                            logger.info(f"✅ 已更新 detection_records 中的帶框圖片 URL（裁切後）")
+                                            
+                                            # 在返回結果中添加 predict_img_url
+                                            result['predict_img_url'] = predict_img_url
+                                            
+                                        except Exception as e:
+                                            logger.warning(f"⚠️  上傳帶框圖片到 Cloudinary 失敗: {str(e)}")
+                                            # 不中斷流程，繼續返回結果
+                                    else:
+                                        logger.info("ℹ️  Cloudinary 未啟用，跳過帶框圖片上傳")
+                                else:
+                                    logger.warning("⚠️  YOLO predict() 未返回結果")
+                        except Exception as e:
+                            logger.warning(f"⚠️  生成帶框圖片失敗: {str(e)}", exc_info=True)
+                            # 不中斷流程，繼續返回結果
                     # 確保臨時文件已刪除（上下文管理器會自動處理，這裡是雙重保險）
                     logger.debug(f"✅ 裁切檢測完成，臨時文件將自動清理: {temp_file_path}")
             except FileNotFoundError as e:
@@ -269,7 +477,7 @@ class IntegratedDetectionAPIService:
                 logger.error(f"❌ 文件權限錯誤: {str(e)}", exc_info=True)
                 raise
             except Exception as e:
-                logger.error(f"❌ 裁切檢測執行錯誤: {str(e)}", exc_info=True)
+                logger.error(f"❌ 檢測執行錯誤: {str(e)}", exc_info=True)
                 raise
             
             # 5. 記錄 API 日誌

@@ -228,7 +228,9 @@ class DetectionAPIService:
                     "disease_name": disease_name,  
                     "severity": record.get('severity', 'Unknown'),
                     "confidence": float(record.get('confidence', 0)),
-                    "image_path": image_url,
+                    "image_path": image_url,  # 向後兼容，保留原有欄位
+                    "original_image_url": record.get('original_image_url'),  # 原始圖片 URL
+                    "annotated_image_url": record.get('annotated_image_url'),  # 帶框圖片 URL
                     "image_compressed": record.get('image_compressed', False),
                     "image_source": record.get('image_source', 'upload'),
                     "status": record.get('status', 'completed'),

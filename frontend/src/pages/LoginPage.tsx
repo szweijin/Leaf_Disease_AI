@@ -3,10 +3,12 @@ import { Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
+import { validatePassword, getPasswordRequirements } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Eye, EyeOff } from "lucide-react";
 
 interface LoginPageProps {
     isAuthenticated?: boolean;
@@ -18,7 +20,10 @@ const LoginPage = ({ isAuthenticated, onLoggedIn }: LoginPageProps) => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
+    const [passwordError, setPasswordError] = useState("");
     const [loading, setLoading] = useState(false);
+    // 新增狀態：追蹤密碼是否可見
+    const [showPassword, setShowPassword] = useState(false);
     const errorShownRef = useRef(false);
 
     useEffect(() => {
@@ -35,6 +40,18 @@ const LoginPage = ({ isAuthenticated, onLoggedIn }: LoginPageProps) => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
+        setPasswordError("");
+
+        // 如果是註冊模式，先驗證密碼
+        if (!isLogin) {
+            const validation = validatePassword(password);
+            if (!validation.isValid) {
+                setPasswordError(validation.message);
+                toast.error(validation.message);
+                return;
+            }
+        }
+
         setLoading(true);
 
         try {
@@ -52,7 +69,18 @@ const LoginPage = ({ isAuthenticated, onLoggedIn }: LoginPageProps) => {
                 return;
             }
 
-            // 成功 - 後端返回 {"status": "logged_in", "email": email} 或 {"status": "registered"}
+            // 如果是註冊成功，切換回登入模式並保留帳號密碼
+            if (!isLogin) {
+                // 註冊成功
+                toast.success("註冊成功！請登入");
+                setIsLogin(true); // 切換回登入模式
+                setPasswordError(""); // 清除密碼錯誤
+                // email 和 password 已經在 state 中，會自動保留
+                setLoading(false);
+                return;
+            }
+
+            // 登入成功 - 後端返回 {"status": "logged_in", "email": email}
             if (onLoggedIn) {
                 // 使用返回的 email 或表單中的 email
                 const returnedEmail = data.email || email;
@@ -69,6 +97,11 @@ const LoginPage = ({ isAuthenticated, onLoggedIn }: LoginPageProps) => {
     if (isAuthenticated) {
         return <Navigate to='/home' replace />;
     }
+
+    // 切換密碼可見性的函數
+    const togglePasswordVisibility = () => {
+        setShowPassword((prevShowPassword) => !prevShowPassword);
+    };
 
     return (
         <motion.div
@@ -156,16 +189,56 @@ const LoginPage = ({ isAuthenticated, onLoggedIn }: LoginPageProps) => {
                                 className='space-y-2'
                             >
                                 <Label htmlFor='password'>密碼</Label>
-                                <Input
-                                    id='password'
-                                    type='password'
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    required
-                                    placeholder='至少 6 個字元'
-                                    minLength={6}
-                                    className='border-neutral-300 focus:border-emerald-500 focus:ring-emerald-500'
-                                />
+                                {/* 調整結構：使用相對定位包裹 Input 和按鈕 */}
+                                <div className='relative'>
+                                    <Input
+                                        id='password'
+                                        // 根據 showPassword 狀態切換 type
+                                        type={showPassword ? "text" : "password"}
+                                        value={password}
+                                        onChange={(e) => {
+                                            setPassword(e.target.value);
+                                            // 如果是註冊模式，即時驗證密碼
+                                            if (!isLogin) {
+                                                if (e.target.value.length > 0) {
+                                                    const validation = validatePassword(e.target.value);
+                                                    setPasswordError(validation.isValid ? "" : validation.message);
+                                                } else {
+                                                    setPasswordError("");
+                                                }
+                                            }
+                                        }}
+                                        required
+                                        placeholder={isLogin ? "請輸入密碼" : "至少 8 個字符，包含大小寫字母和數字"}
+                                        minLength={isLogin ? 1 : 8}
+                                        className={`pr-10 border-neutral-300 focus:border-emerald-500 focus:ring-emerald-500 ${
+                                            // 增加右邊內邊距
+                                            passwordError ? "border-red-500" : ""
+                                        }`}
+                                    />
+                                    {/* 切換密碼可見性的按鈕 */}
+                                    <Button
+                                        type='button' // 設置 type="button" 防止觸發表單提交
+                                        onClick={togglePasswordVisibility}
+                                        variant='ghost' // 使用 ghost 變體，使其看起來像個圖標
+                                        size='sm' // 小尺寸按鈕
+                                        className='absolute right-0 top-0 h-full px-3 py-0 text-neutral-500 hover:bg-transparent hover:text-emerald-600'
+                                    >
+                                        {/* 根據 showPassword 狀態顯示不同圖標 */}
+                                        {showPassword ? <EyeOff className='h-4 w-4' /> : <Eye className='h-4 w-4' />}
+                                    </Button>
+                                </div>
+                                {!isLogin && (
+                                    <div className='space-y-1'>
+                                        <p className='text-xs text-neutral-500'>密碼要求：</p>
+                                        <ul className='text-xs text-neutral-500 list-disc list-inside space-y-0.5'>
+                                            {getPasswordRequirements().map((req, index) => (
+                                                <li key={index}>{req}</li>
+                                            ))}
+                                        </ul>
+                                        {passwordError && <p className='text-xs text-red-500 mt-1'>{passwordError}</p>}
+                                    </div>
+                                )}
                             </motion.div>
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
@@ -190,6 +263,7 @@ const LoginPage = ({ isAuthenticated, onLoggedIn }: LoginPageProps) => {
                                 onClick={() => {
                                     setIsLogin(!isLogin);
                                     setError("");
+                                    setPasswordError("");
                                 }}
                                 className='text-emerald-600 hover:text-emerald-700 hover:underline'
                                 whileHover={{ scale: 1.05 }}

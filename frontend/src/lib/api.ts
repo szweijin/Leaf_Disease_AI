@@ -42,6 +42,23 @@ function handleUnauthorized(path: string) {
 }
 
 /**
+ * 根據 API 路徑獲取適當的超時時間（毫秒）
+ * @param path - API 路徑
+ * @returns 超時時間（毫秒）
+ */
+function getTimeoutForPath(path: string): number {
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+
+    // 預測相關的 API 需要更長的處理時間（圖像檢測可能需要 10-30 秒）
+    if (normalizedPath.startsWith("/api/predict")) {
+        return 120000; // 120 秒（2 分鐘）
+    }
+
+    // 其他 API 使用較短的超時時間
+    return 10000; // 10 秒（從 3 秒增加到 10 秒，提供更好的容錯性）
+}
+
+/**
  * 統一的 API 調用函數
  * @param path - API 路徑
  * @param options - fetch 選項
@@ -66,12 +83,13 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
         },
     };
 
-    // 如果已經有 signal，使用它；否則設置默認超時（3秒）
+    // 如果已經有 signal，使用它；否則根據路徑設置適當的超時時間
     if (!finalOptions.signal) {
         const controller = new AbortController();
+        const timeout = getTimeoutForPath(path);
         const timeoutId = setTimeout(() => {
             controller.abort();
-        }, 3000); // 默認 3 秒超時
+        }, timeout);
         finalOptions.signal = controller.signal;
 
         try {

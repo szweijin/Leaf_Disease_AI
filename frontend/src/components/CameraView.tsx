@@ -8,7 +8,7 @@ interface CameraViewProps {
     onCancel: () => void;
 }
 
-function CameraView({ onCapture, onCancel }: CameraViewProps) {
+export default function CameraView({ onCapture, onCancel }: CameraViewProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const [facingMode, setFacingMode] = useState<"environment" | "user">("environment"); // environment = 後置, user = 前置
@@ -88,5 +88,3 @@ function CameraView({ onCapture, onCancel }: CameraViewProps) {
         </div>
     );
 }
-
-export default CameraView;

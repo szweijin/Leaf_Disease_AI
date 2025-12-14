@@ -10,6 +10,9 @@
 -   ⚡ Redis 快取：提升 API 響應速度
 -   📚 Swagger API 文檔：完整的 API 文檔與測試介面
 -   ☁️ Cloudinary 圖片儲存：可選的雲端圖片儲存服務（支援自動優化）
+    -   原始圖片存儲在 `leaf_disease_ai/origin` 資料夾
+    -   帶檢測框的圖片存儲在 `leaf_disease_ai/predictions` 資料夾
+-   🖼️ 雙圖片顯示：前端同時顯示原始圖片和帶檢測框的結果圖片
 -   🎨 現代化 UI：使用 Tailwind CSS 3.x 和 shadcn/ui 構建的響應式前端介面
 -   🎭 組件庫：使用 shadcn/ui 官方組件，採用灰階配色方案
 -   📱 響應式設計：支援手機、平板、桌面三種裝置佈局
@@ -208,6 +211,46 @@ cd frontend
 npm run dev
 ```
 
+**前端快速啟動（如果遇到啟動緩慢問題）**：
+
+如果前端啟動緩慢或遇到依賴問題，可以嘗試以下方法：
+
+1. **清理並重新安裝依賴**：
+
+```bash
+cd frontend
+
+# 停止正在運行的 Vite 進程
+pkill -f vite
+
+# 刪除依賴和緩存
+rm -rf node_modules package-lock.json .vite
+
+# 重新安裝依賴
+npm install
+
+# 啟動開發服務器
+npm run dev
+```
+
+2. **使用快速啟動命令**：
+
+```bash
+cd frontend
+npm run dev:fast  # 強制重新構建依賴緩存
+```
+
+**前端啟動優化**：
+
+項目已配置以下優化以加快啟動速度：
+
+-   ✅ **依賴預優化**：常用依賴（react、react-dom、framer-motion 等）已預配置優化
+-   ✅ **TypeScript 編譯優化**：開發時禁用部分檢查以加快編譯
+-   ✅ **HMR 優化**：禁用錯誤覆蓋層以加快啟動
+-   ✅ **ESBuild 優化**：減少不必要的日誌輸出
+
+如果首次啟動仍然較慢，這是正常的（需要構建依賴緩存），後續啟動會更快。
+
 ## API 文檔
 
 啟動後端服務後，訪問 Swagger API 文檔：
@@ -223,7 +266,8 @@ Leaf_Disease_AI_local/
 │   ├── app.py                  # 主應用程式（路由定義）
 │   ├── modules/                # AI 模型模組
 │   │   ├── cnn_*.py            # CNN 相關模組
-│   │   └── yolo_*.py           # YOLO 相關模組
+│   │   ├── yolo_*.py           # YOLO 相關模組
+│   │   └── yolo_postprocess.py # YOLO 後處理（包含帶框圖片生成功能）
 │   └── src/
 │       ├── core/               # 核心模組
 │       │   ├── __init__.py
@@ -275,7 +319,7 @@ Leaf_Disease_AI_local/
 │   │   │   ├── AppLayout.jsx           # 應用佈局（包含路由）
 │   │   │   ├── ImageCropper.jsx        # 圖片裁切組件
 │   │   │   ├── CameraView.jsx          # 相機視圖組件
-│   │   │   ├── LeafDetectionView.jsx   # 葉片檢測視圖
+│   │   │   ├── LeafDetectionView.jsx   # 葉片檢測視圖（同時顯示原始和帶框圖片）
 │   │   │   └── ui/                      # shadcn/ui 組件
 │   │   │       ├── button.jsx          # 按鈕組件
 │   │   │       ├── card.jsx            # 卡片組件
@@ -323,6 +367,21 @@ Leaf_Disease_AI_local/
 
 ## 主要功能說明
 
+### 圖片處理與儲存
+
+系統支援完整的圖片處理流程：
+
+-   **原始圖片儲存**：上傳到 Cloudinary 的 `leaf_disease_ai/origin` 資料夾
+-   **帶框圖片生成**：當 YOLO 檢測到病害時，自動生成帶檢測框的圖片
+    -   只顯示檢測框，不顯示文字標籤
+    -   框線寬度為 2 像素（不會太粗）
+    -   框線顏色為綠色 (RGB: 0, 255, 0)
+-   **帶框圖片儲存**：上傳到 Cloudinary 的 `leaf_disease_ai/predictions` 資料夾
+-   **資料庫記錄**：
+    -   `prediction_log.image_path`：存儲原始圖片的 Cloudinary URL
+    -   `prediction_log.predict_img_url`：存儲帶框圖片的 Cloudinary URL
+-   **前端顯示**：檢測結果頁面會同時顯示兩張圖片（桌面版並排，手機版上下排列）
+
 ### Redis 快取
 
 系統使用 Redis 進行以下快取：
@@ -360,7 +419,11 @@ Leaf_Disease_AI_local/
 #### 檢測相關
 
 -   `POST /api/predict` - 整合檢測（CNN + YOLO，快取）
+    -   返回結果包含 `image_path`（原始圖片 URL）和 `predict_img_url`（帶框圖片 URL）
+    -   原始圖片上傳到 Cloudinary 的 `leaf_disease_ai/origin` 資料夾
+    -   帶框圖片上傳到 Cloudinary 的 `leaf_disease_ai/predictions` 資料夾
 -   `POST /api/predict-crop` - 裁切後重新檢測
+    -   同樣返回原始圖片和帶框圖片的 URL
 -   `POST /predict` - 舊版檢測端點（向後兼容）
 -   `GET /history` - 獲取檢測歷史
 
@@ -386,13 +449,17 @@ Leaf_Disease_AI_local/
 1. 此專案僅用於本地端開發，不適合直接部署到生產環境
 2. 確保 PostgreSQL 和 Redis 服務已啟動
 3. 模型檔案需要存在：
-    -   YOLO 模型：預設 `model/yolov11/best_v1_50.pt`（可通過環境變數 `YOLO_MODEL_PATH_RELATIVE` 配置）
-    -   CNN 模型：預設 `model/CNN/CNN_v1.0_20251204/best_mobilenetv3_large.pth`（可通過環境變數 `CNN_MODEL_PATH_RELATIVE` 配置）
+    - YOLO 模型：預設 `model/yolov11/best_v1_50.pt`（可通過環境變數 `YOLO_MODEL_PATH_RELATIVE` 配置）
+    - CNN 模型：預設 `model/CNN/CNN_v1.0_20251204/best_mobilenetv3_large.pth`（可通過環境變數 `CNN_MODEL_PATH_RELATIVE` 配置）
 4. 圖片儲存：
     - **Cloudinary（推薦）**：圖片現在完全儲存在 Cloudinary 雲端，不再儲存在資料庫 BLOB
     - 預設啟用 Cloudinary，需要在 `.env` 中設定 `CLOUDINARY_API_SECRET`
     - 如果未設定 Cloudinary，系統會使用本地文件儲存（`uploads/` 目錄）
     - 資料庫優化已包含在 `init_database.sql` 中，無需單獨執行
+    - **圖片分類儲存**：
+        - 原始圖片：存儲在 `leaf_disease_ai/origin` 資料夾，URL 保存在 `prediction_log.image_path`
+        - 帶框圖片：存儲在 `leaf_disease_ai/predictions` 資料夾，URL 保存在 `prediction_log.predict_img_url`
+    - **前端顯示**：檢測結果頁面會同時顯示原始圖片和帶檢測框的圖片（並排顯示）
 
 ## 故障排除
 
@@ -463,13 +530,88 @@ redis-cli ping  # 應該返回 PONG
 ### 模型載入失敗
 
 確保模型檔案路徑正確：
+
 -   YOLO 模型：預設 `model/yolov11/best_v1_50.pt`（可通過環境變數 `YOLO_MODEL_PATH_RELATIVE` 配置）
 -   CNN 模型：預設 `model/CNN/CNN_v1.0_20251204/best_mobilenetv3_large.pth`（可通過環境變數 `CNN_MODEL_PATH_RELATIVE` 配置）
 
 如果使用不同的模型路徑，請在 `.env` 檔案中設定：
+
 ```bash
 YOLO_MODEL_PATH_RELATIVE=model/yolov11/YOLOv11_v1_20251212/weights/best.pt
 CNN_MODEL_PATH_RELATIVE=model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth
+```
+
+### 帶框圖片未顯示
+
+如果檢測結果頁面只顯示原始圖片，沒有顯示帶框圖片：
+
+1. **檢查 YOLO 檢測是否成功**：
+
+    - 查看後端日誌，確認是否有 "✅ 已生成帶檢測框的圖片" 的訊息
+    - 確認 YOLO 檢測到了病害（`yolo_result.detected === true`）
+
+2. **檢查 Cloudinary 上傳**：
+
+    - 查看後端日誌，確認是否有 "✅ 帶框圖片已上傳到 Cloudinary" 的訊息
+    - 確認 `.env` 中的 Cloudinary 配置正確
+    - 檢查 Cloudinary 控制台，確認圖片已上傳到 `leaf_disease_ai/predictions` 資料夾
+
+3. **檢查資料庫**：
+
+    - 確認 `prediction_log` 表中的 `predict_img_url` 欄位有值
+    - 可以使用以下 SQL 查詢檢查：
+        ```sql
+        SELECT id, image_path, predict_img_url FROM prediction_log ORDER BY created_at DESC LIMIT 5;
+        ```
+
+4. **檢查前端**：
+    - 打開瀏覽器開發者工具（F12），查看 Network 標籤
+    - 確認 API 回應中包含 `predict_img_url` 欄位
+    - 檢查 Console 是否有圖片載入錯誤
+
+### 前端啟動緩慢或卡住
+
+如果前端啟動緩慢或卡住：
+
+1. **清理並重新安裝依賴（推薦）**：
+
+```bash
+cd frontend
+
+# 停止正在運行的 Vite 進程
+pkill -f vite
+
+# 刪除依賴和緩存
+rm -rf node_modules package-lock.json .vite
+
+# 重新安裝依賴
+npm install
+
+# 啟動開發服務器
+npm run dev
+```
+
+2. **使用快速啟動命令**：
+
+```bash
+cd frontend
+npm run dev:fast  # 強制重新構建依賴緩存
+```
+
+3. **檢查 Node.js 版本**：
+
+確保使用 Node.js 18+ 版本：
+
+```bash
+node --version  # 應該顯示 v18.x.x 或更高
+```
+
+4. **檢查端口占用**：
+
+如果端口 5173 被占用，Vite 會自動使用下一個可用端口，或手動指定：
+
+```bash
+npm run dev -- --port 3000
 ```
 
 ### 前端樣式問題
@@ -611,13 +753,18 @@ npm run build
 
 ## 版本資訊
 
--   **版本**: 2.3.0
+-   **版本**: 2.4.0
 -   **模式**: 本地端開發
 -   **前端框架**: React 19.2.0 + React Router DOM 7.10.1 + Vite 7.2.7 + Tailwind CSS 3.4.19 + shadcn/ui + PostCSS 8.5.6
 -   **前端工具**: ESLint 9.39.1 + TypeScript 支援（tsconfig.json）
 -   **UI 組件庫**: shadcn/ui（灰階配色方案）
 -   **後端框架**: Flask + PostgreSQL + Redis（可選）
--   **AI 模型**: 
+-   **AI 模型**:
     -   CNN: MobileNetV3-Large（預設：CNN_v1.0_20251204）
     -   YOLO: YOLOv11（預設：best_v1_50.pt，可通過環境變數配置）
+-   **新功能**:
+    -   ✅ 帶檢測框的圖片生成（只顯示框，不顯示文字標籤）
+    -   ✅ 原始圖片和帶框圖片分別存儲在 Cloudinary 的不同資料夾
+    -   ✅ 前端同時顯示原始圖片和帶框圖片
+    -   ✅ 資料庫新增 `predict_img_url` 欄位存儲帶框圖片 URL
 -   **最後更新**: 2024-12-12

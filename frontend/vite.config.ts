@@ -1,17 +1,40 @@
 import path from "path";
+import { fileURLToPath } from "url";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 // https://vite.dev/config/
 export default defineConfig({
-    plugins: [react(), tailwindcss()],
+    plugins: [
+        react({
+            // 禁用 React Fast Refresh 的某些檢查以加快啟動
+            babel: {
+                plugins: [],
+            },
+        }),
+        tailwindcss(),
+    ],
     resolve: {
         alias: {
             "@": path.resolve(__dirname, "./src"),
         },
     },
+    optimizeDeps: {
+        include: ["react", "react-dom", "react-router-dom", "framer-motion", "lucide-react", "sonner"],
+        exclude: [],
+    },
+    esbuild: {
+        // 加快編譯速度
+        logOverride: { "this-is-undefined-in-esm": "silent" },
+    },
     server: {
+        // 加快啟動速度
+        hmr: {
+            overlay: false, // 禁用錯誤覆蓋層以加快啟動
+        },
         proxy: {
             // 代理所有 API 請求到後端
             "/api": {

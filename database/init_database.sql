@@ -202,6 +202,10 @@ CREATE TABLE prediction_log (
     crop_coordinates JSONB,
     cropped_image_path TEXT,
     
+    -- 圖片 URL（用於外部存儲）
+    original_image_url TEXT,
+    predict_img_url TEXT,
+    
     -- 時間戳
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -221,6 +225,8 @@ COMMENT ON COLUMN prediction_log.cnn_all_scores IS 'CNN 所有類別的分數（
 COMMENT ON COLUMN prediction_log.yolo_result IS 'YOLO 檢測結果列表（JSONB）';
 COMMENT ON COLUMN prediction_log.final_status IS '最終狀態：yolo_detected, need_crop, not_plant';
 COMMENT ON COLUMN prediction_log.workflow_step IS '工作流程步驟：cnn_only, cnn_yolo, crop_required';
+COMMENT ON COLUMN prediction_log.original_image_url IS '原始圖片 URL（Cloudinary 或其他外部存儲）';
+COMMENT ON COLUMN prediction_log.predict_img_url IS '帶檢測框的預測結果圖片 URL（Cloudinary）';
 
 -- ============================================
 -- 8. 建立檢測記錄表
@@ -250,6 +256,10 @@ CREATE TABLE detection_records (
     image_compressed BOOLEAN DEFAULT FALSE,
     prediction_log_id UUID REFERENCES prediction_log(id) ON DELETE SET NULL,
     
+    -- 圖片 URL（用於歷史記錄顯示）
+    original_image_url TEXT,
+    annotated_image_url TEXT,
+    
     CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT chk_severity CHECK (severity IN ('Mild', 'Moderate', 'Severe', 'Healthy', 'Unknown')),
     CONSTRAINT chk_status CHECK (status IN ('completed', 'processing', 'failed', 'duplicate', 'unrecognized')),
@@ -264,6 +274,15 @@ CREATE INDEX idx_records_user_date ON detection_records(user_id, created_at DESC
 CREATE INDEX idx_records_confidence ON detection_records(confidence DESC);
 CREATE INDEX idx_records_compressed ON detection_records(image_compressed);
 CREATE INDEX idx_detection_prediction_log_id ON detection_records(prediction_log_id);
+CREATE INDEX idx_detection_original_image_url ON detection_records(original_image_url) WHERE original_image_url IS NOT NULL;
+CREATE INDEX idx_detection_annotated_image_url ON detection_records(annotated_image_url) WHERE annotated_image_url IS NOT NULL;
+
+-- 為 prediction_log 的 original_image_url 創建索引
+CREATE INDEX idx_prediction_original_image_url ON prediction_log(original_image_url) WHERE original_image_url IS NOT NULL;
+
+-- 為 detection_records 的圖片 URL 欄位添加註釋
+COMMENT ON COLUMN detection_records.original_image_url IS '原始圖片 URL（用於歷史記錄顯示）';
+COMMENT ON COLUMN detection_records.annotated_image_url IS '帶檢測框的圖片 URL（用於歷史記錄顯示）';
 
 -- ============================================
 -- 9. 建立活動日誌表
@@ -579,7 +598,7 @@ INSERT INTO disease_library (
     disease_name, chinese_name, english_name, causes, features,
     pesticides, management_measures, is_active, created_at, updated_at
 ) VALUES (
-    'Tomato_early_blight', '番茄早疫病', 'early blight',
+    'Tomato__early_blight', '番茄早疫病', 'early blight',
     '真菌性疾病（Alternaria solani）',
     '本病會感染葉、莖、果實，形成褐色同心輪紋並伴隨黃暈。嚴重時葉片轉黃乾枯、果實凹陷腐敗。可由病果、種子及分生孢子傳播，透過風雨、流水與農具等散播，並從氣孔或角質層侵入。25–30℃的高溫多濕環境最有利病害迅速發展。',
     '["58% 松香酯銅（稀釋1500倍）；每隔 7 天施藥一次，共三次。", "81.3% 嘉賜銅（稀釋1000倍）；安全採收期3天；每隔 7 天施藥一次，共三次。"]'::jsonb,
@@ -600,7 +619,7 @@ INSERT INTO disease_library (
     disease_name, chinese_name, english_name, causes, features,
     pesticides, management_measures, is_active, created_at, updated_at
 ) VALUES (
-    'Tomato_late_blight', '番茄晚疫病', 'late blight',
+    'Tomato__late_blight', '番茄晚疫病', 'late blight',
     '卵菌綱疾病（Phytophthora infestans）',
     '危害葉片、新梢、莖與果實。初呈水浸狀後轉深褐並迅速擴大，嚴重時植株死亡。果實腐爛落果，高濕時病斑出現白色黴狀物。病菌存於土壤並於高濕環境釋放游走子藉水傳播。常於天氣轉涼、高濕、10–22℃時最為嚴重。',
     '["52.5% 凡殺克絕（稀釋2500倍）；安全採收期6天；每隔 7 天施藥一次，共四次。", "80% 免得爛（稀釋500倍）；安全採收期7天；每隔5～7天施藥一次。"]'::jsonb,
@@ -621,7 +640,7 @@ INSERT INTO disease_library (
     disease_name, chinese_name, english_name, causes, features,
     pesticides, management_measures, is_active, created_at, updated_at
 ) VALUES (
-    'Tomato_bacterial_spot', '番茄細菌性斑點病', 'bacterial spot',
+    'Tomato__bacterial_spot', '番茄細菌性斑點病', 'bacterial spot',
     '細菌性疾病（Xanthomonas axonopodis）',
     '危害葉、莖、花序與果實。初呈水浸狀小斑點，後變深褐壞疽易穿孔；果實黑褐凹陷呈瘡痂狀。由病種子、病殘體及中間寄主傳播。24–30℃及連續風雨最易發病，雨水飛濺加速擴散。',
     '["81.3% 嘉賜銅（稀釋1000倍）；安全採收期6天；每隔 7 天施藥一次，共三次。", "53.8% 氫氧化銅水分散性粒劑（稀釋2000倍）；安全採收期6天；每隔 7 天施藥一次，共三次。"]'::jsonb,
@@ -642,7 +661,7 @@ INSERT INTO disease_library (
     disease_name, chinese_name, english_name, causes, features,
     pesticides, management_measures, is_active, created_at, updated_at
 ) VALUES (
-    'Potato_early_blight', '馬鈴薯早疫病', 'early blight',
+    'Potato__early_blight', '馬鈴薯早疫病', 'early blight',
     '真菌性疾病（Alternaria solani）',
     '感染葉、莖，形成褐色同心輪紋並伴隨黃暈。嚴重時葉片轉黃乾枯，並由病果、種子與孢子傳播。25–30℃高溫多濕最利病害發生。',
     '["液化澱粉芽孢桿菌 YCMA1（稀釋600倍）；每隔7天施藥一次，共三次。", "9% 滅特座（稀釋1000倍）；安全採收期7天；必要時隔7天施藥一次。"]'::jsonb,
@@ -663,7 +682,7 @@ INSERT INTO disease_library (
     disease_name, chinese_name, english_name, causes, features,
     pesticides, management_measures, is_active, created_at, updated_at
 ) VALUES (
-    'Potato_late_blight', '馬鈴薯晚疫病', 'late blight',
+    'Potato__late_blight', '馬鈴薯晚疫病', 'late blight',
     '卵菌綱疾病（Phytophthora infestans）',
     '危害葉片、莖與塊莖。初呈水浸狀後轉深褐並迅速擴大，嚴重時整株死亡。高濕時病斑出現白色菌絲，病菌於土壤越冬並藉水傳播。',
     '["52.5% 凡殺克絕（稀釋2500倍）；安全採收期6天；每隔7天施藥一次，共四次。", "33% 鋅錳乃浦（稀釋600倍）；安全採收期12天；每隔7天施藥一次，共四次。"]'::jsonb,
@@ -684,7 +703,7 @@ INSERT INTO disease_library (
     disease_name, chinese_name, english_name, causes, features,
     pesticides, management_measures, is_active, created_at, updated_at
 ) VALUES (
-    'Bell_pepper_bacterial_spot', '甜椒細菌性斑點病', 'bacterial spot',
+    'Bell_pepper__bacterial_spot', '甜椒細菌性斑點病', 'bacterial spot',
     '細菌性疾病（Xanthomonas axonopodis）',
     '危害葉、莖、花序與果實。初呈小型水浸斑，後轉深褐壞疽並出現穿孔；果實黑褐凹陷呈瘡痂狀。病源可由病種子、病殘體及寄主傳播。24–30℃與連續風雨最易快速擴散。',
     '["81.3% 嘉賜銅（稀釋1000倍）；安全採收期3天；每隔7天施藥一次，共三次。", "27.12% 三元硫酸銅（稀釋500倍）；安全採收期3天；每隔7天施藥一次，共三次。"]'::jsonb,

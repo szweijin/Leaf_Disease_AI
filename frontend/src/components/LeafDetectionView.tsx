@@ -9,6 +9,7 @@ interface LeafDetectionViewProps {
         severity?: string;
         confidence?: number;
         image_path?: string;
+        predict_img_url?: string;
         disease_info?: {
             description?: string;
             treatment?: string;
@@ -34,9 +35,60 @@ function LeafDetectionView({ result, onReset }: LeafDetectionViewProps) {
                     <CardDescription>AI 檢測完成</CardDescription>
                 </CardHeader>
                 <CardContent className='space-y-6'>
-                    {result.image_path && (
-                        <div className='rounded-lg overflow-hidden border border-neutral-200'>
-                            <img src={result.image_path} alt='檢測圖片' className='w-full h-auto' />
+                    {/* 圖片顯示區域 - 同時顯示原始圖片和帶框圖片 */}
+                    {(result.image_path || result.predict_img_url) && (
+                        <div
+                            className={`grid gap-4 ${
+                                result.image_path && result.predict_img_url
+                                    ? "grid-cols-1 md:grid-cols-2"
+                                    : "grid-cols-1"
+                            }`}
+                        >
+                            {/* 原始圖片 */}
+                            {result.image_path && (
+                                <div className='space-y-2'>
+                                    <h3 className='text-sm font-medium text-neutral-700'>原始圖片</h3>
+                                    <div className='rounded-lg overflow-hidden border border-neutral-200 bg-neutral-50'>
+                                        <img
+                                            src={result.image_path}
+                                            alt='原始圖片'
+                                            className='w-full h-auto'
+                                            onError={(e) => {
+                                                const target = e.target as HTMLImageElement;
+                                                target.style.display = "none";
+                                                const parent = target.parentElement;
+                                                if (parent) {
+                                                    parent.innerHTML =
+                                                        '<p class="text-sm text-neutral-500 p-4 text-center">圖片載入失敗</p>';
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 帶框圖片 */}
+                            {result.predict_img_url && (
+                                <div className='space-y-2'>
+                                    <h3 className='text-sm font-medium text-neutral-700'>檢測結果（帶框）</h3>
+                                    <div className='rounded-lg overflow-hidden border border-neutral-200 bg-neutral-50'>
+                                        <img
+                                            src={result.predict_img_url}
+                                            alt='檢測結果圖片'
+                                            className='w-full h-auto'
+                                            onError={(e) => {
+                                                const target = e.target as HTMLImageElement;
+                                                target.style.display = "none";
+                                                const parent = target.parentElement;
+                                                if (parent) {
+                                                    parent.innerHTML =
+                                                        '<p class="text-sm text-neutral-500 p-4 text-center">圖片載入失敗</p>';
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 

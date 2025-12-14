@@ -125,9 +125,9 @@ def register():
               description: 使用者 Email
             password:
               type: string
-              minLength: 6
-              example: password123
-              description: 使用者密碼（至少 6 個字元）
+              minLength: 8
+              example: Password123
+              description: 使用者密碼（至少 8 個字符，需包含大小寫字母和數字）
     responses:
       200:
         description: 註冊成功
@@ -363,9 +363,9 @@ def change_password():
               description: 舊密碼
             new_password:
               type: string
-              minLength: 6
-              example: newpassword123
-              description: 新密碼（至少 6 個字元）
+              minLength: 8
+              example: NewPassword123
+              description: 新密碼（至少 8 個字符，需包含大小寫字母和數字）
     responses:
       200:
         description: 修改成功

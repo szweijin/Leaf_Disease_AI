@@ -662,11 +662,11 @@ class DetectionQueries:
             WHERE {where_clause}
         """
         
-        # 查詢記錄
+        # 查詢記錄（包含原始圖片和帶框圖片 URL）
         sql = f"""
             SELECT id, disease_name, severity, confidence, image_path,
                    created_at, status, processing_time_ms, image_compressed,
-                   image_source, prediction_log_id
+                   image_source, prediction_log_id, original_image_url, annotated_image_url
             FROM detection_records
             WHERE {where_clause}
             ORDER BY {order_by} {order_dir}

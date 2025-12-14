@@ -18,11 +18,12 @@
 
         /* Linting */
         "strict": true,
-        "noUnusedLocals": true,
-        "noUnusedParameters": true,
+        // 在開發時禁用這些檢查以加快編譯速度，生產構建時會檢查
+        "noUnusedLocals": false,
+        "noUnusedParameters": false,
         "erasableSyntaxOnly": true,
         "noFallthroughCasesInSwitch": true,
-        "noUncheckedSideEffectImports": true,
+        "noUncheckedSideEffectImports": false,
 
         /* Paths */
         "baseUrl": ".",

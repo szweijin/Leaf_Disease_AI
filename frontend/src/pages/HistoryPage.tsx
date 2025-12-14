@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Loader2, Calendar, TrendingUp } from "lucide-react";
 
 interface HistoryRecord {
@@ -11,6 +12,8 @@ interface HistoryRecord {
     severity?: string;
     confidence?: number;
     image_path?: string;
+    original_image_url?: string; // 原始圖片 URL
+    annotated_image_url?: string; // 帶框圖片 URL
     timestamp?: string;
     created_at?: string;
 }
@@ -42,8 +45,22 @@ function HistoryPage() {
                 return;
             }
 
-            setHistory(Array.isArray(data) ? data : []);
+            // 後端返回格式為 {records: [...], pagination: {...}}
+            // 如果 data 是數組（向後兼容），直接使用；否則從 data.records 獲取
+            let records: HistoryRecord[] = [];
+            if (Array.isArray(data)) {
+                records = data;
+            } else if (data && Array.isArray(data.records)) {
+                records = data.records;
+            } else {
+                console.warn("歷史記錄數據格式不正確:", data);
+                records = [];
+            }
+
+            console.log(`載入 ${records.length} 筆歷史記錄`);
+            setHistory(records);
         } catch (err) {
+            console.error("載入歷史記錄失敗:", err);
             setError(err instanceof Error ? err.message : "網絡錯誤");
         } finally {
             setLoading(false);
@@ -104,64 +121,98 @@ function HistoryPage() {
                     </Card>
                 ) : (
                     <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6'>
-                        {history.map((record) => (
-                            <Card
-                                key={record.id}
-                                className='hover:shadow-lg transition-shadow border-neutral-200 hover:border-emerald-300'
-                            >
-                                {record.image_path && (
-                                    <div className='relative w-full h-48 overflow-hidden rounded-t-lg'>
-                                        <img
-                                            src={record.image_path}
-                                            alt='檢測結果'
-                                            className='w-full h-full object-cover'
-                                        />
-                                        <div className='absolute top-2 right-2'>
-                                            <Badge
-                                                className={`${
-                                                    severityColors[record.severity || ""] || "bg-neutral-500"
-                                                } text-white`}
-                                            >
-                                                {record.severity || "N/A"}
-                                            </Badge>
-                                        </div>
-                                    </div>
-                                )}
-                                <CardHeader>
-                                    <div className='flex items-start justify-between gap-2'>
-                                        <CardTitle className='text-lg text-emerald-700'>
-                                            {record.disease || "未知病害"}
-                                        </CardTitle>
-                                        {!record.image_path && (
-                                            <Badge
-                                                className={`${
-                                                    severityColors[record.severity || ""] || "bg-neutral-500"
-                                                } text-white`}
-                                            >
-                                                {record.severity || "N/A"}
-                                            </Badge>
-                                        )}
-                                    </div>
-                                </CardHeader>
-                                <CardContent className='space-y-3'>
-                                    {record.confidence !== undefined && (
-                                        <div className='flex items-center gap-2 text-sm'>
-                                            <TrendingUp className='w-4 h-4 text-emerald-600' />
-                                            <span className='text-neutral-600'>
-                                                置信度:{" "}
-                                                <span className='font-semibold text-emerald-700'>
-                                                    {(record.confidence * 100).toFixed(1)}%
-                                                </span>
-                                            </span>
+                        {history.map((record) => {
+                            // 優先使用原始圖片 URL，其次使用 image_path，最後使用帶框圖片
+                            const displayImageUrl =
+                                record.original_image_url || record.image_path || record.annotated_image_url;
+
+                            return (
+                                <Card
+                                    key={record.id}
+                                    className='hover:shadow-lg transition-shadow border-neutral-200 hover:border-emerald-300'
+                                >
+                                    {displayImageUrl && (
+                                        <div className='relative w-full h-48 overflow-hidden rounded-t-lg group'>
+                                            <img
+                                                src={displayImageUrl}
+                                                alt='檢測結果'
+                                                className='w-full h-full object-cover'
+                                            />
+                                            <div className='absolute top-2 right-2'>
+                                                <Badge
+                                                    className={`${
+                                                        severityColors[record.severity || ""] || "bg-neutral-500"
+                                                    } text-white`}
+                                                >
+                                                    {record.severity || "N/A"}
+                                                </Badge>
+                                            </div>
+                                            {/* 如果有帶框圖片，顯示切換按鈕 */}
+                                            {record.annotated_image_url && record.original_image_url && (
+                                                <div className='absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity'>
+                                                    <Button
+                                                        size='sm'
+                                                        variant='secondary'
+                                                        className='text-xs'
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const img = e.currentTarget
+                                                                .closest(".group")
+                                                                ?.querySelector("img");
+                                                            if (img) {
+                                                                const currentSrc = img.src;
+                                                                const originalUrl = record.original_image_url;
+                                                                const annotatedUrl = record.annotated_image_url;
+                                                                if (currentSrc === originalUrl && annotatedUrl) {
+                                                                    img.src = annotatedUrl;
+                                                                } else if (currentSrc === annotatedUrl && originalUrl) {
+                                                                    img.src = originalUrl;
+                                                                }
+                                                            }
+                                                        }}
+                                                    >
+                                                        切換視圖
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
-                                    <div className='flex items-center gap-2 text-sm text-neutral-500'>
-                                        <Calendar className='w-4 h-4' />
-                                        <span>{formatDate(record.timestamp || record.created_at)}</span>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
+                                    <CardHeader>
+                                        <div className='flex items-start justify-between gap-2'>
+                                            <CardTitle className='text-lg text-emerald-700'>
+                                                {record.disease || "未知病害"}
+                                            </CardTitle>
+                                            {!displayImageUrl && (
+                                                <Badge
+                                                    className={`${
+                                                        severityColors[record.severity || ""] || "bg-neutral-500"
+                                                    } text-white`}
+                                                >
+                                                    {record.severity || "N/A"}
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className='space-y-3'>
+                                        {record.confidence !== undefined && (
+                                            <div className='flex items-center gap-2 text-sm'>
+                                                <TrendingUp className='w-4 h-4 text-emerald-600' />
+                                                <span className='text-neutral-600'>
+                                                    置信度:{" "}
+                                                    <span className='font-semibold text-emerald-700'>
+                                                        {(record.confidence * 100).toFixed(1)}%
+                                                    </span>
+                                                </span>
+                                            </div>
+                                        )}
+                                        <div className='flex items-center gap-2 text-sm text-neutral-500'>
+                                            <Calendar className='w-4 h-4' />
+                                            <span>{formatDate(record.timestamp || record.created_at)}</span>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            );
+                        })}
                     </div>
                 )}
             </div>

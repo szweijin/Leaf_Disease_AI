@@ -26,6 +26,7 @@ interface PredictionResult {
     severity?: string;
     final_status: "yolo_detected" | "need_crop" | "not_plant";
     image_path?: string;
+    predict_img_url?: string;
     image_stored_in_db?: boolean;
     yolo_result?: {
         detected: boolean;

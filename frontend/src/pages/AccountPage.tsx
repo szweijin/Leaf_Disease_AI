@@ -2,12 +2,14 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
+import { validatePassword, getPasswordRequirements } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, User, Lock, Mail, Calendar, LogOut } from "lucide-react";
+// 引入所有必要的圖標，包含新的 Eye, EyeOff
+import { Loader2, User, Lock, Mail, Calendar, LogOut, Eye, EyeOff } from "lucide-react";
 
 interface UserProfile {
     email?: string;
@@ -26,8 +28,14 @@ function AccountPage({ onLogout }: AccountPageProps) {
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [error, setError] = useState("");
+    const [passwordError, setPasswordError] = useState("");
     const [loading, setLoading] = useState(false);
     const [loadingProfile, setLoadingProfile] = useState(true);
+
+    // 新增三個狀態來控制密碼可見性
+    const [showOldPassword, setShowOldPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     useEffect(() => {
         if (error) {
@@ -61,14 +69,18 @@ function AccountPage({ onLogout }: AccountPageProps) {
     const handleChangePassword = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
+        setPasswordError("");
 
-        if (newPassword !== confirmPassword) {
-            setError("新密碼與確認密碼不一致");
+        // 驗證新密碼複雜度
+        const validation = validatePassword(newPassword);
+        if (!validation.isValid) {
+            setPasswordError(validation.message);
+            setError(validation.message);
             return;
         }
 
-        if (newPassword.length < 6) {
-            setError("新密碼至少需要 6 個字元");
+        if (newPassword !== confirmPassword) {
+            setError("新密碼與確認密碼不一致");
             return;
         }
 
@@ -94,6 +106,7 @@ function AccountPage({ onLogout }: AccountPageProps) {
             setOldPassword("");
             setNewPassword("");
             setConfirmPassword("");
+            setPasswordError("");
         } catch (err) {
             setError(err instanceof Error ? err.message : "網絡錯誤");
         } finally {
@@ -130,6 +143,30 @@ function AccountPage({ onLogout }: AccountPageProps) {
             return dateString;
         }
     };
+
+    /**
+     * Helper function to render the Eye/EyeOff icon button
+     * @param showState boolean indicating if the password is shown
+     * @param toggleFunction function to toggle the showState
+     * @returns React element (Button with icon)
+     */
+    const PasswordToggleButton = ({
+        showState,
+        toggleFunction,
+    }: {
+        showState: boolean;
+        toggleFunction: () => void;
+    }) => (
+        <Button
+            type='button'
+            onClick={toggleFunction}
+            variant='ghost'
+            size='sm'
+            className='absolute right-0 top-0 h-full px-3 py-0 text-neutral-500 hover:bg-transparent hover:text-emerald-600'
+        >
+            {showState ? <EyeOff className='h-4 w-4' /> : <Eye className='h-4 w-4' />}
+        </Button>
+    );
 
     if (loadingProfile) {
         return (
@@ -208,45 +245,96 @@ function AccountPage({ onLogout }: AccountPageProps) {
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleChangePassword} className='space-y-4'>
+                            {/* 舊密碼輸入框 */}
                             <div className='space-y-2'>
                                 <Label htmlFor='oldPassword'>舊密碼</Label>
-                                <Input
-                                    id='oldPassword'
-                                    type='password'
-                                    value={oldPassword}
-                                    onChange={(e) => setOldPassword(e.target.value)}
-                                    required
-                                    placeholder='請輸入目前的密碼'
-                                    className='border-neutral-300 focus:border-emerald-500 focus:ring-emerald-500'
-                                />
+                                <div className='relative'>
+                                    <Input
+                                        id='oldPassword'
+                                        // 根據 showOldPassword 狀態切換 type
+                                        type={showOldPassword ? "text" : "password"}
+                                        value={oldPassword}
+                                        onChange={(e) => setOldPassword(e.target.value)}
+                                        required
+                                        placeholder='請輸入目前的密碼'
+                                        className='pr-10 border-neutral-300 focus:border-emerald-500 focus:ring-emerald-500'
+                                    />
+                                    <PasswordToggleButton
+                                        showState={showOldPassword}
+                                        toggleFunction={() => setShowOldPassword(!showOldPassword)}
+                                    />
+                                </div>
                             </div>
+
+                            {/* 新密碼輸入框 */}
                             <div className='space-y-2'>
                                 <Label htmlFor='newPassword'>新密碼</Label>
-                                <Input
-                                    id='newPassword'
-                                    type='password'
-                                    value={newPassword}
-                                    onChange={(e) => setNewPassword(e.target.value)}
-                                    required
-                                    minLength={6}
-                                    placeholder='至少 6 個字元'
-                                    className='border-neutral-300 focus:border-emerald-500 focus:ring-emerald-500'
-                                />
-                                <p className='text-xs text-neutral-500'>密碼長度至少需要 6 個字元</p>
+                                <div className='relative'>
+                                    <Input
+                                        id='newPassword'
+                                        // 根據 showNewPassword 狀態切換 type
+                                        type={showNewPassword ? "text" : "password"}
+                                        value={newPassword}
+                                        onChange={(e) => {
+                                            setNewPassword(e.target.value);
+                                            // 即時驗證密碼
+                                            if (e.target.value.length > 0) {
+                                                const validation = validatePassword(e.target.value);
+                                                setPasswordError(validation.isValid ? "" : validation.message);
+                                            } else {
+                                                setPasswordError("");
+                                            }
+                                        }}
+                                        required
+                                        minLength={8}
+                                        placeholder='至少 8 個字符，包含大小寫字母和數字'
+                                        className={`pr-10 border-neutral-300 focus:border-emerald-500 focus:ring-emerald-500 ${
+                                            passwordError ? "border-red-500" : ""
+                                        }`}
+                                    />
+                                    <PasswordToggleButton
+                                        showState={showNewPassword}
+                                        toggleFunction={() => setShowNewPassword(!showNewPassword)}
+                                    />
+                                </div>
+                                <div className='space-y-1'>
+                                    <p className='text-xs text-neutral-500'>密碼要求：</p>
+                                    <ul className='text-xs text-neutral-500 list-disc list-inside space-y-0.5'>
+                                        {getPasswordRequirements().map((req, index) => (
+                                            <li key={index}>{req}</li>
+                                        ))}
+                                    </ul>
+                                    {passwordError && <p className='text-xs text-red-500 mt-1'>{passwordError}</p>}
+                                </div>
                             </div>
+
+                            {/* 確認新密碼輸入框 */}
                             <div className='space-y-2'>
                                 <Label htmlFor='confirmPassword'>確認新密碼</Label>
-                                <Input
-                                    id='confirmPassword'
-                                    type='password'
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    required
-                                    minLength={6}
-                                    placeholder='請再次輸入新密碼'
-                                    className='border-neutral-300 focus:border-emerald-500 focus:ring-emerald-500'
-                                />
+                                <div className='relative'>
+                                    <Input
+                                        id='confirmPassword'
+                                        // 根據 showConfirmPassword 狀態切換 type
+                                        type={showConfirmPassword ? "text" : "password"}
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        required
+                                        minLength={8}
+                                        placeholder='請再次輸入新密碼'
+                                        className={`pr-10 border-neutral-300 focus:border-emerald-500 focus:ring-emerald-500 ${
+                                            confirmPassword && newPassword !== confirmPassword ? "border-red-500" : ""
+                                        }`}
+                                    />
+                                    <PasswordToggleButton
+                                        showState={showConfirmPassword}
+                                        toggleFunction={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    />
+                                </div>
+                                {confirmPassword && newPassword !== confirmPassword && (
+                                    <p className='text-xs text-red-500'>新密碼與確認密碼不一致</p>
+                                )}
                             </div>
+
                             <Separator />
                             <Button type='submit' disabled={loading} className='w-full'>
                                 {loading ? (

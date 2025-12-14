@@ -7,11 +7,11 @@ Flask
 psycopg2-binary
 python-dotenv
 werkzeug
-Pillow
-ultralytics
+Pillow  # 圖片處理和檢測框繪製（用於生成帶框圖片）
+ultralytics  # YOLO 模型
 numpy
 opencv-python
-cloudinary
+cloudinary  # 雲端圖片儲存服務（原始圖片和帶框圖片分別存儲在 origin 和 predictions 資料夾）
 requests
 
 # 深度學習框架（CNN 模型需要）
