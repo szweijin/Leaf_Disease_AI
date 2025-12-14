@@ -10,6 +10,26 @@ from flask import Flask
 from flask_caching import Cache
 from flasgger import Swagger
 from dotenv import load_dotenv
+
+# 先設置路徑，然後再導入 config
+def _setup_import_paths():
+    """在模組級別設置 Python 路徑，以便導入 config 模組"""
+    current_file = os.path.abspath(__file__)
+    # 從 backend/src/core/core_app_config.py 到專案根目錄
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(current_file), '..', '..', '..'))
+    if base_dir not in sys.path:
+        sys.path.insert(0, base_dir)
+    return base_dir
+
+# 設置路徑
+base_dir = _setup_import_paths()
+
+# 在導入 config 之前先載入 .env 檔案（重要！）
+# 這樣 Config 類的屬性才能正確讀取環境變數
+from dotenv import load_dotenv
+load_dotenv(dotenv_path=os.path.join(base_dir, '.env'))
+
+# 現在可以導入 config 了
 from config.development import DevelopmentConfig
 from src.core.core_redis_manager import redis_manager
 from src.services.service_yolo import DetectionService
@@ -50,7 +70,8 @@ def setup_paths():
 
 def create_app():
     """創建並配置 Flask 應用程式"""
-    # 載入環境變數
+    # 注意：環境變數已在模組級別載入，這裡不需要再次載入
+    # 但為了確保，可以再次載入（不會有副作用）
     load_dotenv()
     
     # 設定路徑
@@ -249,14 +270,37 @@ def load_integrated_models(base_dir: str, config) -> IntegratedDetectionService:
     cnn_model_path = os.path.join(base_dir, cnn_model_path_relative)
     yolo_model_path = os.path.join(base_dir, yolo_model_path_relative)
     
+    # 檢查模型文件是否存在
+    if not os.path.exists(cnn_model_path):
+        logger.error(f"❌ CNN 模型文件不存在: {cnn_model_path}")
+        logger.error(f"   請檢查 CNN_MODEL_PATH_RELATIVE 配置或確保模型文件存在")
+        return None
+    
+    if not os.path.exists(yolo_model_path):
+        logger.error(f"❌ YOLO 模型文件不存在: {yolo_model_path}")
+        logger.error(f"   請檢查 YOLO_MODEL_PATH_RELATIVE 配置或確保模型文件存在")
+        return None
+    
+    logger.info(f"📦 開始載入整合檢測服務...")
+    logger.info(f"   CNN 模型路徑: {cnn_model_path}")
+    logger.info(f"   YOLO 模型路徑: {yolo_model_path}")
+    
     try:
         integrated_service = IntegratedDetectionService(cnn_model_path, yolo_model_path)
         logger.info(f"✅ 整合檢測服務載入成功")
         logger.info(f"   CNN: {cnn_model_path}")
         logger.info(f"   YOLO: {yolo_model_path}")
         return integrated_service
+    except FileNotFoundError as e:
+        logger.error(f"❌ 模型文件未找到: {str(e)}")
+        logger.error(f"   請確認模型文件路徑正確")
+        import traceback
+        logger.error(f"   錯誤堆疊:\n{traceback.format_exc()}")
+        return None
     except Exception as e:
         logger.error(f"❌ 無法載入整合檢測服務: {str(e)}")
+        import traceback
+        logger.error(f"   錯誤堆疊:\n{traceback.format_exc()}")
         return None
 
 

@@ -14,6 +14,14 @@ opencv-python
 cloudinary
 requests
 
+# 深度學習框架（CNN 模型需要）
+# 注意：torch 和 torchvision 需要根據您的系統和 CUDA 版本安裝
+# CPU 版本：pip install torch torchvision
+# CUDA 版本：請訪問 https://pytorch.org/ 獲取適合您系統的命令
+torch
+torchvision
+timm  # 用於 MobileNetV3-Large 模型（與訓練時一致）
+
 # Redis 和快取
 redis
 flask-caching

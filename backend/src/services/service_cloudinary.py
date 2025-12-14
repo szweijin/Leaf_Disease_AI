@@ -3,13 +3,22 @@ Cloudinary 圖片儲存服務
 提供 Cloudinary 圖片上傳、刪除、轉換等功能
 """    
 
-import cloudinary
-import cloudinary.uploader
-from cloudinary.utils import cloudinary_url
 import logging
 from typing import Optional, Dict, Any, Tuple
 import io
 from PIL import Image
+
+# 可選導入 cloudinary（如果未安裝，相關功能將不可用）
+try:
+    import cloudinary
+    import cloudinary.uploader
+    from cloudinary.utils import cloudinary_url
+    CLOUDINARY_AVAILABLE = True
+except ImportError:
+    CLOUDINARY_AVAILABLE = False
+    cloudinary = None
+    cloudinary_uploader = None
+    cloudinary_url = None
 
 # 設定日誌
 logging.basicConfig(
@@ -32,6 +41,9 @@ class CloudinaryStorage:
             api_secret: Cloudinary API secret
             secure: 是否使用 HTTPS
         """
+        if not CLOUDINARY_AVAILABLE:
+            raise ImportError("cloudinary 模組未安裝，請執行: pip install cloudinary")
+        
         cloudinary.config(
             cloud_name=cloud_name,
             api_key=api_key,
@@ -296,7 +308,7 @@ def init_cloudinary_storage(
     api_key: str,
     api_secret: str,
     secure: bool = True
-) -> CloudinaryStorage:
+) -> Optional[CloudinaryStorage]:
     """
     初始化全局 Cloudinary 儲存服務
     
@@ -307,9 +319,18 @@ def init_cloudinary_storage(
         secure: 是否使用 HTTPS
     
     Returns:
-        CloudinaryStorage 實例
+        CloudinaryStorage 實例，如果 cloudinary 不可用則返回 None
     """
-    global _cloudinary_storage
-    _cloudinary_storage = CloudinaryStorage(cloud_name, api_key, api_secret, secure)
-    return _cloudinary_storage
+    if not CLOUDINARY_AVAILABLE:
+        logger.warning("⚠️  cloudinary 模組未安裝，無法初始化 Cloudinary 儲存服務")
+        logger.warning("   請執行: pip install cloudinary")
+        return None
+    
+    try:
+        global _cloudinary_storage
+        _cloudinary_storage = CloudinaryStorage(cloud_name, api_key, api_secret, secure)
+        return _cloudinary_storage
+    except Exception as e:
+        logger.error(f"❌ 初始化 Cloudinary 儲存服務失敗: {str(e)}")
+        return None
 

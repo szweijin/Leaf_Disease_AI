@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 app, cache, upload_folder, detection_service, integrated_service, cloudinary_storage = create_app()
 
 # 初始化圖片管理器（支援 Cloudinary）
+# 注意：DevelopmentConfig 已經在 create_app() 中載入，這裡直接使用
 from config.development import DevelopmentConfig
 use_cloudinary = getattr(DevelopmentConfig, 'USE_CLOUDINARY', False)
 cloudinary_folder = getattr(DevelopmentConfig, 'CLOUDINARY_FOLDER', 'leaf_disease_ai')
@@ -51,7 +52,49 @@ except Exception as e:
 auth_service = AuthService()
 user_service = UserService()
 yolo_api_service = DetectionAPIService(detection_service, upload_folder)
-integrated_api_service = IntegratedDetectionAPIService(integrated_service, image_manager) if integrated_service else None
+
+# 初始化整合檢測服務
+if integrated_service:
+    try:
+        integrated_api_service = IntegratedDetectionAPIService(integrated_service, image_manager)
+        logger.info("✅ 整合檢測 API 服務初始化成功")
+    except Exception as e:
+        logger.error(f"❌ 整合檢測 API 服務初始化失敗: {str(e)}")
+        integrated_api_service = None
+else:
+    logger.warning("⚠️  整合檢測服務未載入，整合檢測功能將不可用")
+    logger.warning("   請檢查模型文件是否存在，或查看啟動日誌中的錯誤信息")
+    integrated_api_service = None
+
+
+# ==================== 診斷端點 ====================
+
+@app.route("/api/health", methods=["GET"])
+def api_health():
+    """
+    服務健康檢查端點
+    用於診斷服務狀態
+    """
+    health_status = {
+        "status": "ok",
+        "services": {
+            "detection_service": detection_service is not None,
+            "integrated_service": integrated_service is not None,
+            "integrated_api_service": integrated_api_service is not None,
+            "image_manager": image_manager is not None if 'image_manager' in globals() else False,
+            "cloudinary_storage": cloudinary_storage is not None if 'cloudinary_storage' in globals() else False
+        }
+    }
+    
+    if not integrated_api_service:
+        health_status["status"] = "degraded"
+        health_status["error"] = "整合檢測服務未載入"
+        if not integrated_service:
+            health_status["error_details"] = "integrated_service 為 None"
+        else:
+            health_status["error_details"] = "integrated_api_service 初始化失敗"
+    
+    return jsonify(health_status), 200 if health_status["status"] == "ok" else 503
 
 
 # ==================== 認證相關路由 ====================
@@ -188,6 +231,41 @@ def logout():
         description: 系統錯誤
     """
     return auth_service.logout()
+
+
+@app.route("/api/status", methods=["GET"])
+def api_status():
+    """
+    服務狀態檢查端點（臨時診斷用）
+    用於診斷服務狀態，無需重啟即可使用
+    """
+    try:
+        status = {
+            "status": "ok",
+            "services": {
+                "detection_service": detection_service is not None,
+                "integrated_service": integrated_service is not None,
+                "integrated_api_service": integrated_api_service is not None if 'integrated_api_service' in globals() else False,
+                "image_manager": image_manager is not None if 'image_manager' in globals() else False,
+            }
+        }
+        
+        if not integrated_api_service if 'integrated_api_service' in globals() else True:
+            status["status"] = "degraded"
+            status["error"] = "整合檢測服務未載入"
+            if not integrated_service:
+                status["error_details"] = "integrated_service 為 None"
+            elif 'integrated_api_service' not in globals():
+                status["error_details"] = "integrated_api_service 未定義"
+            else:
+                status["error_details"] = "integrated_api_service 初始化失敗"
+        
+        return jsonify(status), 200 if status["status"] == "ok" else 503
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "error": str(e)
+        }), 500
 
 
 @app.route("/check-auth", methods=["GET"])
@@ -466,7 +544,30 @@ def api_predict():
         description: 系統錯誤
     """
     if not integrated_api_service:
-        return jsonify({"error": "整合檢測服務未載入"}), 500
+        logger.error("❌ /api/predict: integrated_api_service 為 None")
+        logger.error(f"   integrated_service 狀態: {integrated_service is not None}")
+        logger.error(f"   image_manager 狀態: {image_manager is not None if 'image_manager' in globals() else '未定義'}")
+        
+        # 返回詳細的診斷信息
+        error_response = {
+            "error": "整合檢測服務未載入",
+            "details": "請檢查後端日誌以獲取詳細錯誤信息",
+            "diagnostics": {
+                "detection_service": detection_service is not None,
+                "integrated_service": integrated_service is not None,
+                "integrated_api_service": integrated_api_service is not None if 'integrated_api_service' in globals() else False,
+                "image_manager": image_manager is not None if 'image_manager' in globals() else False,
+            }
+        }
+        
+        if not integrated_service:
+            error_response["diagnostics"]["reason"] = "integrated_service 為 None（模型載入失敗）"
+        elif 'integrated_api_service' not in globals():
+            error_response["diagnostics"]["reason"] = "integrated_api_service 未定義（初始化失敗）"
+        else:
+            error_response["diagnostics"]["reason"] = "integrated_api_service 初始化失敗"
+        
+        return jsonify(error_response), 500
     return integrated_api_service.predict()
 
 

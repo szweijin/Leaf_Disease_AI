@@ -192,174 +192,95 @@ fi
 
 # 啟動前端（如果存在）
 if [ -d "$PROJECT_ROOT/frontend" ]; then
-    echo "🎨 啟動 React 前端（Tailwind CSS 3.x + shadcn/ui + PostCSS）..."
+    echo "🎨 啟動 React 前端（React 19 + Vite 7 + Tailwind CSS 3.x + shadcn/ui + PostCSS）..."
     cd "$PROJECT_ROOT/frontend" || exit 1
     
-    # 首先清除可能存在的舊進程和端口佔用（優化：減少等待時間）
+    # 快速清理舊進程（優化：並行執行，減少等待時間）
     echo "🧹 清理舊的前端進程..."
     PORT_5173_PID=$(lsof -ti:5173 2>/dev/null)
     if [ -n "$PORT_5173_PID" ]; then
         echo "   ⚠️  檢測到端口 5173 已被佔用 (PID: $PORT_5173_PID)"
-        echo "   🔄 正在清除佔用端口的進程..."
-        kill $PORT_5173_PID 2>/dev/null
-        sleep 0.5  # 從 1 秒減少到 0.5 秒
-        if kill -0 $PORT_5173_PID 2>/dev/null; then
-            echo "   ⚠️  進程未響應，強制終止..."
-            kill -9 $PORT_5173_PID 2>/dev/null
-            sleep 0.5  # 從 1 秒減少到 0.5 秒
-        fi
+        kill -9 $PORT_5173_PID 2>/dev/null
     fi
+    # 並行清除所有 vite 和 npm 相關進程（不等待）
+    pkill -9 -f "vite" 2>/dev/null &
+    pkill -9 -f "npm run dev" 2>/dev/null &
     
-    # 清除所有 vite 和 npm 相關進程
-    pkill -f "vite" 2>/dev/null
-    pkill -f "npm run dev" 2>/dev/null
-    sleep 0.5  # 從 1 秒減少到 0.5 秒
-    
-    # 確認端口已釋放
-    if lsof -ti:5173 > /dev/null 2>&1; then
-        echo "   ⚠️  警告：端口 5173 仍被佔用，可能需要手動清除"
-    else
-        echo "   ✅ 端口 5173 已準備就緒"
-    fi
-    
-    # 清除 Vite 快取和構建文件（優化：只在必要時清除）
-    # 檢查是否需要清除（如果快取文件很大或很舊）
-    if [ -d "node_modules/.vite" ] || [ -d "dist" ]; then
-        echo "🧹 清除 Vite 快取和構建文件..."
-        # 使用後台清除，不阻塞啟動流程
-        (rm -rf node_modules/.vite dist 2>/dev/null && echo "   ✅ 已清除 Vite 快取和構建文件") &
-        CLEANUP_PID=$!
-    else
-        echo "   ℹ️  無需清除（快取文件不存在）"
-    fi
-    
-    # 檢查並安裝前端依賴
-    echo "📦 檢查前端依賴..."
-    
-    # 檢查 node_modules 是否存在
-    if [ ! -d "node_modules" ]; then
-        echo "   📥 node_modules 不存在，正在安裝所有依賴..."
-        npm install
+    # 快速檢查依賴（只檢查最關鍵的）
+    echo "📦 快速檢查前端依賴..."
+    if [ ! -d "node_modules" ] || [ ! -d "node_modules/vite" ] || [ ! -d "node_modules/react" ]; then
+        echo "   📥 依賴缺失，正在安裝..."
+        npm install --silent
         if [ $? -ne 0 ]; then
-            echo "   ❌ 依賴安裝失敗，請檢查錯誤訊息"
+            echo "   ❌ 依賴安裝失敗"
             exit 1
         fi
-        echo "   ✅ 依賴安裝完成"
-    else
-        # 檢查關鍵依賴是否存在
-        MISSING_DEPS=0
-        
-        # 檢查生產依賴
-        if [ ! -d "node_modules/react" ] || [ ! -d "node_modules/react-dom" ]; then
-            echo "   ⚠️  React 依賴缺失，正在重新安裝..."
-            MISSING_DEPS=1
-        fi
-        
-        if [ ! -d "node_modules/vite" ]; then
-            echo "   ⚠️  Vite 依賴缺失，正在重新安裝..."
-            MISSING_DEPS=1
-        fi
-        
-        if [ ! -d "node_modules/@vitejs/plugin-react" ]; then
-            echo "   ⚠️  Vite React 插件缺失，正在重新安裝..."
-            MISSING_DEPS=1
-        fi
-        
-        if [ ! -d "node_modules/tailwindcss" ]; then
-            echo "   ⚠️  Tailwind CSS 缺失，正在重新安裝..."
-            MISSING_DEPS=1
-        fi
-        
-        if [ ! -d "node_modules/postcss" ] || [ ! -d "node_modules/autoprefixer" ]; then
-            echo "   ⚠️  PostCSS 或 Autoprefixer 缺失，正在重新安裝..."
-            MISSING_DEPS=1
-        fi
-        
-        # 檢查 Radix UI 依賴（shadcn/ui 需要）
-        if [ ! -d "node_modules/@radix-ui" ]; then
-            echo "   ⚠️  Radix UI 依賴缺失，正在重新安裝..."
-            MISSING_DEPS=1
-        fi
-        
-        if [ ! -d "node_modules/react-router-dom" ]; then
-            echo "   ⚠️  React Router 缺失，正在重新安裝..."
-            MISSING_DEPS=1
-        fi
-        
-        if [ $MISSING_DEPS -eq 1 ]; then
-            echo "   🔄 正在重新安裝所有依賴..."
-            npm install
-            if [ $? -ne 0 ]; then
-                echo "   ❌ 依賴安裝失敗，請檢查錯誤訊息"
-                exit 1
-            fi
-            echo "   ✅ 依賴重新安裝完成"
-        else
-            echo "   ✅ 所有依賴已正確安裝"
-        fi
-    fi
-    
-    # 驗證關鍵依賴
-    echo "   🔍 驗證關鍵依賴..."
-    if [ ! -d "node_modules/react" ]; then
-        echo "   ❌ React 未安裝，請手動執行: cd frontend && npm install"
-        exit 1
-    fi
-    if [ ! -d "node_modules/vite" ]; then
-        echo "   ❌ Vite 未安裝，請手動執行: cd frontend && npm install"
-        exit 1
-    fi
-    if [ ! -d "node_modules/tailwindcss" ]; then
-        echo "   ❌ Tailwind CSS 未安裝，請手動執行: cd frontend && npm install"
-        exit 1
-    fi
-    echo "   ✅ 關鍵依賴驗證通過"
-    
-    # 檢查配置檔案
-    if [ ! -f "tailwind.config.js" ]; then
-        echo "⚠️  警告：tailwind.config.js 不存在"
-    fi
-    if [ ! -f "postcss.config.js" ]; then
-        echo "⚠️  警告：postcss.config.js 不存在"
-    fi
-    if [ ! -f "components.json" ]; then
-        echo "⚠️  警告：components.json (shadcn/ui 配置) 不存在"
-    fi
-    if [ ! -f "jsconfig.json" ]; then
-        echo "⚠️  警告：jsconfig.json (路徑別名配置) 不存在"
     fi
     
     echo "🚀 啟動 Vite 開發伺服器..."
-    # 啟動 Vite 並捕獲輸出（優化：不等待清除快取完成）
-    npm run dev > /tmp/vite-startup.log 2>&1 &
+    # 清除舊日誌
+    > /tmp/vite-startup.log
+    # 在 frontend 目錄下啟動 Vite（使用 nohup 確保進程持續運行）
+    cd "$PROJECT_ROOT/frontend" || exit 1
+    nohup npm run dev > /tmp/vite-startup.log 2>&1 &
     FRONTEND_PID=$!
+    # 等待一下確保進程啟動
+    sleep 1
+    # 驗證進程是否真的在運行
+    if ! kill -0 $FRONTEND_PID 2>/dev/null; then
+        echo "   ⚠️  警告：無法驗證前端進程，將繼續檢查端口..."
+        FRONTEND_PID=""
+    fi
     cd "$PROJECT_ROOT" || exit 1
     
-    # 等待清除快取完成（如果正在清除）
-    if [ -n "$CLEANUP_PID" ]; then
-        wait $CLEANUP_PID 2>/dev/null || true
-    fi
-    
-    # 等待 Vite 啟動（優化：減少最大等待時間，更頻繁檢查）
+    # 等待 Vite 啟動（優化：更快的檢查，減少等待時間）
     echo "⏳ 等待前端啟動..."
     FRONTEND_READY=0
-    MAX_WAIT=15  # 從 20 秒減少到 15 秒
-    CHECK_INTERVAL=1  # 改為整數，避免算術運算錯誤
+    MAX_WAIT=15  # 增加到 15 秒，確保有足夠時間啟動
+    CHECK_INTERVAL=0.5  # 更頻繁檢查（每 0.5 秒）
+    CHECK_COUNT=$((MAX_WAIT * 2))  # 總檢查次數
     
-    for i in $(seq 1 $MAX_WAIT); do
+    for i in $(seq 1 $CHECK_COUNT); do
         sleep $CHECK_INTERVAL
-        # 檢查端口是否被佔用
+        # 檢查進程是否還在運行（如果 PID 有效）
+        if [ -n "$FRONTEND_PID" ] && ! kill -0 $FRONTEND_PID 2>/dev/null; then
+            echo "   ❌ 前端進程已停止"
+            if [ -f /tmp/vite-startup.log ]; then
+                echo "   📋 錯誤日誌："
+                tail -20 /tmp/vite-startup.log | sed 's/^/      /'
+            fi
+            break
+        fi
+        # 檢查端口是否被佔用（主要檢查）
         if lsof -ti:5173 > /dev/null 2>&1; then
-            # 額外檢查：確認是 Vite 進程（通過檢查日誌中的 ready 訊息）
-            if grep -q "ready in" /tmp/vite-startup.log 2>/dev/null; then
+            # 測試 HTTP 連接（最可靠的方式）
+            if curl -s -f http://localhost:5173 > /dev/null 2>&1; then
                 FRONTEND_READY=1
-                echo "   ✅ 前端已成功啟動（等待了 ${i} 秒）"
+                WAIT_SECONDS=$((i / 2))
+                WAIT_DECIMAL=$((i % 2 * 5))
+                if [ $WAIT_DECIMAL -eq 0 ]; then
+                    echo "   ✅ 前端已成功啟動（等待了 ${WAIT_SECONDS} 秒）"
+                else
+                    echo "   ✅ 前端已成功啟動（等待了 ${WAIT_SECONDS}.${WAIT_DECIMAL} 秒）"
+                fi
+                break
+            # 如果連接失敗，但日誌顯示已準備好，也認為啟動成功
+            elif grep -qE "(ready in|Local:|VITE v)" /tmp/vite-startup.log 2>/dev/null; then
+                FRONTEND_READY=1
+                WAIT_SECONDS=$((i / 2))
+                WAIT_DECIMAL=$((i % 2 * 5))
+                if [ $WAIT_DECIMAL -eq 0 ]; then
+                    echo "   ✅ 前端已成功啟動（等待了 ${WAIT_SECONDS} 秒）"
+                else
+                    echo "   ✅ 前端已成功啟動（等待了 ${WAIT_SECONDS}.${WAIT_DECIMAL} 秒）"
+                fi
                 break
             fi
         fi
-        # 每 5 秒顯示一次進度
-        if [ $((i % 5)) -eq 0 ]; then
-            echo "   ⏳ 仍在等待... (${i}/${MAX_WAIT} 秒)"
+        # 每 2 秒顯示一次進度
+        if [ $((i % 4)) -eq 0 ]; then
+            WAIT_SECONDS=$((i / 2))
+            echo "   ⏳ 仍在等待... (${WAIT_SECONDS}/${MAX_WAIT} 秒)"
         fi
     done
     
@@ -389,10 +310,11 @@ if [ -d "$PROJECT_ROOT/frontend" ]; then
     echo "✅ 本地開發環境已啟動"
     echo "   - 後端 API: http://localhost:5000"
     echo "   - Swagger 文檔: http://localhost:5000/api-docs"
-    echo "   - 前端 (Vite + Tailwind CSS 3.x + shadcn/ui): http://localhost:5173"
+    echo "   - 前端 (React 19 + Vite 7 + Tailwind CSS 3.x + shadcn/ui): http://localhost:5173"
     echo ""
     echo "💡 提示："
-    echo "   - 前端使用 shadcn/ui 組件庫，採用灰階配色方案"
+    echo "   - 前端使用 React 19.2.0 + Vite 7.2.7 + shadcn/ui 組件庫，採用灰階配色方案"
+    echo "   - 前端配置：tsconfig.json（TypeScript 支援）、jsconfig.json（路徑別名）、eslint.config.js（代碼檢查）"
     echo "   - 詳細的 shadcn/ui 使用指南: frontend/SHADCN_UI_GUIDE.md"
     echo ""
     echo "   如果前端樣式無法顯示，請："
@@ -400,6 +322,7 @@ if [ -d "$PROJECT_ROOT/frontend" ]; then
     echo "   2. 清除瀏覽器快取並重新載入（Ctrl+Shift+R 或 Cmd+Shift+R）"
     echo "   3. 查看前端日誌: tail -f /tmp/vite-startup.log"
     echo "   4. 確認所有 shadcn/ui 組件已正確安裝"
+    echo "   5. 確認 tsconfig.json 和 jsconfig.json 配置正確"
 else
     echo ""
     echo "✅ 後端服務已啟動"
@@ -411,5 +334,5 @@ echo ""
 echo "按 Ctrl+C 停止服務"
 
 # 等待中斷
-trap "echo ''; echo '🛑 正在停止服務...'; kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; exit" INT TERM
+trap "echo ''; echo '🛑 正在停止服務...'; kill $BACKEND_PID 2>/dev/null; [ -n \"\$FRONTEND_PID\" ] && kill \$FRONTEND_PID 2>/dev/null; pkill -f 'vite' 2>/dev/null; pkill -f 'npm.*dev' 2>/dev/null; exit" INT TERM
 wait

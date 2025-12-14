@@ -40,22 +40,24 @@ cd frontend
 npm install
 ```
 
-前端使用 **Tailwind CSS 3.x**、**shadcn/ui** 和 **React Router** 作為核心框架，所有依賴已包含在 `package.json` 中：
+前端使用 **React 19**、**Vite 7**、**Tailwind CSS 3.x**、**shadcn/ui** 和 **React Router** 作為核心框架，所有依賴已包含在 `package.json` 中：
 
--   React 18.3.1
+-   React 19.2.0
 -   React Router DOM 7.10.1（路由管理）
+-   Vite 7.2.7（建置工具）
+-   @vitejs/plugin-react 5.1.1
 -   Tailwind CSS 3.4.19
 -   shadcn/ui 組件庫（基於 Radix UI）
 -   PostCSS 8.5.6
 -   Autoprefixer 10.4.22
--   Vite 5.4.21（建置工具）
--   @vitejs/plugin-react 4.3.1
+-   ESLint 9.39.1（代碼檢查）
 -   lucide-react（圖標庫）
 
 **注意**：
 
--   `package.json` 中包含 `"type": "module"`，確保 PostCSS 配置使用 ES 模組語法
+-   `package.json` 中包含 `"type": "module"`，確保所有配置使用 ES 模組語法
 -   所有頁面組件已完全使用 shadcn/ui 組件重構，採用灰階配色方案
+-   前端同時支援 TypeScript（`tsconfig.json`）和 JavaScript（`jsconfig.json`）配置
 -   詳細的 shadcn/ui 使用指南請參考 `frontend/SHADCN_UI_GUIDE.md`
 
 ### 2. 設定環境變數
@@ -88,6 +90,10 @@ CLOUDINARY_FOLDER=leaf_disease_ai
 # SECRET_KEY 必須設定為一個強隨機字串（至少 32 字元）
 # 可以使用以下命令生成：openssl rand -hex 32
 SECRET_KEY=your-secret-key-here  # ⚠️ 請替換為實際的隨機字串
+
+# AI 模型路徑設定（可選，使用預設值時可省略）
+# CNN_MODEL_PATH_RELATIVE=model/CNN/CNN_v1.0_20251204/best_mobilenetv3_large.pth
+# YOLO_MODEL_PATH_RELATIVE=model/yolov11/best_v1_50.pt
 ```
 
 **生成 SECRET_KEY**：
@@ -251,48 +257,58 @@ Leaf_Disease_AI_local/
 ├── docs/                       # 文檔
 │   ├── complete_documentation.md # 完整系統文檔
 │   └── sequences_diagram.md    # 系統序列圖
-├── frontend/                   # React 前端（Tailwind CSS 3.x）
+├── frontend/                   # React 前端（React 19 + Vite 7 + Tailwind CSS 3.x）
 │   ├── src/
 │   │   ├── api.js              # API 調用封裝
 │   │   ├── App.jsx             # 主應用組件
+│   │   ├── App.css             # 應用樣式
 │   │   ├── main.jsx            # 入口文件
-│   │   ├── styles.css          # Tailwind CSS 入口文件（@tailwind 指令）
+│   │   ├── index.css           # Tailwind CSS 入口文件（@tailwind 指令）
 │   │   ├── pages/              # 頁面組件（一個檔案一個頁面）
 │   │   │   ├── LoginPage.jsx    # 登入頁面
 │   │   │   ├── HomePage.jsx     # HOME 頁面（檢測功能）
 │   │   │   ├── HistoryPage.jsx  # HISTORY 頁面（檢測歷史）
 │   │   │   └── AccountPage.jsx  # ACCOUNT 頁面（帳號設定）
-│   │   └── components/         # 共用組件
-│   │       ├── ProtectedRoute.jsx      # 路由守衛（保護需要登入的路由）
-│   │       ├── ResponsiveNavbar.jsx   # 響應式導覽列
-│   │       ├── AuthView.jsx            # 認證視圖
-│   │       ├── AppLayout.jsx           # 應用佈局（包含路由）
-│   │       ├── ImageCropper.jsx        # 圖片裁切組件
-│   │       ├── CameraView.jsx          # 相機視圖組件
-│   │       ├── LeafDetectionView.jsx   # 葉片檢測視圖
-│   │       └── ui/                      # shadcn/ui 組件
-│   │           ├── button.jsx          # 按鈕組件
-│   │           ├── card.jsx            # 卡片組件
-│   │           ├── input.jsx           # 輸入框組件
-│   │           ├── label.jsx           # 標籤組件
-│   │           ├── select.jsx          # 下拉選單組件
-│   │           ├── badge.jsx           # 徽章組件
-│   │           ├── alert.jsx           # 警告提示組件
-│   │           ├── dialog.jsx          # 對話框組件
-│   │           ├── sheet.jsx           # 側邊欄組件
-│   │           └── separator.jsx        # 分隔線組件
+│   │   ├── components/         # 共用組件
+│   │   │   ├── ProtectedRoute.jsx      # 路由守衛（保護需要登入的路由）
+│   │   │   ├── ResponsiveNavbar.jsx   # 響應式導覽列
+│   │   │   ├── AppLayout.jsx           # 應用佈局（包含路由）
+│   │   │   ├── ImageCropper.jsx        # 圖片裁切組件
+│   │   │   ├── CameraView.jsx          # 相機視圖組件
+│   │   │   ├── LeafDetectionView.jsx   # 葉片檢測視圖
+│   │   │   └── ui/                      # shadcn/ui 組件
+│   │   │       ├── button.jsx          # 按鈕組件
+│   │   │       ├── card.jsx            # 卡片組件
+│   │   │       ├── input.jsx           # 輸入框組件
+│   │   │       ├── label.jsx           # 標籤組件
+│   │   │       ├── select.jsx          # 下拉選單組件
+│   │   │       ├── badge.jsx           # 徽章組件
+│   │   │       ├── alert.jsx           # 警告提示組件
+│   │   │       ├── dialog.jsx          # 對話框組件
+│   │   │       ├── sheet.jsx           # 側邊欄組件
+│   │   │       └── separator.jsx        # 分隔線組件
+│   │   └── lib/                # 工具函數
+│   │       └── utils.js        # 通用工具函數
 │   ├── tailwind.config.js      # Tailwind 主題配置（ES 模組）
 │   ├── postcss.config.js       # PostCSS 配置（ES 模組）
+│   ├── vite.config.js          # Vite 配置（ES 模組）
+│   ├── eslint.config.js        # ESLint 配置（ES 模組）
 │   ├── components.json         # shadcn/ui 配置文件
 │   ├── jsconfig.json           # JavaScript 路徑別名配置
+│   ├── tsconfig.json           # TypeScript 配置（支援 JavaScript）
 │   ├── package.json            # 包含 "type": "module"
-│   ├── vite.config.mts         # Vite 配置
-│   └── SHADCN_UI_GUIDE.md     # shadcn/ui 使用指南
+│   └── SHADCN_UI_GUIDE.md     # shadcn/ui 使用指南（如果存在）
 ├── model/                      # AI 模型
 │   ├── CNN/                    # CNN 模型
-│   │   └── CNN_v1.0_20251204/
+│   │   ├── CNN_v1.0_20251204/   # CNN v1.0 模型
+│   │   │   └── best_mobilenetv3_large.pth
+│   │   └── CNN_v1.1_20251210/   # CNN v1.1 模型
+│   │       └── best_mobilenetv3_large.pth
 │   └── yolov11/                # YOLO 模型
-│       └── best_v1_50.pt
+│       ├── best_v1_50.pt       # 預設 YOLO 模型（可通過環境變數配置）
+│       └── YOLOv11_v1_20251212/ # YOLO v1 訓練結果
+│           └── weights/
+│               └── best.pt
 ├── scripts/                    # 腳本文件
 │   └── start.sh                # 啟動腳本
 ├── tests/                      # 測試文件（預留）
@@ -353,9 +369,14 @@ Leaf_Disease_AI_local/
 -   **後端配置**：使用 `config.development.DevelopmentConfig`
 -   **資料庫**：PostgreSQL，連接資訊在 `.env` 中設定
 -   **快取**：Redis（可選），配置在 `.env` 中設定
--   **前端**：Vite dev server + React Router + Tailwind CSS 3.x，自動 proxy 到後端
--   **前端路由**：使用 React Router DOM 7.x 實現 URL 路由，支援瀏覽器導航和路由守衛
+-   **前端**：Vite 7.2.7 dev server + React 19.2.0 + React Router + Tailwind CSS 3.x，自動 proxy 到後端
+-   **前端路由**：使用 React Router DOM 7.10.1 實現 URL 路由，支援瀏覽器導航和路由守衛
 -   **前端樣式**：使用 Tailwind CSS 3.4.19 + PostCSS 8.5.6，主題配置在 `frontend/tailwind.config.js`
+-   **前端配置**：
+    -   `tsconfig.json`：TypeScript 配置（支援 JavaScript，`allowJs: true`）
+    -   `jsconfig.json`：JavaScript 路徑別名配置
+    -   `eslint.config.js`：ESLint 代碼檢查配置
+    -   `vite.config.js`：Vite 建置配置（ES 模組）
 -   **響應式設計**：支援手機（底部導覽列）、平板、桌面（頂部導覽列）三種佈局
 -   **頁面結構**：使用 `pages/` 目錄組織頁面組件，`components/` 目錄存放共用組件
 -   **模組系統**：使用 ES 模組（`"type": "module"`），所有配置檔案使用 ES 模組語法
@@ -364,7 +385,9 @@ Leaf_Disease_AI_local/
 
 1. 此專案僅用於本地端開發，不適合直接部署到生產環境
 2. 確保 PostgreSQL 和 Redis 服務已啟動
-3. 模型檔案 `model/yolov11/best_v1_50.pt` 需要存在
+3. 模型檔案需要存在：
+    -   YOLO 模型：預設 `model/yolov11/best_v1_50.pt`（可通過環境變數 `YOLO_MODEL_PATH_RELATIVE` 配置）
+    -   CNN 模型：預設 `model/CNN/CNN_v1.0_20251204/best_mobilenetv3_large.pth`（可通過環境變數 `CNN_MODEL_PATH_RELATIVE` 配置）
 4. 圖片儲存：
     - **Cloudinary（推薦）**：圖片現在完全儲存在 Cloudinary 雲端，不再儲存在資料庫 BLOB
     - 預設啟用 Cloudinary，需要在 `.env` 中設定 `CLOUDINARY_API_SECRET`
@@ -439,7 +462,15 @@ redis-cli ping  # 應該返回 PONG
 
 ### 模型載入失敗
 
-確保模型檔案路徑正確：`model/yolov11/best_v1_50.pt`
+確保模型檔案路徑正確：
+-   YOLO 模型：預設 `model/yolov11/best_v1_50.pt`（可通過環境變數 `YOLO_MODEL_PATH_RELATIVE` 配置）
+-   CNN 模型：預設 `model/CNN/CNN_v1.0_20251204/best_mobilenetv3_large.pth`（可通過環境變數 `CNN_MODEL_PATH_RELATIVE` 配置）
+
+如果使用不同的模型路徑，請在 `.env` 檔案中設定：
+```bash
+YOLO_MODEL_PATH_RELATIVE=model/yolov11/YOLOv11_v1_20251212/weights/best.pt
+CNN_MODEL_PATH_RELATIVE=model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth
+```
 
 ### 前端樣式問題
 
@@ -472,8 +503,9 @@ redis-cli ping  # 應該返回 PONG
 
     - 確認 `tailwind.config.js` 存在且 `content` 路徑正確
     - 確認 `postcss.config.js` 存在且包含 `tailwindcss` 和 `autoprefixer`
-    - 確認 `src/styles.css` 包含 `@tailwind` 指令
-    - 確認 `src/main.jsx` 導入 `./styles.css`
+    - 確認 `src/index.css` 包含 `@tailwind` 指令
+    - 確認 `src/main.jsx` 導入 `./index.css`
+    - 確認 `tsconfig.json` 和 `jsconfig.json` 配置正確
 
 4. **檢查瀏覽器控制台**：
 
@@ -510,6 +542,14 @@ redis-cli ping  # 應該返回 PONG
 
 -   **瀏覽器導航**：支援前進/後退按鈕和直接 URL 訪問
 
+#### 前端技術棧
+
+前端使用 **React 19.2.0** + **Vite 7.2.7** + **Tailwind CSS 3.4.19** 作為核心技術棧：
+
+-   **React 19.2.0**：最新版本的 React 框架
+-   **Vite 7.2.7**：快速的前端建置工具，提供 HMR（熱模組替換）
+-   **React Router DOM 7.10.1**：路由管理，支援瀏覽器導航
+
 #### Tailwind CSS 3.x
 
 前端使用 **Tailwind CSS 3.4.19** 作為樣式框架：
@@ -537,9 +577,15 @@ redis-cli ping  # 應該返回 PONG
     -   所有頁面組件已完全使用 shadcn/ui 組件重構
     -   採用灰階配色方案，統一視覺風格
     -   組件配置在 `components.json` 中
-    -   詳細使用指南請參考 `frontend/SHADCN_UI_GUIDE.md`
+    -   詳細使用指南請參考 `frontend/SHADCN_UI_GUIDE.md`（如果存在）
 
--   **模組系統**：`package.json` 包含 `"type": "module"`，所有配置檔案使用 ES 模組語法
+-   **配置檔案**：
+
+    -   `tsconfig.json`：TypeScript 配置（支援 JavaScript，`allowJs: true`, `checkJs: false`）
+    -   `jsconfig.json`：JavaScript 路徑別名配置（`@/*` 對應 `./src/*`）
+    -   `eslint.config.js`：ESLint 代碼檢查配置（ES 模組格式）
+    -   `vite.config.js`：Vite 建置配置（ES 模組格式）
+    -   `package.json`：包含 `"type": "module"`，所有配置檔案使用 ES 模組語法
 
 ### 建置前端
 
@@ -565,8 +611,13 @@ npm run build
 
 ## 版本資訊
 
--   **版本**: 2.2.0
+-   **版本**: 2.3.0
 -   **模式**: 本地端開發
--   **前端框架**: React 18.3.1 + React Router DOM 7.10.1 + Vite 5.4.21 + Tailwind CSS 3.4.19 + shadcn/ui + PostCSS 8.5.6
+-   **前端框架**: React 19.2.0 + React Router DOM 7.10.1 + Vite 7.2.7 + Tailwind CSS 3.4.19 + shadcn/ui + PostCSS 8.5.6
+-   **前端工具**: ESLint 9.39.1 + TypeScript 支援（tsconfig.json）
 -   **UI 組件庫**: shadcn/ui（灰階配色方案）
--   **最後更新**: 2024-12-11
+-   **後端框架**: Flask + PostgreSQL + Redis（可選）
+-   **AI 模型**: 
+    -   CNN: MobileNetV3-Large（預設：CNN_v1.0_20251204）
+    -   YOLO: YOLOv11（預設：best_v1_50.pt，可通過環境變數配置）
+-   **最後更新**: 2024-12-12
