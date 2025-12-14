@@ -57,7 +57,7 @@ function ResponsiveNavbar({ userEmail, onLogout }: ResponsiveNavbarProps) {
                 </div>
                 <div className='flex items-center gap-4'>
                     {userEmail && <span className='text-sm text-neutral-600'>{userEmail}</span>}
-                    <Button variant='outline' onClick={handleLogout} className='border-neutral-300'>
+                    <Button variant='outline' onClick={handleLogout}>
                         登出
                     </Button>
                 </div>

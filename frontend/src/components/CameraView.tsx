@@ -77,11 +77,7 @@ function CameraView({ onCapture, onCancel }: CameraViewProps) {
                     <Button variant='ghost' size='icon' onClick={onCancel}>
                         <X className='h-6 w-6' />
                     </Button>
-                    <Button
-                        size='lg'
-                        onClick={capturePhoto}
-                        className='rounded-full w-16 h-16 bg-emerald-600 hover:bg-emerald-700'
-                    >
+                    <Button size='lg' onClick={capturePhoto} className='rounded-full w-16 h-16'>
                         <Camera className='h-8 w-8' />
                     </Button>
                     <Button variant='ghost' size='icon' onClick={switchCamera}>

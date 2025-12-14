@@ -160,7 +160,7 @@ function ImageCropper({ image, result, onCropComplete, onCancel }: ImageCropperP
                             />
                         </div>
                         <div className='flex gap-4'>
-                            <Button onClick={handleCrop} className='flex-1 bg-emerald-600 hover:bg-emerald-700'>
+                            <Button onClick={handleCrop} className='flex-1'>
                                 確認裁切
                             </Button>
                             <Button variant='outline' onClick={onCancel}>

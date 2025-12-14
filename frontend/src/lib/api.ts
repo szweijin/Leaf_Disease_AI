@@ -5,6 +5,10 @@
 
 const API_BASE_URL = ""; // 使用相對路徑，由 Vite proxy 處理
 
+// 認證相關的路徑，不需要在 401 時重定向（避免循環）
+// 這些路徑允許未登入用戶訪問，所以即使返回 401 也不應該重定向
+const AUTH_PATHS = ["/login", "/register", "/check-auth"];
+
 /**
  * 構建完整的 API URL
  */
@@ -12,6 +16,29 @@ export function apiUrl(path: string): string {
     // 移除開頭的斜線（如果有的話）
     const cleanPath = path.startsWith("/") ? path.slice(1) : path;
     return `${API_BASE_URL}/${cleanPath}`;
+}
+
+/**
+ * 處理 401 未授權錯誤，重定向到登入頁
+ */
+function handleUnauthorized(path: string) {
+    // 如果是認證相關的路徑，不重定向（避免循環）
+    // 這些路徑允許未登入用戶訪問，所以即使返回 401 也不應該重定向
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    if (AUTH_PATHS.some((authPath) => normalizedPath === authPath || normalizedPath.startsWith(authPath + "/"))) {
+        return;
+    }
+
+    // 如果當前已經在登入頁面，不重定向（避免循環）
+    // 這確保了 /login 端點可以正常訪問，即使 API 返回 401
+    if (typeof window !== "undefined" && window.location.pathname === "/login") {
+        return;
+    }
+
+    // 重定向到登入頁
+    if (typeof window !== "undefined") {
+        window.location.href = "/login";
+    }
 }
 
 /**
@@ -50,6 +77,12 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
         try {
             const response = await fetch(url, finalOptions);
             clearTimeout(timeoutId);
+
+            // 處理 401 未授權錯誤
+            if (response.status === 401) {
+                handleUnauthorized(path);
+            }
+
             return response;
         } catch (error) {
             clearTimeout(timeoutId);
@@ -60,5 +93,12 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
         }
     }
 
-    return fetch(url, finalOptions);
+    const response = await fetch(url, finalOptions);
+
+    // 處理 401 未授權錯誤
+    if (response.status === 401) {
+        handleUnauthorized(path);
+    }
+
+    return response;
 }

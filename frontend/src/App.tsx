@@ -3,6 +3,7 @@ import { Suspense, lazy, useState, useEffect, useRef } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import Loading from "./components/Loading.tsx";
+import ProtectedRoute from "./components/ProtectedRoute.tsx";
 import { apiFetch } from "./lib/api";
 
 // 引入佈局組件（不需要 lazy，因為它總是需要的）
@@ -79,11 +80,6 @@ function App() {
         setUserEmail("");
     };
 
-    // 只在認證檢查中且未登入時顯示載入頁面
-    if (checkingAuth && !isAuthenticated) {
-        return <Loading message='檢查認證狀態...' />;
-    }
-
     return (
         <>
             <Toaster position='top-center' />
@@ -92,18 +88,65 @@ function App() {
                     {/* /login 頁面：獨立佈局 */}
                     <Route
                         path='/login'
-                        element={<LoginPage isAuthenticated={isAuthenticated} onLoggedIn={handleLoggedIn} />}
+                        element={
+                            <Suspense fallback={<Loading message='載入登入頁面中...' />}>
+                                <LoginPage isAuthenticated={isAuthenticated} onLoggedIn={handleLoggedIn} />
+                            </Suspense>
+                        }
                     />
 
                     {/* 根目錄 / ：導向 /home 或 /login */}
-                    <Route path='/' element={<Navigate to={isAuthenticated ? "/home" : "/login"} replace />} />
+                    <Route
+                        path='/'
+                        element={
+                            checkingAuth ? (
+                                <Loading message='檢查認證狀態...' />
+                            ) : (
+                                <Navigate to={isAuthenticated ? "/home" : "/login"} replace />
+                            )
+                        }
+                    />
 
-                    {/* 需要應用程式佈局的頁面 */}
-                    <Route element={<AppLayout userEmail={userEmail} onLogout={handleLogout} />}>
-                        <Route path='/home' element={<HomePage />} />
-                        <Route path='/predict' element={<PredictPage />} />
-                        <Route path='/history' element={<HistoryPage />} />
-                        <Route path='/account' element={<AccountPage />} />
+                    {/* 需要應用程式佈局的頁面 - 使用 ProtectedRoute 保護 */}
+                    <Route
+                        element={
+                            <ProtectedRoute isAuthenticated={isAuthenticated} checkingAuth={checkingAuth}>
+                                <AppLayout userEmail={userEmail} onLogout={handleLogout} />
+                            </ProtectedRoute>
+                        }
+                    >
+                        <Route
+                            path='/home'
+                            element={
+                                <Suspense fallback={<Loading message='載入首頁中...' />}>
+                                    <HomePage />
+                                </Suspense>
+                            }
+                        />
+                        <Route
+                            path='/predict'
+                            element={
+                                <Suspense fallback={<Loading message='載入診斷頁面中...' />}>
+                                    <PredictPage />
+                                </Suspense>
+                            }
+                        />
+                        <Route
+                            path='/history'
+                            element={
+                                <Suspense fallback={<Loading message='載入歷史記錄中...' />}>
+                                    <HistoryPage />
+                                </Suspense>
+                            }
+                        />
+                        <Route
+                            path='/account'
+                            element={
+                                <Suspense fallback={<Loading message='載入帳號設定中...' />}>
+                                    <AccountPage />
+                                </Suspense>
+                            }
+                        />
                     </Route>
 
                     {/* 404 頁面 */}

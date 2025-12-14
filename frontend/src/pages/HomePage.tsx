@@ -18,7 +18,7 @@ const HomePage = () => {
                     </CardHeader>
                     <CardContent className='space-y-4'>
                         <p className='text-neutral-600'>點擊下方按鈕或上方導航列的 "AI 診斷" 上傳圖片開始分析。</p>
-                        <Button asChild className='bg-emerald-600 hover:bg-emerald-700'>
+                        <Button asChild>
                             <Link to='/predict'>
                                 開始診斷
                                 <ArrowRight className='ml-2 h-4 w-4' />

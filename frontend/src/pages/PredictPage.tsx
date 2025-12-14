@@ -84,10 +84,14 @@ function PredictPage() {
                 return;
             }
 
-            // 檢查是否需要裁切
-            if (data.image_type === "whole_plant" && data.requires_crop) {
+            // 檢查是否需要裁切（後端返回 final_status === 'need_crop'）
+            if (data.final_status === "need_crop") {
                 setResult(data);
                 setMode("crop");
+            } else if (data.final_status === "not_plant") {
+                // 非植物影像
+                setError(data.error || "非植物影像，請上傳植物葉片圖片");
+                setMode("idle");
             } else {
                 setResult(data);
                 setMode("result");
@@ -230,13 +234,7 @@ function PredictPage() {
                                     <Upload className='w-12 h-12 mx-auto mb-4 text-emerald-600' />
                                     <p className='text-lg font-medium text-neutral-700 mb-2'>拖曳圖片到此處上傳</p>
                                     <p className='text-sm text-neutral-500 mb-4'>或點擊下方按鈕選擇文件</p>
-                                    <Button
-                                        onClick={() => fileInputRef.current?.click()}
-                                        variant='outline'
-                                        className='bg-emerald-600 text-white hover:bg-emerald-700 border-emerald-600'
-                                    >
-                                        選擇圖片
-                                    </Button>
+                                    <Button onClick={() => fileInputRef.current?.click()}>選擇圖片</Button>
                                 </div>
                             )}
 
@@ -244,10 +242,7 @@ function PredictPage() {
                             <div className={`grid gap-4 ${isMobile ? "grid-cols-1" : "grid-cols-2"}`}>
                                 {/* 相機按鈕（僅手機版顯示） */}
                                 {isMobile && (
-                                    <Button
-                                        onClick={() => setMode("camera")}
-                                        className='h-24 md:h-32 text-lg bg-emerald-600 hover:bg-emerald-700'
-                                    >
+                                    <Button onClick={() => setMode("camera")} className='h-24 md:h-32 text-lg'>
                                         <Camera className='h-6 w-6 mr-2' />
                                         拍攝照片
                                     </Button>
@@ -257,11 +252,7 @@ function PredictPage() {
                                 <Button
                                     onClick={() => fileInputRef.current?.click()}
                                     variant={isMobile ? "default" : "outline"}
-                                    className={`h-24 md:h-32 text-lg ${
-                                        isMobile
-                                            ? "bg-emerald-600 hover:bg-emerald-700"
-                                            : "border-emerald-600 text-emerald-600 hover:bg-emerald-50"
-                                    }`}
+                                    className='h-24 md:h-32 text-lg'
                                 >
                                     <Upload className='h-6 w-6 mr-2' />
                                     上傳圖片

@@ -51,10 +51,13 @@ const LoginPage = ({ isAuthenticated, onLoggedIn }: LoginPageProps) => {
                 return;
             }
 
-            // 成功
+            // 成功 - 後端返回 {"status": "logged_in", "email": email} 或 {"status": "registered"}
             if (onLoggedIn) {
-                onLoggedIn(email);
+                // 使用返回的 email 或表單中的 email
+                const returnedEmail = data.email || email;
+                onLoggedIn(returnedEmail);
             }
+            setLoading(false);
         } catch (err) {
             setError(err instanceof Error ? err.message : "網絡錯誤");
             setLoading(false);
@@ -120,7 +123,7 @@ const LoginPage = ({ isAuthenticated, onLoggedIn }: LoginPageProps) => {
                                 className='border-neutral-300 focus:border-emerald-500 focus:ring-emerald-500'
                             />
                         </div>
-                        <Button type='submit' className='w-full bg-emerald-600 hover:bg-emerald-700' disabled={loading}>
+                        <Button type='submit' className='w-full' disabled={loading}>
                             {loading ? "處理中..." : isLogin ? "登入" : "註冊"}
                         </Button>
                     </form>
