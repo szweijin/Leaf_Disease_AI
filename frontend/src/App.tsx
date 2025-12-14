@@ -1,48 +1,124 @@
-// frontend/src/App.tsx (修改後的完整程式碼)
-import { Routes, Route, Navigate } from "react-router-dom"; // 引入必要的組件
+// frontend/src/App.tsx
+import { Suspense, lazy, useState, useEffect, useRef } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { Toaster } from "@/components/ui/sonner";
+import Loading from "./components/Loading.tsx";
+import { apiFetch } from "./lib/api";
 
-// 引入佈局和頁面組件
-import AppLayout from "./components/AppLayout.tsx"; // 佈局組件
-import LoginPage from "./pages/LoginPage.tsx";
-import HomePage from "./pages/HomePage.tsx";
-import PredictPage from "./pages/PredictPage.tsx";
-import HistoryPage from "./pages/HistoryPage.tsx";
-import AccountPage from "./pages/AccountPage.tsx";
+// 引入佈局組件（不需要 lazy，因為它總是需要的）
+import AppLayout from "./components/AppLayout.tsx";
+
+// 懶加載頁面組件，實現路由跳轉時的 loading
+const LoginPage = lazy(() => import("./pages/LoginPage.tsx"));
+const HomePage = lazy(() => import("./pages/HomePage.tsx"));
+const PredictPage = lazy(() => import("./pages/PredictPage.tsx"));
+const HistoryPage = lazy(() => import("./pages/HistoryPage.tsx"));
+const AccountPage = lazy(() => import("./pages/AccountPage.tsx"));
 
 function App() {
-    return (
-        <Routes>
-            {/* 1. /login 頁面：獨立佈局 (通常是全螢幕，沒有主導航) */}
-            <Route path='/login' element={<LoginPage />} />
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [userEmail, setUserEmail] = useState("");
+    const [checkingAuth, setCheckingAuth] = useState(false);
+    const hasCheckedAuth = useRef(false);
 
-            {/* 2. 根目錄 / ：導向 /home (通常是已登入後) */}
-            {/* 根路徑 / 我們將其重定向到 /home */}
-            <Route path='/' element={<Navigate to='/home' replace />} />
+    // 檢查認證狀態
+    useEffect(() => {
+        if (hasCheckedAuth.current) return;
+        hasCheckedAuth.current = true;
 
-            {/* 3. 需要應用程式佈局 (有導航列) 的頁面，使用巢狀路由 */}
-            {/* AppLayout 負責顯示公共元素，子路由會在 AppLayout 內的 <Outlet /> 中呈現 */}
-            <Route element={<AppLayout />}>
-                {/* /home (已由上面的 / 重定向處理，但明確定義更好) */}
-                <Route path='/home' element={<HomePage />} />
-                {/* /predict */}
-                <Route path='/predict' element={<PredictPage />} />
-                {/* /history */}
-                <Route path='/history' element={<HistoryPage />} />
-                {/* /account */}
-                <Route path='/account' element={<AccountPage />} />
-            </Route>
+        const checkAuth = async () => {
+            setCheckingAuth(true);
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => {
+                    controller.abort();
+                }, 2000);
 
-            {/* 4. 404 頁面 (任何不匹配的路徑) */}
-            <Route
-                path='*'
-                element={
-                    <div className='p-8 text-center text-red-500'>
-                        <h1 className='text-4xl font-bold'>404</h1>
-                        <p>找不到頁面</p>
-                    </div>
+                const res = await apiFetch("/check-auth", {
+                    method: "GET",
+                    signal: controller.signal,
+                });
+
+                clearTimeout(timeoutId);
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.authenticated === true) {
+                        setIsAuthenticated(true);
+                        setUserEmail(data.email || "");
+                    } else {
+                        setIsAuthenticated(false);
+                        setUserEmail("");
+                    }
+                } else {
+                    setIsAuthenticated(false);
+                    setUserEmail("");
                 }
-            />
-        </Routes>
+            } catch (err) {
+                setIsAuthenticated(false);
+                setUserEmail("");
+            } finally {
+                setCheckingAuth(false);
+            }
+        };
+
+        const timer = setTimeout(() => {
+            checkAuth();
+        }, 100);
+
+        return () => clearTimeout(timer);
+    }, []);
+
+    const handleLoggedIn = (email: string) => {
+        setIsAuthenticated(true);
+        setUserEmail(email);
+    };
+
+    const handleLogout = () => {
+        setIsAuthenticated(false);
+        setUserEmail("");
+    };
+
+    // 只在認證檢查中且未登入時顯示載入頁面
+    if (checkingAuth && !isAuthenticated) {
+        return <Loading message='檢查認證狀態...' />;
+    }
+
+    return (
+        <>
+            <Toaster position='top-center' />
+            <Suspense fallback={<Loading message='載入頁面中...' />}>
+                <Routes>
+                    {/* /login 頁面：獨立佈局 */}
+                    <Route
+                        path='/login'
+                        element={<LoginPage isAuthenticated={isAuthenticated} onLoggedIn={handleLoggedIn} />}
+                    />
+
+                    {/* 根目錄 / ：導向 /home 或 /login */}
+                    <Route path='/' element={<Navigate to={isAuthenticated ? "/home" : "/login"} replace />} />
+
+                    {/* 需要應用程式佈局的頁面 */}
+                    <Route element={<AppLayout userEmail={userEmail} onLogout={handleLogout} />}>
+                        <Route path='/home' element={<HomePage />} />
+                        <Route path='/predict' element={<PredictPage />} />
+                        <Route path='/history' element={<HistoryPage />} />
+                        <Route path='/account' element={<AccountPage />} />
+                    </Route>
+
+                    {/* 404 頁面 */}
+                    <Route
+                        path='*'
+                        element={
+                            <div className='p-8 text-center text-red-500'>
+                                <h1 className='text-4xl font-bold'>404</h1>
+                                <p>找不到頁面</p>
+                            </div>
+                        }
+                    />
+                </Routes>
+            </Suspense>
+        </>
     );
 }
 

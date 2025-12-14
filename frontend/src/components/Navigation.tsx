@@ -1,6 +1,6 @@
 // frontend/src/components/Navigation.tsx (新增)
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button"; // 假設您已經有 Button 組件
+import { Link, useLocation } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 const navItems = [
     { path: "/home", name: "首頁" },
@@ -10,18 +10,24 @@ const navItems = [
 ];
 
 const Navigation = () => {
+    const location = useLocation();
+
     return (
-        <nav className='flex items-center space-x-4'>
-            {navItems.map((item) => (
-                <Button
-                    key={item.path}
-                    asChild // 使用 Radix UI 的 asChild 讓 Button 渲染為 Link
-                    variant='ghost'
-                >
-                    <Link to={item.path}>{item.name}</Link>
-                </Button>
-            ))}
-            <Button variant='outline' asChild>
+        <nav className='flex items-center gap-2 flex-wrap'>
+            {navItems.map((item) => {
+                const isActive = location.pathname === item.path;
+                return (
+                    <Button
+                        key={item.path}
+                        asChild
+                        variant={isActive ? "default" : "ghost"}
+                        className={isActive ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}
+                    >
+                        <Link to={item.path}>{item.name}</Link>
+                    </Button>
+                );
+            })}
+            <Button variant='outline' asChild className='ml-auto'>
                 <Link to='/login'>登出</Link>
             </Button>
         </nav>
