@@ -11,22 +11,50 @@ import { Upload, Camera, Loader2 } from "lucide-react";
 
 type Mode = "idle" | "camera" | "processing" | "result" | "crop";
 
+interface PredictionResult {
+    status?: "success" | "error";
+    workflow?: string;
+    prediction_id: string;
+    cnn_result?: {
+        mean_score?: number;
+        best_class?: string;
+        best_score?: number;
+        all_scores?: Record<string, number>;
+    };
+    disease?: string;
+    confidence?: number;
+    severity?: string;
+    final_status: "yolo_detected" | "need_crop" | "not_plant";
+    image_path?: string;
+    image_stored_in_db?: boolean;
+    yolo_result?: {
+        detected: boolean;
+        detections?: Array<{
+            class: string;
+            confidence: number;
+            bbox: number[];
+        }>;
+    };
+    error?: string;
+    message?: string;
+    processing_time_ms?: number;
+    cnn_time_ms?: number;
+    yolo_time_ms?: number;
+    disease_info?: {
+        description?: string;
+        treatment?: string;
+    };
+}
+
 function PredictPage() {
     const [mode, setMode] = useState<Mode>("idle");
     const [image, setImage] = useState<string | null>(null);
-    const [result, setResult] = useState<any>(null);
-    const [error, setError] = useState("");
+    const [result, setResult] = useState<PredictionResult | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const dropZoneRef = useRef<HTMLDivElement>(null);
+    const pageContainerRef = useRef<HTMLDivElement>(null);
     const isMobile = useIsMobile();
-
-    useEffect(() => {
-        if (error) {
-            toast.error(error);
-            setError(""); // 清除錯誤，避免重複顯示
-        }
-    }, [error]);
 
     // 處理文件選擇
     const handleFileSelect = (file: File) => {
@@ -62,8 +90,6 @@ function PredictPage() {
 
     // 處理預測
     const handlePredict = async (imageData: string) => {
-        setError("");
-
         try {
             // 移除 data URL 前綴（如果有的話）
             const base64Data = imageData.includes(",") ? imageData.split(",")[1] : imageData;
@@ -79,7 +105,7 @@ function PredictPage() {
             const data = await res.json();
 
             if (!res.ok) {
-                setError(data.error || "檢測失敗");
+                toast.error(data.error || "檢測失敗");
                 setMode("idle");
                 return;
             }
@@ -90,14 +116,14 @@ function PredictPage() {
                 setMode("crop");
             } else if (data.final_status === "not_plant") {
                 // 非植物影像
-                setError(data.error || "非植物影像，請上傳植物葉片圖片");
+                toast.error(data.error || "非植物影像，請上傳植物葉片圖片");
                 setMode("idle");
             } else {
                 setResult(data);
                 setMode("result");
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : "網絡錯誤");
+            toast.error(err instanceof Error ? err.message : "網絡錯誤");
             setMode("idle");
         }
     };
@@ -107,8 +133,12 @@ function PredictPage() {
         croppedImage: string,
         coordinates: { x: number; y: number; width: number; height: number }
     ) => {
+        if (!result) {
+            toast.error("缺少預測結果");
+            return;
+        }
+
         setMode("processing");
-        setError("");
 
         try {
             const base64Data = croppedImage.includes(",") ? croppedImage.split(",")[1] : croppedImage;
@@ -125,7 +155,7 @@ function PredictPage() {
             const data = await res.json();
 
             if (!res.ok) {
-                setError(data.error || "檢測失敗");
+                toast.error(data.error || "檢測失敗");
                 setMode("crop");
                 return;
             }
@@ -133,7 +163,7 @@ function PredictPage() {
             setResult(data);
             setMode("result");
         } catch (err) {
-            setError(err instanceof Error ? err.message : "網絡錯誤");
+            toast.error(err instanceof Error ? err.message : "網絡錯誤");
             setMode("crop");
         }
     };
@@ -143,17 +173,18 @@ function PredictPage() {
         setMode("idle");
         setImage(null);
         setResult(null);
-        setError("");
         if (fileInputRef.current) {
             fileInputRef.current.value = "";
         }
     };
 
-    // 拖曳處理
+    // 拖曳處理（用於局部拖曳區域）
     const handleDragEnter = (e: React.DragEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        setIsDragging(true);
+        if (mode === "idle") {
+            setIsDragging(true);
+        }
     };
 
     const handleDragLeave = (e: React.DragEvent) => {
@@ -180,6 +211,69 @@ function PredictPage() {
         }
     };
 
+    // 全頁面拖曳上傳（僅在 idle 模式時啟用）
+    useEffect(() => {
+        const container = pageContainerRef.current;
+        if (!container || mode !== "idle") {
+            return;
+        }
+
+        let dragCounter = 0; // 用於追蹤拖曳進入/離開的嵌套層級
+
+        const dragEnterHandler = (e: DragEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dragCounter++;
+            if (dragCounter === 1) {
+                setIsDragging(true);
+            }
+        };
+
+        const dragLeaveHandler = (e: DragEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dragCounter--;
+            if (dragCounter === 0) {
+                setIsDragging(false);
+            }
+        };
+
+        const dragOverHandler = (e: DragEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+        };
+
+        const dropHandler = (e: DragEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dragCounter = 0;
+            setIsDragging(false);
+
+            const file = e.dataTransfer?.files[0];
+            if (file) {
+                // 直接調用 handleFileSelect，因為它在組件作用域內
+                handleFileSelect(file);
+            }
+        };
+
+        container.addEventListener("dragenter", dragEnterHandler);
+        container.addEventListener("dragleave", dragLeaveHandler);
+        container.addEventListener("dragover", dragOverHandler);
+        container.addEventListener("drop", dropHandler);
+
+        return () => {
+            container.removeEventListener("dragenter", dragEnterHandler);
+            container.removeEventListener("dragleave", dragLeaveHandler);
+            container.removeEventListener("dragover", dragOverHandler);
+            container.removeEventListener("drop", dropHandler);
+            // 清理時重置拖曳狀態
+            if (dragCounter > 0) {
+                setIsDragging(false);
+            }
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mode]);
+
     // 相機模式
     if (mode === "camera") {
         return <CameraView onCapture={handleCameraCapture} onCancel={() => setMode("idle")} />;
@@ -199,12 +293,17 @@ function PredictPage() {
 
     // 主頁面
     return (
-        <div className='container mx-auto p-4 md:p-6 lg:p-8 max-w-4xl'>
+        <div
+            ref={pageContainerRef}
+            className={`container mx-auto p-4 md:p-6 lg:p-8 max-w-4xl min-h-screen ${
+                isDragging && mode === "idle" ? "bg-emerald-50/50" : ""
+            }`}
+        >
             <Card>
                 <CardHeader>
                     <CardTitle className='text-2xl md:text-3xl'>葉片病害檢測</CardTitle>
                     <CardDescription className='text-base md:text-lg'>
-                        上傳圖片或使用相機拍攝進行病害檢測
+                        上傳圖片{isMobile && "或使用相機拍攝"}進行病害檢測
                     </CardDescription>
                 </CardHeader>
                 <CardContent className='space-y-6'>
@@ -219,44 +318,68 @@ function PredictPage() {
                         <div className='space-y-6'>
                             {/* 拖曳上傳區域（僅桌面版） */}
                             {!isMobile && (
-                                <div
-                                    ref={dropZoneRef}
-                                    onDragEnter={handleDragEnter}
-                                    onDragOver={handleDragOver}
-                                    onDragLeave={handleDragLeave}
-                                    onDrop={handleDrop}
-                                    className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
-                                        isDragging
-                                            ? "border-emerald-500 bg-emerald-50"
-                                            : "border-neutral-300 bg-neutral-50 hover:border-emerald-400 hover:bg-emerald-50/50"
-                                    }`}
-                                >
-                                    <Upload className='w-12 h-12 mx-auto mb-4 text-emerald-600' />
-                                    <p className='text-lg font-medium text-neutral-700 mb-2'>拖曳圖片到此處上傳</p>
-                                    <p className='text-sm text-neutral-500 mb-4'>或點擊下方按鈕選擇文件</p>
-                                    <Button onClick={() => fileInputRef.current?.click()}>選擇圖片</Button>
-                                </div>
+                                <>
+                                    {/* 全螢幕拖曳區域（透明覆蓋） */}
+                                    <div
+                                        ref={dropZoneRef}
+                                        onDragEnter={handleDragEnter}
+                                        onDragOver={handleDragOver}
+                                        onDragLeave={handleDragLeave}
+                                        onDrop={handleDrop}
+                                        className={`fixed inset-0 z-40 pointer-events-none transition-colors duration-200 ${
+                                            isDragging ? "bg-emerald-50/80 border-4 border-emerald-400" : ""
+                                        }`}
+                                        style={{ display: isDragging ? "block" : "none" }}
+                                    >
+                                        <div className='flex items-center justify-center w-full h-full'>
+                                            <div className='bg-white/95 border-2 border-dashed border-emerald-400 rounded-xl p-10 shadow-xl text-center'>
+                                                <Upload className='w-16 h-16 mx-auto mb-6 text-emerald-600 animate-bounce' />
+                                                <p className='text-2xl font-semibold text-emerald-700 mb-2'>
+                                                    拖曳圖片到此處上傳
+                                                </p>
+                                                <p className='text-base text-neutral-600 mb-4'>鬆開滑鼠即可上傳圖片</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {/* 原本的可見卡片內拖曳與按鈕區 */}
+                                    <div
+                                        onDragEnter={handleDragEnter}
+                                        className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
+                                            isDragging
+                                                ? "border-emerald-500 bg-emerald-50"
+                                                : "border-neutral-300 bg-neutral-50 hover:border-emerald-400 hover:bg-emerald-50/50"
+                                        }`}
+                                    >
+                                        <Upload className='w-12 h-12 mx-auto mb-4 text-emerald-600' />
+                                        <p className='text-lg font-medium text-neutral-700 mb-2'>拖曳圖片到此處上傳</p>
+                                        <p className='text-sm text-neutral-500 mb-4'>或點擊下方按鈕選擇文件</p>
+                                        <Button onClick={() => fileInputRef.current?.click()}>選擇圖片</Button>
+                                    </div>
+                                </>
                             )}
 
-                            {/* 按鈕組（手機版和桌面版） */}
+                            {/* 按鈕組（手機版和桌面版，統一外觀） */}
                             <div className={`grid gap-4 ${isMobile ? "grid-cols-1" : "grid-cols-2"}`}>
-                                {/* 相機按鈕（僅手機版顯示） */}
                                 {isMobile && (
-                                    <Button onClick={() => setMode("camera")} className='h-24 md:h-32 text-lg'>
-                                        <Camera className='h-6 w-6 mr-2' />
-                                        拍攝照片
+                                    <Button
+                                        onClick={() => setMode("camera")}
+                                        className='h-16 text-base flex items-center justify-center gap-2 rounded-lg font-medium'
+                                        variant='outline'
+                                    >
+                                        <Camera className='h-6 w-6' />
+                                        <span>拍攝照片</span>
                                     </Button>
                                 )}
-
-                                {/* 上傳按鈕 */}
-                                <Button
-                                    onClick={() => fileInputRef.current?.click()}
-                                    variant={isMobile ? "default" : "outline"}
-                                    className='h-24 md:h-32 text-lg'
-                                >
-                                    <Upload className='h-6 w-6 mr-2' />
-                                    上傳圖片
-                                </Button>
+                                {isMobile && (
+                                    <Button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className='h-16 text-base flex items-center justify-center gap-2 rounded-lg font-medium'
+                                        variant='secondary'
+                                    >
+                                        <Upload className='h-6 w-6' />
+                                        <span>選擇圖片</span>
+                                    </Button>
+                                )}
                             </div>
 
                             {/* 隱藏的文件輸入 */}

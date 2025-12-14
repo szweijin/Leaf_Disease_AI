@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 import Loading from "./components/Loading.tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
 import { apiFetch } from "./lib/api";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // 引入佈局組件（不需要 lazy，因為它總是需要的）
 import AppLayout from "./components/AppLayout.tsx";
@@ -15,6 +16,14 @@ const HomePage = lazy(() => import("./pages/HomePage.tsx"));
 const PredictPage = lazy(() => import("./pages/PredictPage.tsx"));
 const HistoryPage = lazy(() => import("./pages/HistoryPage.tsx"));
 const AccountPage = lazy(() => import("./pages/AccountPage.tsx"));
+
+// 根目錄重定向組件：桌面版跳轉到 /home，手機版跳轉到 /login
+function RootRedirect() {
+    const isMobile = useIsMobile();
+
+    // 桌面版跳轉到 /home，手機版跳轉到 /login
+    return <Navigate to={isMobile ? "/login" : "/home"} replace />;
+}
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -56,6 +65,7 @@ function App() {
                     setUserEmail("");
                 }
             } catch (err) {
+                console.error("Error checking authentication:", err);
                 setIsAuthenticated(false);
                 setUserEmail("");
             } finally {
@@ -95,15 +105,16 @@ function App() {
                         }
                     />
 
-                    {/* 根目錄 / ：導向 /home 或 /login */}
+                    {/* 根目錄 / ：桌面版跳轉到 /home，手機版跳轉到 /login */}
+                    <Route path='/' element={checkingAuth ? <Loading message='檢查認證狀態...' /> : <RootRedirect />} />
+
+                    {/* /home 頁面：公開頁面（歡迎頁面，只在桌面版顯示） */}
                     <Route
-                        path='/'
+                        path='/home'
                         element={
-                            checkingAuth ? (
-                                <Loading message='檢查認證狀態...' />
-                            ) : (
-                                <Navigate to={isAuthenticated ? "/home" : "/login"} replace />
-                            )
+                            <Suspense fallback={<Loading message='載入首頁中...' />}>
+                                <HomePage isAuthenticated={isAuthenticated} />
+                            </Suspense>
                         }
                     />
 
@@ -115,14 +126,6 @@ function App() {
                             </ProtectedRoute>
                         }
                     >
-                        <Route
-                            path='/home'
-                            element={
-                                <Suspense fallback={<Loading message='載入首頁中...' />}>
-                                    <HomePage />
-                                </Suspense>
-                            }
-                        />
                         <Route
                             path='/predict'
                             element={
@@ -143,7 +146,7 @@ function App() {
                             path='/account'
                             element={
                                 <Suspense fallback={<Loading message='載入帳號設定中...' />}>
-                                    <AccountPage />
+                                    <AccountPage onLogout={handleLogout} />
                                 </Suspense>
                             }
                         />

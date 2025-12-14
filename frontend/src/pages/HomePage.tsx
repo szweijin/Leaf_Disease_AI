@@ -1,61 +1,119 @@
 // frontend/src/pages/HomePage.tsx
-import { Link } from "react-router-dom";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import Loading from "@/components/Loading";
 
-const HomePage = () => {
+interface HomePageProps {
+    isAuthenticated?: boolean;
+}
+
+const HomePage = ({ isAuthenticated }: HomePageProps) => {
+    const navigate = useNavigate();
+    const isMobile = useIsMobile();
+    const [isRedirecting, setIsRedirecting] = useState(false);
+
+    useEffect(() => {
+        // 如果已登入，重定向到 /predict
+        if (isAuthenticated) {
+            setIsRedirecting(true);
+            // 稍微延遲一下，讓用戶看到 Loading
+            setTimeout(() => {
+                navigate("/predict", { replace: true });
+            }, 100);
+            return;
+        }
+
+        // 如果是手機版，重定向到 /login（因為手機版沒有 /home 頁面）
+        if (isMobile) {
+            setIsRedirecting(true);
+            // 稍微延遲一下，讓用戶看到 Loading
+            setTimeout(() => {
+                navigate("/login", { replace: true });
+            }, 100);
+            return;
+        }
+    }, [isAuthenticated, isMobile, navigate]);
+
+    // 如果正在重定向、已登入或手機版，顯示 Loading
+    if (isRedirecting || isAuthenticated || isMobile) {
+        return <Loading message='跳轉中...' />;
+    }
+
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        visible: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.2,
+                delayChildren: 0.1,
+            },
+        },
+    };
+
+    const itemVariants = {
+        hidden: { opacity: 0, y: 20 },
+        visible: {
+            opacity: 1,
+            y: 0,
+            transition: {
+                duration: 0.5,
+                ease: [0.4, 0, 0.2, 1] as const,
+            },
+        },
+    };
+
     return (
-        <div className='space-y-6'>
-            <div>
-                <h1 className='text-4xl font-extrabold tracking-tight lg:text-5xl text-emerald-700 mb-2'>歡迎回來！</h1>
-                <p className='text-lg text-neutral-600'>使用 AI 技術快速診斷葉片病害</p>
-            </div>
-            <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
-                <Card className='border-emerald-200 hover:border-emerald-300 transition-colors'>
-                    <CardHeader>
-                        <CardTitle className='text-emerald-700'>快速診斷</CardTitle>
-                    </CardHeader>
-                    <CardContent className='space-y-4'>
-                        <p className='text-neutral-600'>點擊下方按鈕或上方導航列的 "AI 診斷" 上傳圖片開始分析。</p>
-                        <Button asChild>
-                            <Link to='/predict'>
-                                開始診斷
-                                <ArrowRight className='ml-2 h-4 w-4' />
-                            </Link>
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className='min-h-screen flex flex-col items-center justify-center p-8 bg-gradient-to-b from-white to-emerald-50'
+        >
+            <motion.div
+                variants={containerVariants}
+                initial='hidden'
+                animate='visible'
+                className='max-w-2xl w-full text-center space-y-8'
+            >
+                {/* 歡迎圖片 */}
+                <motion.div variants={itemVariants} className='flex justify-center'>
+                    <motion.img
+                        src='/LOGO_V.png'
+                        alt='Leaf Disease AI'
+                        className='h-64 w-auto object-contain'
+                        animate={{
+                            scale: [1, 1.05, 1],
+                        }}
+                        transition={{
+                            duration: 3,
+                            repeat: Infinity,
+                            ease: "easeInOut",
+                        }}
+                    />
+                </motion.div>
+
+                {/* 歡迎文字 */}
+                <motion.div variants={itemVariants} className='space-y-4'>
+                    <h1 className='text-5xl font-extrabold tracking-tight text-emerald-700'>
+                        歡迎使用葉片病害 AI 診斷系統
+                    </h1>
+                    <p className='text-xl text-neutral-600'>使用先進的 AI 技術，快速準確地診斷植物葉片病害</p>
+                </motion.div>
+
+                {/* Get Started 按鈕 */}
+                <motion.div variants={itemVariants} className='pt-4'>
+                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                        <Button size='lg' onClick={() => navigate("/login")} className='px-8 py-6 text-lg'>
+                            Get Started
                         </Button>
-                    </CardContent>
-                </Card>
-                <Card className='border-neutral-200'>
-                    <CardHeader>
-                        <CardTitle>歷史紀錄</CardTitle>
-                    </CardHeader>
-                    <CardContent className='space-y-4'>
-                        <p className='text-neutral-600'>查看過往的檢測記錄和分析結果。</p>
-                        <Button asChild variant='outline'>
-                            <Link to='/history'>
-                                查看紀錄
-                                <ArrowRight className='ml-2 h-4 w-4' />
-                            </Link>
-                        </Button>
-                    </CardContent>
-                </Card>
-                <Card className='border-neutral-200'>
-                    <CardHeader>
-                        <CardTitle>我的帳號</CardTitle>
-                    </CardHeader>
-                    <CardContent className='space-y-4'>
-                        <p className='text-neutral-600'>管理您的帳號設定和個人資訊。</p>
-                        <Button asChild variant='outline'>
-                            <Link to='/account'>
-                                帳號設定
-                                <ArrowRight className='ml-2 h-4 w-4' />
-                            </Link>
-                        </Button>
-                    </CardContent>
-                </Card>
-            </div>
-        </div>
+                    </motion.div>
+                </motion.div>
+            </motion.div>
+        </motion.div>
     );
 };
 

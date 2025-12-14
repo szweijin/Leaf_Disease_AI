@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, User, Lock, Mail, Calendar } from "lucide-react";
+import { Loader2, User, Lock, Mail, Calendar, LogOut } from "lucide-react";
 
 interface UserProfile {
     email?: string;
@@ -14,7 +15,12 @@ interface UserProfile {
     last_login?: string;
 }
 
-function AccountPage() {
+interface AccountPageProps {
+    onLogout?: () => void;
+}
+
+function AccountPage({ onLogout }: AccountPageProps) {
+    const navigate = useNavigate();
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [oldPassword, setOldPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
@@ -92,6 +98,21 @@ function AccountPage() {
             setError(err instanceof Error ? err.message : "網絡錯誤");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleLogout = async () => {
+        try {
+            await apiFetch("/logout", {
+                method: "POST",
+            });
+            if (onLogout) {
+                onLogout();
+            }
+            navigate("/login");
+        } catch (err) {
+            console.error("登出失敗:", err);
+            toast.error("登出失敗");
         }
     };
 
@@ -241,6 +262,23 @@ function AccountPage() {
                                 )}
                             </Button>
                         </form>
+                    </CardContent>
+                </Card>
+
+                {/* 登出卡片 */}
+                <Card className='border-neutral-200'>
+                    <CardHeader>
+                        <div className='flex items-center gap-2'>
+                            <LogOut className='w-5 h-5 text-emerald-600' />
+                            <CardTitle>登出</CardTitle>
+                        </div>
+                        <CardDescription>登出您的帳號</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Button variant='destructive' onClick={handleLogout} className='w-full'>
+                            <LogOut className='mr-2 h-4 w-4' />
+                            登出
+                        </Button>
                     </CardContent>
                 </Card>
             </div>
