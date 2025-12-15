@@ -81,6 +81,10 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(DevelopmentConfig)
     
+    # 確保 JSON 響應正確處理 Unicode 字符（中文）
+    app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
+    app.config['JSON_AS_ASCII'] = False  # 確保中文不被轉義為 \uXXXX 格式
+    
     # 配置靜態文件服務：uploads 資料夾用於提供上傳的圖片
     app.static_folder = BASE_DIR
     app.static_url_path = ''

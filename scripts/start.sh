@@ -18,10 +18,10 @@ source "$SCRIPT_DIR/load_env.sh" || exit 1
 
 # 檢查並初始化資料庫
 echo "📊 檢查資料庫..."
-source "$SCRIPT_DIR/start_database.sh" || {
+if ! source "$SCRIPT_DIR/start_database.sh"; then
     echo "❌ 資料庫檢查失敗，無法繼續啟動"
     exit 1
-}
+fi
 
 # 檢查 Redis（可選）
 echo "🔴 檢查 Redis 連線..."

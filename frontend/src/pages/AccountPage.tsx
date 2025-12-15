@@ -208,6 +208,7 @@ function AccountPage({ onLogout }: AccountPageProps) {
                                 value={userProfile?.email || ""}
                                 disabled
                                 className='bg-neutral-50 text-neutral-600'
+                                tooltip='您的 Email 地址（無法修改）'
                             />
                         </div>
 

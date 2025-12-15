@@ -254,46 +254,80 @@ class IntegratedDetectionService:
                     original_image_url = final_image_path
                 
                 # 儲存到 detection_records（圖片不再儲存在資料庫，只儲存 URL）
-                record_result = db.execute_returning(
-                    """
-                    INSERT INTO detection_records (
-                        user_id, disease_name, severity, confidence,
-                        image_path, image_hash, image_size, image_source,
-                        raw_model_output, status, processing_time_ms,
-                        image_data, image_data_size, image_compressed,
-                        prediction_log_id, original_image_url, annotated_image_url, created_at
-                    ) VALUES (
-                        %s, %s, %s, %s,
-                        %s, %s, %s, %s,
-                        %s, %s, %s,
-                        %s, %s, %s,
-                        %s, %s, %s, NOW()
+                # 使用 ON CONFLICT 處理重複圖片 hash 的情況
+                # 如果圖片 hash 已存在，返回現有記錄的 ID；否則創建新記錄
+                try:
+                    record_result = db.execute_returning(
+                        """
+                        INSERT INTO detection_records (
+                            user_id, disease_name, severity, confidence,
+                            image_path, image_hash, image_size, image_source,
+                            raw_model_output, status, processing_time_ms,
+                            image_data, image_data_size, image_compressed,
+                            prediction_log_id, original_image_url, annotated_image_url, created_at
+                        ) VALUES (
+                            %s, %s, %s, %s,
+                            %s, %s, %s, %s,
+                            %s, %s, %s,
+                            %s, %s, %s,
+                            %s, %s, %s, NOW()
+                        )
+                        ON CONFLICT (image_hash) DO UPDATE SET
+                            updated_at = NOW()
+                        RETURNING id
+                        """,
+                        (
+                            user_id, disease_name, 'Unknown', confidence,
+                            db_image_path, image_hash, image_size, image_source,
+                            json.dumps(raw_output), 'completed', total_time,
+                            None,  # image_data - 不再使用，圖片儲存在 Cloudinary
+                            None,  # image_data_size - 不再使用
+                            False,  # image_compressed - 不再使用
+                            prediction_id,
+                            original_image_url,  # 原始圖片 URL
+                            None  # annotated_image_url - 將在 API 層更新
+                        ),
+                        fetch_one=True
                     )
-                    RETURNING id
-                    """,
-                    (
-                        user_id, disease_name, 'Unknown', confidence,
-                        db_image_path, image_hash, image_size, image_source,
-                        json.dumps(raw_output), 'completed', total_time,
-                        None,  # image_data - 不再使用，圖片儲存在 Cloudinary
-                        None,  # image_data_size - 不再使用
-                        False,  # image_compressed - 不再使用
-                        prediction_id,
-                        original_image_url,  # 原始圖片 URL
-                        None  # annotated_image_url - 將在 API 層更新
-                    ),
-                    fetch_one=True
-                )
-                
-                if not record_result:
-                    raise ValueError("INSERT 操作未返回 record_id")
-                
-                record_id = record_result[0] if record_result else None
-                
-                if not record_id:
-                    raise ValueError(f"無法獲取 record_id，record_result: {record_result}")
-                
-                logger.info(f"✅ 檢測記錄已插入: record_id={record_id}")
+                    
+                    if not record_result:
+                        raise ValueError("INSERT 操作未返回 record_id")
+                    
+                    record_id = record_result[0] if record_result else None
+                    
+                    if not record_id:
+                        raise ValueError(f"無法獲取 record_id，record_result: {record_result}")
+                    
+                    logger.info(f"✅ 檢測記錄已插入/更新: record_id={record_id}")
+                except Exception as e:
+                    # 如果 ON CONFLICT 失敗（可能是其他錯誤），嘗試查詢現有記錄
+                    if "duplicate key" in str(e).lower() or "unique constraint" in str(e).lower():
+                        logger.warning(f"⚠️  圖片 hash 已存在，查詢現有記錄: {image_hash[:16]}...")
+                        existing_record = db.execute_query(
+                            """
+                            SELECT id FROM detection_records
+                            WHERE image_hash = %s
+                            LIMIT 1
+                            """,
+                            (image_hash,),
+                            fetch_one=True
+                        )
+                        if existing_record:
+                            record_id = existing_record[0]
+                            logger.info(f"✅ 使用現有記錄: record_id={record_id}")
+                            # 更新現有記錄的時間戳
+                            db.execute_update(
+                                """
+                                UPDATE detection_records
+                                SET updated_at = NOW()
+                                WHERE id = %s
+                                """,
+                                (record_id,)
+                            )
+                        else:
+                            raise ValueError(f"無法找到現有記錄，也無法創建新記錄: {str(e)}")
+                    else:
+                        raise
                 
                 # 如果使用資料庫 URL，更新為正確的 record_id URL
                 if not (web_image_path and (web_image_path.startswith('http://') or web_image_path.startswith('https://'))):
@@ -670,6 +704,8 @@ class IntegratedDetectionService:
                         %s, %s, %s,
                         %s, NOW()
                     )
+                    ON CONFLICT (image_hash) DO UPDATE SET
+                        updated_at = NOW()
                     RETURNING id
                     """,
                     (

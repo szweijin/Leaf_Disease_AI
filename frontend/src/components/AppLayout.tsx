@@ -20,13 +20,13 @@ const AppLayout = ({ userEmail, onLogout }: AppLayoutProps) => {
             <ResponsiveNavbar userEmail={userEmail} onLogout={onLogout} />
             <main className='flex-1 pb-16 md:pb-0'>
                 <Suspense fallback={<PageLoadingFallback />}>
-                    <AnimatePresence mode='wait'>
+                    <AnimatePresence mode='wait' initial={false}>
                         <motion.div
                             key={location.pathname}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -20 }}
-                            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
                         >
                             <Outlet />
                         </motion.div>

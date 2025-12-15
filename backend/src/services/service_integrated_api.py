@@ -13,6 +13,7 @@ from PIL import Image
 from src.core.core_helpers import get_user_id_from_session, log_api_request
 from src.core.core_redis_manager import redis_manager
 from src.core.core_db_manager import db
+from src.core.core_user_manager import DetectionQueries
 from src.services.service_integrated import IntegratedDetectionService
 from src.services.service_image_manager import ImageManager
 import logging
@@ -231,10 +232,73 @@ class IntegratedDetectionAPIService:
                 logger.error(f"❌ 檢測執行錯誤: {str(e)}", exc_info=True)
                 raise
             
-            # 6. 快取結果（1 小時）
+            # 6. 查詢病害詳細資訊（如果檢測到病害）
+            # 優先從 yolo_result 中獲取病害名稱，其次從 disease，最後從 cnn_result
+            disease_name = None
+            if result.get('yolo_result') and result.get('yolo_result', {}).get('detections'):
+                # 從 YOLO 檢測結果中獲取第一個檢測到的病害
+                detections = result.get('yolo_result', {}).get('detections', [])
+                if detections and len(detections) > 0:
+                    disease_name = detections[0].get('class')
+            
+            if not disease_name:
+                disease_name = result.get('disease')
+            
+            if not disease_name:
+                disease_name = result.get('cnn_result', {}).get('best_class')
+            
+            if disease_name and disease_name not in ['others', 'whole_plant']:
+                logger.debug(f"🔍 查詢病害資訊: disease_name={disease_name}")
+                disease_info = DetectionQueries.get_disease_info(disease_name)
+                if disease_info:
+                    logger.info(f"✅ 找到病害資訊: {disease_name} -> {disease_info.get('chinese_name', 'N/A')}")
+                    
+                    # 處理時間字段
+                    disease_created_at = disease_info.get('created_at')
+                    disease_updated_at = disease_info.get('updated_at')
+                    
+                    disease_created_at_str = None
+                    if disease_created_at:
+                        if hasattr(disease_created_at, 'isoformat'):
+                            disease_created_at_str = disease_created_at.isoformat()
+                        else:
+                            disease_created_at_str = str(disease_created_at)
+                    
+                    disease_updated_at_str = None
+                    if disease_updated_at:
+                        if hasattr(disease_updated_at, 'isoformat'):
+                            disease_updated_at_str = disease_updated_at.isoformat()
+                        else:
+                            disease_updated_at_str = str(disease_updated_at)
+                    
+                    result['disease_info'] = {
+                        "id": disease_info.get('id'),
+                        "disease_name": disease_info.get('disease_name'),  # 資料庫中的原始名稱
+                        "chinese_name": disease_info.get('chinese_name'),
+                        "english_name": disease_info.get('english_name'),
+                        "causes": disease_info.get('causes'),
+                        "features": disease_info.get('features'),
+                        "symptoms": disease_info.get('symptoms'),
+                        "pesticides": disease_info.get('pesticides'),
+                        "management_measures": disease_info.get('management_measures'),
+                        "target_crops": disease_info.get('target_crops'),
+                        "severity_levels": disease_info.get('severity_levels'),
+                        "prevention_tips": disease_info.get('prevention_tips'),
+                        "reference_links": disease_info.get('reference_links'),
+                        "created_at": disease_created_at_str,
+                        "updated_at": disease_updated_at_str,
+                        "is_active": disease_info.get('is_active')
+                    }
+                    # 如果有中文名稱，更新顯示名稱
+                    if disease_info.get('chinese_name'):
+                        result['disease'] = disease_info.get('chinese_name')
+                else:
+                    logger.warning(f"⚠️  未找到病害資訊: disease_name={disease_name}")
+            
+            # 7. 快取結果（1 小時）
             redis_manager.set(cache_key, result, expire=3600)
             
-            # 7. 記錄 API 日誌
+            # 8. 記錄 API 日誌
             execution_time = int((datetime.now() - start_time).total_seconds() * 1000)
             log_api_request(
                 user_id=user_id, 
@@ -480,7 +544,70 @@ class IntegratedDetectionAPIService:
                 logger.error(f"❌ 檢測執行錯誤: {str(e)}", exc_info=True)
                 raise
             
-            # 5. 記錄 API 日誌
+            # 5. 查詢病害詳細資訊（如果檢測到病害）
+            # 優先從 yolo_result 中獲取病害名稱，其次從 disease，最後從 cnn_result
+            disease_name = None
+            if result.get('yolo_result') and result.get('yolo_result', {}).get('detections'):
+                # 從 YOLO 檢測結果中獲取第一個檢測到的病害
+                detections = result.get('yolo_result', {}).get('detections', [])
+                if detections and len(detections) > 0:
+                    disease_name = detections[0].get('class')
+            
+            if not disease_name:
+                disease_name = result.get('disease')
+            
+            if not disease_name:
+                disease_name = result.get('cnn_result', {}).get('best_class')
+            
+            if disease_name and disease_name not in ['others', 'whole_plant']:
+                logger.debug(f"🔍 查詢病害資訊（裁切後）: disease_name={disease_name}")
+                disease_info = DetectionQueries.get_disease_info(disease_name)
+                if disease_info:
+                    logger.info(f"✅ 找到病害資訊（裁切後）: {disease_name} -> {disease_info.get('chinese_name', 'N/A')}")
+                    
+                    # 處理時間字段
+                    disease_created_at = disease_info.get('created_at')
+                    disease_updated_at = disease_info.get('updated_at')
+                    
+                    disease_created_at_str = None
+                    if disease_created_at:
+                        if hasattr(disease_created_at, 'isoformat'):
+                            disease_created_at_str = disease_created_at.isoformat()
+                        else:
+                            disease_created_at_str = str(disease_created_at)
+                    
+                    disease_updated_at_str = None
+                    if disease_updated_at:
+                        if hasattr(disease_updated_at, 'isoformat'):
+                            disease_updated_at_str = disease_updated_at.isoformat()
+                        else:
+                            disease_updated_at_str = str(disease_updated_at)
+                    
+                    result['disease_info'] = {
+                        "id": disease_info.get('id'),
+                        "disease_name": disease_info.get('disease_name'),  # 資料庫中的原始名稱
+                        "chinese_name": disease_info.get('chinese_name'),
+                        "english_name": disease_info.get('english_name'),
+                        "causes": disease_info.get('causes'),
+                        "features": disease_info.get('features'),
+                        "symptoms": disease_info.get('symptoms'),
+                        "pesticides": disease_info.get('pesticides'),
+                        "management_measures": disease_info.get('management_measures'),
+                        "target_crops": disease_info.get('target_crops'),
+                        "severity_levels": disease_info.get('severity_levels'),
+                        "prevention_tips": disease_info.get('prevention_tips'),
+                        "reference_links": disease_info.get('reference_links'),
+                        "created_at": disease_created_at_str,
+                        "updated_at": disease_updated_at_str,
+                        "is_active": disease_info.get('is_active')
+                    }
+                    # 如果有中文名稱，更新顯示名稱
+                    if disease_info.get('chinese_name'):
+                        result['disease'] = disease_info.get('chinese_name')
+                else:
+                    logger.warning(f"⚠️  未找到病害資訊（裁切後）: disease_name={disease_name}")
+            
+            # 6. 記錄 API 日誌
             execution_time = int((datetime.now() - start_time).total_seconds() * 1000)
             log_api_request(user_id=user_id, endpoint="/api/predict-crop", method="POST",
                            status_code=200, execution_time_ms=execution_time)

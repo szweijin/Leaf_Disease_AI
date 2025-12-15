@@ -35,9 +35,11 @@ function handleUnauthorized(path: string) {
         return;
     }
 
-    // 重定向到登入頁
+    // 重定向到登入頁（延遲 1.5 秒，讓用戶有時間看到錯誤訊息）
     if (typeof window !== "undefined") {
-        window.location.href = "/login";
+        setTimeout(() => {
+            window.location.href = "/login";
+        }, 1500);
     }
 }
 

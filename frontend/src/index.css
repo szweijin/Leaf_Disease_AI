@@ -133,3 +133,50 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Toast 自定義樣式 - 基礎樣式 */
+[data-sonner-toast] {
+  color: white !important;
+}
+
+[data-sonner-toast] [data-title],
+[data-sonner-toast] [data-description] {
+  color: white !important;
+}
+
+[data-sonner-toast] [data-description] {
+  opacity: 0.9;
+}
+
+[data-sonner-toast] svg,
+[data-sonner-toast] [data-icon] {
+  color: white !important;
+}
+
+/* 成功 - 暗綠色背景，白色文字 */
+[data-sonner-toast][data-type="success"] {
+  background: oklch(0.45 0.15 160) !important;
+  border: 1px solid oklch(0.4 0.15 160) !important;
+  color: white !important;
+}
+
+/* 錯誤 - 保持目前的樣式 */
+[data-sonner-toast][data-type="error"] {
+  background: oklch(0.645 0.246 16.439) !important;
+  border: 1px solid oklch(0.577 0.245 27.325) !important;
+  color: white !important;
+}
+
+/* 資訊 - 暗灰色背景，白色文字 */
+[data-sonner-toast][data-type="info"] {
+  background: oklch(0.4 0.01 0) !important;
+  border: 1px solid oklch(0.35 0.01 0) !important;
+  color: white !important;
+}
+
+/* 警告 - 暗黃色背景，白色文字 */
+[data-sonner-toast][data-type="warning"] {
+  background: oklch(0.6 0.15 80) !important;
+  border: 1px solid oklch(0.55 0.15 80) !important;
+  color: white !important;
+}

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
+import { parseUnicodeInObject } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -10,6 +11,21 @@ import LeafDetectionView from "@/components/LeafDetectionView";
 import { Upload, Camera, Loader2 } from "lucide-react";
 
 type Mode = "idle" | "camera" | "processing" | "result" | "crop";
+
+interface DiseaseInfo {
+    id?: number;
+    chinese_name?: string;
+    english_name?: string;
+    causes?: string;
+    features?: string;
+    symptoms?: string | string[];
+    pesticides?: string | string[];
+    management_measures?: string | string[];
+    target_crops?: string;
+    severity_levels?: string;
+    prevention_tips?: string | string[];
+    reference_links?: string | string[];
+}
 
 interface PredictionResult {
     status?: "success" | "error";
@@ -41,10 +57,7 @@ interface PredictionResult {
     processing_time_ms?: number;
     cnn_time_ms?: number;
     yolo_time_ms?: number;
-    disease_info?: {
-        description?: string;
-        treatment?: string;
-    };
+    disease_info?: DiseaseInfo;
 }
 
 function PredictPage() {
@@ -103,13 +116,16 @@ function PredictPage() {
                 }),
             });
 
-            const data = await res.json();
+            let data = await res.json();
 
             if (!res.ok) {
                 toast.error(data.error || "檢測失敗");
                 setMode("idle");
                 return;
             }
+
+            // 解析 Unicode 轉義序列為中文
+            data = parseUnicodeInObject(data);
 
             // 檢查是否需要裁切（後端返回 final_status === 'need_crop'）
             if (data.final_status === "need_crop") {
@@ -153,13 +169,16 @@ function PredictPage() {
                 }),
             });
 
-            const data = await res.json();
+            let data = await res.json();
 
             if (!res.ok) {
                 toast.error(data.error || "檢測失敗");
                 setMode("crop");
                 return;
             }
+
+            // 解析 Unicode 轉義序列為中文
+            data = parseUnicodeInObject(data);
 
             setResult(data);
             setMode("result");
@@ -289,34 +308,46 @@ function PredictPage() {
 
     // 結果模式
     if (mode === "result" && result) {
-        return <LeafDetectionView result={result} onReset={handleReset} />;
+        return (
+            <LeafDetectionView
+                result={{
+                    disease: result.disease,
+                    severity: result.severity,
+                    confidence: result.confidence,
+                    image_path: result.image_path,
+                    predict_img_url: result.predict_img_url,
+                    disease_info: result.disease_info,
+                }}
+                onReset={handleReset}
+            />
+        );
     }
 
     // 主頁面
     return (
         <div
             ref={pageContainerRef}
-            className={`container mx-auto p-4 md:p-6 lg:p-8 max-w-4xl min-h-screen ${
+            className={`container mx-auto p-4 md:p-6 lg:p-8 max-w-4xl h-[calc(100vh-4rem)] md:h-[calc(100vh-3.5rem)] overflow-hidden flex items-center ${
                 isDragging && mode === "idle" ? "bg-emerald-50/50" : ""
             }`}
         >
-            <Card>
+            <Card className='w-full h-full flex flex-col'>
                 <CardHeader>
                     <CardTitle className='text-2xl md:text-3xl'>葉片病害檢測</CardTitle>
                     <CardDescription className='text-base md:text-lg'>
                         上傳圖片{isMobile && "或使用相機拍攝"}進行病害檢測
                     </CardDescription>
                 </CardHeader>
-                <CardContent className='space-y-6'>
+                <CardContent className='flex-1 flex flex-col justify-center space-y-6 overflow-hidden'>
                     {mode === "processing" && (
-                        <div className='text-center py-12'>
+                        <div className='text-center flex flex-col items-center justify-center flex-1'>
                             <Loader2 className='w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-4' />
                             <p className='text-lg text-neutral-600'>識別中...</p>
                         </div>
                     )}
 
                     {mode === "idle" && (
-                        <div className='space-y-6'>
+                        <div className='space-y-6 flex flex-col justify-center flex-1'>
                             {/* 拖曳上傳區域（僅桌面版） */}
                             {!isMobile && (
                                 <>

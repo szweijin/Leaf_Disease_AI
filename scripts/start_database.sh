@@ -47,11 +47,11 @@ if [ "$DB_CHECK_FAILED" -ne 0 ]; then
         python database/database_manager.py init
         if [ $? -eq 0 ]; then
             echo "✅ 資料庫初始化完成（包含所有表、視圖、函數、prediction_log 表、病害資訊資料）"
-            exit 0
+            return 0 2>/dev/null || exit 0
         else
             echo "❌ 資料庫初始化失敗"
             echo "   請檢查錯誤訊息並修復問題後重試"
-            exit 1
+            return 1 2>/dev/null || exit 1
         fi
     else
         read -p "   是否要現在初始化資料庫？(y/n) " -n 1 -r
@@ -65,14 +65,14 @@ if [ "$DB_CHECK_FAILED" -ne 0 ]; then
             else
                 echo "❌ 資料庫初始化失敗"
                 echo "   請檢查錯誤訊息並修復問題後重試"
-                exit 1
+                return 1 2>/dev/null || exit 1
             fi
         else
             echo "❌ 資料庫未初始化，無法繼續"
-            exit 1
+            return 1 2>/dev/null || exit 1
         fi
     fi
 else
     echo "✅ 資料庫連線正常"
-    exit 0
+    return 0 2>/dev/null || exit 0
 fi

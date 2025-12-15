@@ -7,6 +7,7 @@ from src.core.core_db_manager import db, ActivityLogger, ErrorLogger, AuditLogge
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 import re
+import os
 from datetime import datetime, timedelta
 import secrets
 from typing import Tuple, Optional, Dict, List, Any
@@ -247,7 +248,9 @@ class UserManager:
             
             # 5. 建立會話
             session_token = secrets.token_urlsafe(32)
-            expires_at = datetime.utcnow() + timedelta(hours=1)
+            # 從環境變數讀取 session lifetime，預設為 24 小時（與 config/base.py 一致）
+            session_lifetime_hours = int(os.getenv('PERMANENT_SESSION_LIFETIME_HOURS', 24))
+            expires_at = datetime.utcnow() + timedelta(hours=session_lifetime_hours)
             
             db.execute_update(
                 """
@@ -754,6 +757,45 @@ class DetectionQueries:
             if "relation" in error_msg.lower() and "does not exist" in error_msg.lower():
                 logger.error("   提示: detection_records 表不存在，請執行: python database/database_manager.py init")
             return []
+    
+    @staticmethod
+    def get_disease_info(disease_name: Optional[str]) -> Optional[Dict[str, Any]]:
+        """
+        根據病害名稱查詢病害詳細資訊（不區分大小寫）
+        
+        Args:
+            disease_name: 病害名稱（例如：Potato__Late_blight 或 Potato__late_blight）
+        
+        Returns:
+            病害資訊字典，如果未找到則返回 None
+        """
+        if not disease_name:
+            return None
+        
+        # 使用 ILIKE 進行不區分大小寫的匹配
+        sql = """
+            SELECT 
+                id, disease_name, chinese_name, english_name, causes, features,
+                symptoms, pesticides, management_measures, target_crops,
+                severity_levels, prevention_tips, reference_links,
+                created_at, updated_at, is_active
+            FROM disease_library
+            WHERE LOWER(disease_name) = LOWER(%s) AND is_active = TRUE
+            LIMIT 1
+        """
+        try:
+            result = db.execute_query(sql, (disease_name,), dict_cursor=True, fetch_one=True)
+            if result:
+                logger.debug(f"✅ 查詢到病害資訊: {disease_name} -> {result.get('disease_name')}")
+                return result
+            else:
+                logger.debug(f"⚠️  未找到病害資訊: {disease_name}")
+                return None
+        except Exception as e:
+            error_msg = str(e)
+            logger.warning(f"⚠️  查詢病害資訊失敗: {error_msg}")
+            # 不拋出異常，只記錄警告，返回 None
+            return None
 
 
 class LogQueries:

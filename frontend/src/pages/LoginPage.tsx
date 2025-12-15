@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
@@ -16,6 +16,7 @@ interface LoginPageProps {
 }
 
 const LoginPage = ({ isAuthenticated, onLoggedIn }: LoginPageProps) => {
+    const navigate = useNavigate();
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -85,6 +86,8 @@ const LoginPage = ({ isAuthenticated, onLoggedIn }: LoginPageProps) => {
                 // 使用返回的 email 或表單中的 email
                 const returnedEmail = data.email || email;
                 onLoggedIn(returnedEmail);
+                // 登入成功後立即導航到首頁
+                navigate("/home", { replace: true });
             }
             setLoading(false);
         } catch (err) {
@@ -180,6 +183,7 @@ const LoginPage = ({ isAuthenticated, onLoggedIn }: LoginPageProps) => {
                                     required
                                     placeholder='user@example.com'
                                     className='border-neutral-300 focus:border-emerald-500 focus:ring-emerald-500'
+                                    tooltip='請輸入您的 Email 地址'
                                 />
                             </motion.div>
                             <motion.div
@@ -215,6 +219,9 @@ const LoginPage = ({ isAuthenticated, onLoggedIn }: LoginPageProps) => {
                                             // 增加右邊內邊距
                                             passwordError ? "border-red-500" : ""
                                         }`}
+                                        tooltip={
+                                            isLogin ? "請輸入您的密碼" : "密碼需至少 8 個字符，包含大小寫字母和數字"
+                                        }
                                     />
                                     {/* 切換密碼可見性的按鈕 */}
                                     <Button
@@ -223,6 +230,7 @@ const LoginPage = ({ isAuthenticated, onLoggedIn }: LoginPageProps) => {
                                         variant='ghost' // 使用 ghost 變體，使其看起來像個圖標
                                         size='sm' // 小尺寸按鈕
                                         className='absolute right-0 top-0 h-full px-3 py-0 text-neutral-500 hover:bg-transparent hover:text-emerald-600'
+                                        tooltip={showPassword ? "隱藏密碼" : "顯示密碼"}
                                     >
                                         {/* 根據 showPassword 狀態顯示不同圖標 */}
                                         {showPassword ? <EyeOff className='h-4 w-4' /> : <Eye className='h-4 w-4' />}
@@ -246,7 +254,12 @@ const LoginPage = ({ isAuthenticated, onLoggedIn }: LoginPageProps) => {
                                 transition={{ duration: 0.4, delay: 0.6 }}
                             >
                                 <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                                    <Button type='submit' className='w-full' disabled={loading}>
+                                    <Button
+                                        type='submit'
+                                        className='w-full'
+                                        disabled={loading}
+                                        tooltip={isLogin ? "點擊登入您的帳號" : "點擊註冊新帳號"}
+                                    >
                                         {loading ? "處理中..." : isLogin ? "登入" : "註冊"}
                                     </Button>
                                 </motion.div>

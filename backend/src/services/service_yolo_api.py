@@ -210,6 +210,19 @@ class DetectionAPIService:
                 elif disease_name == 'whole_plant':
                     display_disease = '整株植物'
                 
+                # 查詢病害詳細資訊
+                disease_info = None
+                if disease_name and disease_name not in ['others', 'whole_plant']:
+                    logger.debug(f"🔍 查詢病害資訊: disease_name={disease_name}")
+                    disease_info = DetectionQueries.get_disease_info(disease_name)
+                    if disease_info:
+                        logger.info(f"✅ 找到病害資訊: {disease_name} -> {disease_info.get('chinese_name', 'N/A')}")
+                        # 如果找到中文名稱，使用中文名稱作為顯示名稱
+                        if disease_info.get('chinese_name'):
+                            display_disease = disease_info.get('chinese_name')
+                    else:
+                        logger.warning(f"⚠️  未找到病害資訊: disease_name={disease_name}")
+                
                 # 處理時間字段：確保正確序列化
                 timestamp_str = None
                 created_at_str = None
@@ -222,7 +235,7 @@ class DetectionAPIService:
                         timestamp_str = str(created_at)
                         created_at_str = str(created_at)
                 
-                formatted_records.append({
+                formatted_record = {
                     "id": record_id,
                     "disease": display_disease,  
                     "disease_name": disease_name,  
@@ -237,7 +250,51 @@ class DetectionAPIService:
                     "processing_time_ms": record.get('processing_time_ms'),
                     "timestamp": timestamp_str,
                     "created_at": created_at_str
-                })
+                }
+                
+                # 如果有病害資訊，加入到記錄中（返回所有欄位）
+                if disease_info:
+                    # 處理時間字段
+                    disease_created_at = disease_info.get('created_at')
+                    disease_updated_at = disease_info.get('updated_at')
+                    
+                    disease_created_at_str = None
+                    if disease_created_at:
+                        if hasattr(disease_created_at, 'isoformat'):
+                            disease_created_at_str = disease_created_at.isoformat()
+                        else:
+                            disease_created_at_str = str(disease_created_at)
+                    
+                    disease_updated_at_str = None
+                    if disease_updated_at:
+                        if hasattr(disease_updated_at, 'isoformat'):
+                            disease_updated_at_str = disease_updated_at.isoformat()
+                        else:
+                            disease_updated_at_str = str(disease_updated_at)
+                    
+                    formatted_record["disease_info"] = {
+                        "id": disease_info.get('id'),
+                        "disease_name": disease_info.get('disease_name'),  # 資料庫中的原始名稱
+                        "chinese_name": disease_info.get('chinese_name'),
+                        "english_name": disease_info.get('english_name'),
+                        "causes": disease_info.get('causes'),
+                        "features": disease_info.get('features'),
+                        "symptoms": disease_info.get('symptoms'),
+                        "pesticides": disease_info.get('pesticides'),
+                        "management_measures": disease_info.get('management_measures'),
+                        "target_crops": disease_info.get('target_crops'),
+                        "severity_levels": disease_info.get('severity_levels'),
+                        "prevention_tips": disease_info.get('prevention_tips'),
+                        "reference_links": disease_info.get('reference_links'),
+                        "created_at": disease_created_at_str,
+                        "updated_at": disease_updated_at_str,
+                        "is_active": disease_info.get('is_active')
+                    }
+                    logger.info(f"✅ 已添加病害資訊到記錄 {record_id}: {disease_info.get('chinese_name', 'N/A')}")
+                else:
+                    logger.warning(f"⚠️  記錄 {record_id} 沒有病害資訊 (disease_name={disease_name})")
+                
+                formatted_records.append(formatted_record)
             
             # 計算分頁資訊
             total_pages = (total_count + per_page - 1) // per_page if total_count > 0 else 0

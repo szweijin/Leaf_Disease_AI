@@ -660,7 +660,31 @@ npm run dev -- --port 3000
 
     - 確認 `react-router-dom` 已正確安裝
     - 確認所有頁面組件都在 `pages/` 目錄中
-    - 確認 `App.jsx` 中的路由配置正確
+    - 確認 `App.tsx` 中的路由配置正確
+    - 確認 `ProtectedRoute` 組件正確處理嵌套路由
+    - 確認 `AppLayout` 組件使用 `<Outlet />` 渲染子路由
+
+    **如果遇到路由無法跳轉的問題**：
+
+    1. **檢查嵌套路由結構**：
+
+        - 確認 `ProtectedRoute` 組件正確使用 `Outlet` 渲染子路由
+        - 確認 `AppLayout` 組件包含 `<Outlet />` 來渲染嵌套路由
+        - 確認路由配置中父路由使用 `element` 屬性包裹 `ProtectedRoute` 和 `AppLayout`
+
+    2. **檢查 React Hooks 使用**：
+
+        - 確認 `ProtectedRoute` 中的 `useEffect` 不在條件語句之後調用
+        - 確認所有 Hooks 都在組件頂部調用
+
+    3. **檢查動畫配置**：
+
+        - 確認 `AppLayout` 中的 `AnimatePresence` 不會阻塞路由跳轉
+        - 如果動畫時間過長，可能會影響路由跳轉體驗
+
+    4. **檢查登入後導航**：
+        - 確認 `LoginPage` 在登入成功後使用 `useNavigate` 進行導航
+        - 確認狀態更新和導航的時序正確
 
 6. **如果問題仍然存在**：
 
@@ -682,7 +706,14 @@ npm run dev -- --port 3000
 
 -   **路由守衛**：`ProtectedRoute` 組件自動保護需要登入的路由
 
+    -   正確處理嵌套路由結構
+    -   支援 `Outlet` 渲染子路由
+    -   優化認證狀態檢查和重定向邏輯
+
 -   **瀏覽器導航**：支援前進/後退按鈕和直接 URL 訪問
+    -   登入成功後自動導航到首頁
+    -   未登入時自動重定向到登入頁
+    -   優化動畫配置，避免阻塞路由跳轉
 
 #### 前端技術棧
 
@@ -753,7 +784,7 @@ npm run build
 
 ## 版本資訊
 
--   **版本**: 2.4.0
+-   **版本**: 2.4.1
 -   **模式**: 本地端開發
 -   **前端框架**: React 19.2.0 + React Router DOM 7.10.1 + Vite 7.2.7 + Tailwind CSS 3.4.19 + shadcn/ui + PostCSS 8.5.6
 -   **前端工具**: ESLint 9.39.1 + TypeScript 支援（tsconfig.json）
@@ -767,4 +798,5 @@ npm run build
     -   ✅ 原始圖片和帶框圖片分別存儲在 Cloudinary 的不同資料夾
     -   ✅ 前端同時顯示原始圖片和帶框圖片
     -   ✅ 資料庫新增 `predict_img_url` 欄位存儲帶框圖片 URL
--   **最後更新**: 2024-12-12
+    -   ✅ 修復前端路由跳轉問題（嵌套路由、狀態更新時序、動畫阻塞）
+-   **最後更新**: 2024-12-13

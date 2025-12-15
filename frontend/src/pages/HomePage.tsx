@@ -1,5 +1,5 @@
 // frontend/src/pages/HomePage.tsx
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -13,32 +13,29 @@ interface HomePageProps {
 const HomePage = ({ isAuthenticated }: HomePageProps) => {
     const navigate = useNavigate();
     const isMobile = useIsMobile();
-    const [isRedirecting, setIsRedirecting] = useState(false);
 
     useEffect(() => {
         // 如果已登入，重定向到 /predict
         if (isAuthenticated) {
-            setIsRedirecting(true);
             // 稍微延遲一下，讓用戶看到 Loading
-            setTimeout(() => {
+            const timer = setTimeout(() => {
                 navigate("/predict", { replace: true });
-            }, 100);
-            return;
+            }, 1500);
+            return () => clearTimeout(timer);
         }
 
         // 如果是手機版，重定向到 /login（因為手機版沒有 /home 頁面）
         if (isMobile) {
-            setIsRedirecting(true);
             // 稍微延遲一下，讓用戶看到 Loading
-            setTimeout(() => {
+            const timer = setTimeout(() => {
                 navigate("/login", { replace: true });
-            }, 100);
-            return;
+            }, 1500);
+            return () => clearTimeout(timer);
         }
     }, [isAuthenticated, isMobile, navigate]);
 
     // 如果正在重定向、已登入或手機版，顯示 Loading
-    if (isRedirecting || isAuthenticated || isMobile) {
+    if (isAuthenticated || isMobile) {
         return <Loading message='跳轉中...' />;
     }
 
