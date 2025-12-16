@@ -2,9 +2,11 @@ import { motion } from "framer-motion";
 
 interface LoadingProps {
     message?: string;
+    username?: string;
+    showWelcome?: boolean;
 }
 
-function Loading({ message = "載入中..." }: LoadingProps) {
+function Loading({ message = "載入中...", username, showWelcome = false }: LoadingProps) {
     return (
         <motion.div
             initial={{ opacity: 0 }}
@@ -42,6 +44,33 @@ function Loading({ message = "載入中..." }: LoadingProps) {
                 transition={{ duration: 0.5, delay: 0.4 }}
                 className='flex flex-col items-center gap-4'
             >
+                {/* 歡迎訊息 */}
+                {showWelcome && username && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5, delay: 0.5 }}
+                        className='text-center space-y-2'
+                    >
+                        <motion.h2
+                            className='text-2xl md:text-3xl font-bold text-emerald-700'
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.5, delay: 0.7 }}
+                        >
+                            歡迎回來！
+                        </motion.h2>
+                        <motion.p
+                            className='text-lg md:text-xl text-neutral-700 font-medium'
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.5, delay: 0.9 }}
+                        >
+                            {username}
+                        </motion.p>
+                    </motion.div>
+                )}
+
                 <motion.div
                     className='w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full'
                     animate={{ rotate: 360 }}
@@ -56,7 +85,7 @@ function Loading({ message = "載入中..." }: LoadingProps) {
                 <motion.span
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ duration: 0.5, delay: 0.6 }}
+                    transition={{ duration: 0.5, delay: showWelcome && username ? 1.1 : 0.6 }}
                     className='text-sm text-neutral-600 font-medium'
                 >
                     {message}

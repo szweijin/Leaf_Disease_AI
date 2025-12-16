@@ -9,7 +9,9 @@ import type { Area } from "react-easy-crop";
 
 interface ImageCropperProps {
     image: string;
-    result: any;
+    result: string;
+    cropCount?: number;
+    maxCropCount?: number;
     onCropComplete: (
         croppedImage: string,
         coordinates: { x: number; y: number; width: number; height: number }
@@ -17,19 +19,30 @@ interface ImageCropperProps {
     onCancel: () => void;
 }
 
-function ImageCropper({ image, result, onCropComplete, onCancel }: ImageCropperProps) {
+function ImageCropper({
+    image,
+    cropCount = 1,
+    maxCropCount = 3,
+    onCropComplete,
+    onCancel,
+}: Omit<ImageCropperProps, "result">) {
     const [crop, setCrop] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
-    const hasShownToast = useRef(false);
+    const lastCropCountRef = useRef<number>(cropCount);
 
-    // 只在首次載入時顯示提示信息
+    // 根據 crop 次數顯示不同的提示信息
     useEffect(() => {
-        if (!hasShownToast.current) {
-            toast.info("檢測到整株植物圖片，請裁切出葉片區域進行檢測");
-            hasShownToast.current = true;
+        // 只在 crop 次數變化時顯示提示
+        if (lastCropCountRef.current !== cropCount) {
+            if (cropCount === 1) {
+                toast.info("檢測到整株植物圖片，請裁切出葉片區域進行檢測");
+            } else {
+                toast.info(`第 ${cropCount}/${maxCropCount} 次裁切，請重新裁切葉片區域`);
+            }
+            lastCropCountRef.current = cropCount;
         }
-    }, []);
+    }, [cropCount, maxCropCount]);
 
     const onCropChange = useCallback((crop: { x: number; y: number }) => {
         setCrop(crop);
@@ -120,7 +133,11 @@ function ImageCropper({ image, result, onCropComplete, onCancel }: ImageCropperP
             <Card>
                 <CardHeader>
                     <CardTitle>裁切圖片</CardTitle>
-                    <CardDescription>請拖動綠色框選擇要檢測的葉片區域</CardDescription>
+                    <CardDescription>
+                        {cropCount > 1
+                            ? `第 ${cropCount}/${maxCropCount} 次裁切 - 請拖動綠色框選擇要檢測的葉片區域`
+                            : "請拖動綠色框選擇要檢測的葉片區域"}
+                    </CardDescription>
                 </CardHeader>
                 <CardContent className='space-y-4'>
                     <div

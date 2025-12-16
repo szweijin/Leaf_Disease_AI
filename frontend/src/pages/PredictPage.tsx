@@ -28,7 +28,7 @@ interface DiseaseInfo {
 }
 
 interface PredictionResult {
-    status?: "success" | "error";
+    status?: "success" | "error" | "need_crop";
     workflow?: string;
     prediction_id: string;
     cnn_result?: {
@@ -58,12 +58,15 @@ interface PredictionResult {
     cnn_time_ms?: number;
     yolo_time_ms?: number;
     disease_info?: DiseaseInfo;
+    crop_count?: number;
+    max_crop_count?: number;
 }
 
 function PredictPage() {
     const [mode, setMode] = useState<Mode>("idle");
     const [image, setImage] = useState<string | null>(null);
     const [result, setResult] = useState<PredictionResult | null>(null);
+    const [cropCount, setCropCount] = useState<number>(1); // 追蹤 crop 次數
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -130,14 +133,18 @@ function PredictPage() {
             // 檢查是否需要裁切（後端返回 final_status === 'need_crop'）
             if (data.final_status === "need_crop") {
                 setResult(data);
+                setCropCount(1); // 首次 crop，重置為 1
                 setMode("crop");
             } else if (data.final_status === "not_plant") {
                 // 非植物影像
                 toast.error(data.error || "非植物影像，請上傳植物葉片圖片");
                 setMode("idle");
+                setCropCount(1); // 重置 crop 次數
             } else {
                 setResult(data);
+                setCropCount(1); // 重置 crop 次數
                 setMode("result");
+                // 首次預測不顯示錯誤，只有在第二次裁切後才顯示
             }
         } catch (err) {
             toast.error(err instanceof Error ? err.message : "網絡錯誤");
@@ -166,6 +173,7 @@ function PredictPage() {
                     prediction_id: result.prediction_id,
                     crop_coordinates: coordinates,
                     cropped_image: base64Data,
+                    crop_count: cropCount, // 傳遞當前 crop 次數
                 }),
             });
 
@@ -180,8 +188,42 @@ function PredictPage() {
             // 解析 Unicode 轉義序列為中文
             data = parseUnicodeInObject(data);
 
-            setResult(data);
-            setMode("result");
+            // 檢查是否需要繼續 crop
+            if (data.final_status === "need_crop" && data.status === "need_crop") {
+                // 還未達到最大次數，需要繼續 crop
+                const nextCropCount = cropCount + 1;
+                setCropCount(nextCropCount);
+                setResult(data);
+                setMode("crop");
+                // 顯示提示信息
+                if (data.message) {
+                    toast.info(data.message);
+                } else {
+                    toast.info(`請繼續裁切圖片中的葉片區域 (${nextCropCount}/3)`);
+                }
+            } else {
+                // 檢測完成或達到最大次數
+                setResult(data);
+                setCropCount(1); // 重置 crop 次數
+                setMode("result");
+                // 只在 CNN 檢測時檢查（final_status 不是 "yolo_detected"）
+                const isCNNDetection = data.final_status !== "yolo_detected";
+                if (isCNNDetection) {
+                    const disease = data.disease?.toLowerCase();
+                    const bestClass = data.cnn_result?.best_class?.toLowerCase();
+                    if (
+                        disease === "other" ||
+                        disease === "whole_plant" ||
+                        bestClass === "other" ||
+                        bestClass === "whole_plant" ||
+                        bestClass === "others"
+                    ) {
+                        toast.warning("非植物葉片或解析度過低");
+                    }
+                } else if (data.final_status === "not_plant" && cropCount >= 3) {
+                    toast.warning("已達到最大裁切次數，無法識別為植物葉片");
+                }
+            }
         } catch (err) {
             toast.error(err instanceof Error ? err.message : "網絡錯誤");
             setMode("crop");
@@ -193,6 +235,7 @@ function PredictPage() {
         setMode("idle");
         setImage(null);
         setResult(null);
+        setCropCount(1); // 重置 crop 次數
         if (fileInputRef.current) {
             fileInputRef.current.value = "";
         }
@@ -302,12 +345,35 @@ function PredictPage() {
     // 裁切模式
     if (mode === "crop" && result && image) {
         return (
-            <ImageCropper image={image} result={result} onCropComplete={handleCropComplete} onCancel={handleReset} />
+            <ImageCropper
+                image={image}
+                cropCount={cropCount}
+                maxCropCount={result.max_crop_count || 3}
+                onCropComplete={handleCropComplete}
+                onCancel={handleReset}
+            />
         );
     }
 
     // 結果模式
     if (mode === "result" && result) {
+        // 只在 CNN 檢測時檢查（final_status 不是 "yolo_detected"）
+        let errorMessage: string | undefined;
+        const isCNNDetection = result.final_status !== "yolo_detected";
+        if (isCNNDetection) {
+            const disease = result.disease?.toLowerCase();
+            const bestClass = result.cnn_result?.best_class?.toLowerCase();
+            if (
+                disease === "other" ||
+                disease === "whole_plant" ||
+                bestClass === "other" ||
+                bestClass === "whole_plant" ||
+                bestClass === "others"
+            ) {
+                errorMessage = "非植物葉片或解析度過低";
+            }
+        }
+
         return (
             <LeafDetectionView
                 result={{
@@ -317,6 +383,10 @@ function PredictPage() {
                     image_path: result.image_path,
                     predict_img_url: result.predict_img_url,
                     disease_info: result.disease_info,
+                    errorMessage: errorMessage,
+                    cnn_result: result.cnn_result,
+                    final_status: result.final_status,
+                    crop_count: result.crop_count,
                 }}
                 onReset={handleReset}
             />

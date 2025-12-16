@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff } from "lucide-react";
 
 interface LoginPageProps {
@@ -18,13 +19,23 @@ interface LoginPageProps {
 const LoginPage = ({ isAuthenticated, onLoggedIn }: LoginPageProps) => {
     const navigate = useNavigate();
     const [isLogin, setIsLogin] = useState(true);
-    const [email, setEmail] = useState("");
+    // 從 localStorage 讀取記住的帳號作為初始值
+    const [email, setEmail] = useState(() => {
+        const savedEmail = localStorage.getItem("rememberedEmail");
+        return savedEmail || "";
+    });
     const [password, setPassword] = useState("");
+    const [username, setUsername] = useState(""); // 新增：使用者名稱（暱稱）
     const [error, setError] = useState("");
     const [passwordError, setPasswordError] = useState("");
     const [loading, setLoading] = useState(false);
     // 新增狀態：追蹤密碼是否可見
     const [showPassword, setShowPassword] = useState(false);
+    // 新增狀態：記住帳號和保持登入
+    const [rememberEmail, setRememberEmail] = useState(() => {
+        return !!localStorage.getItem("rememberedEmail");
+    });
+    const [keepLoggedIn, setKeepLoggedIn] = useState(false);
     const errorShownRef = useRef(false);
 
     useEffect(() => {
@@ -57,9 +68,12 @@ const LoginPage = ({ isAuthenticated, onLoggedIn }: LoginPageProps) => {
 
         try {
             const endpoint = isLogin ? "/login" : "/register";
+            const requestBody = isLogin
+                ? { email, password }
+                : { email, password, username: username.trim() || undefined };
             const res = await apiFetch(endpoint, {
                 method: "POST",
-                body: JSON.stringify({ email, password }),
+                body: JSON.stringify(requestBody),
             });
 
             const data = await res.json();
@@ -76,6 +90,7 @@ const LoginPage = ({ isAuthenticated, onLoggedIn }: LoginPageProps) => {
                 toast.success("註冊成功！請登入");
                 setIsLogin(true); // 切換回登入模式
                 setPasswordError(""); // 清除密碼錯誤
+                setUsername(""); // 清除使用者名稱
                 // email 和 password 已經在 state 中，會自動保留
                 setLoading(false);
                 return;
@@ -85,6 +100,40 @@ const LoginPage = ({ isAuthenticated, onLoggedIn }: LoginPageProps) => {
             if (onLoggedIn) {
                 // 使用返回的 email 或表單中的 email
                 const returnedEmail = data.email || email;
+
+                // 處理「記住帳號」功能
+                if (rememberEmail) {
+                    localStorage.setItem("rememberedEmail", returnedEmail);
+                } else {
+                    localStorage.removeItem("rememberedEmail");
+                }
+
+                // 處理「保持登入」功能
+                if (keepLoggedIn) {
+                    localStorage.setItem("keepLoggedIn", "true");
+                    // 可以發送請求到後端延長 session 時間（如果需要）
+                    // 這裡我們使用 localStorage 來標記保持登入狀態
+                } else {
+                    localStorage.removeItem("keepLoggedIn");
+                }
+
+                // 獲取用戶資料（包含 username）
+                try {
+                    const profileRes = await apiFetch("/user/profile");
+                    if (profileRes.ok) {
+                        const profileData = await profileRes.json();
+                        // 保存用戶名到 localStorage，用於顯示歡迎訊息
+                        const displayName = profileData.username || returnedEmail;
+                        localStorage.setItem("userDisplayName", displayName);
+                    } else {
+                        // 如果獲取資料失敗，使用 email 作為顯示名稱
+                        localStorage.setItem("userDisplayName", returnedEmail);
+                    }
+                } catch {
+                    // 如果獲取資料失敗，使用 email 作為顯示名稱
+                    localStorage.setItem("userDisplayName", returnedEmail);
+                }
+
                 onLoggedIn(returnedEmail);
                 // 登入成功後立即導航到首頁
                 navigate("/home", { replace: true });
@@ -186,6 +235,26 @@ const LoginPage = ({ isAuthenticated, onLoggedIn }: LoginPageProps) => {
                                     tooltip='請輸入您的 Email 地址'
                                 />
                             </motion.div>
+                            {!isLogin && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.4, delay: 0.45 }}
+                                    className='space-y-2'
+                                >
+                                    <Label htmlFor='username'>暱稱（選填）</Label>
+                                    <Input
+                                        id='username'
+                                        type='text'
+                                        value={username}
+                                        onChange={(e) => setUsername(e.target.value)}
+                                        placeholder='請輸入您的暱稱'
+                                        maxLength={100}
+                                        className='border-neutral-300 focus:border-emerald-500 focus:ring-emerald-500'
+                                        tooltip='請輸入您的暱稱（選填）'
+                                    />
+                                </motion.div>
+                            )}
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -248,6 +317,42 @@ const LoginPage = ({ isAuthenticated, onLoggedIn }: LoginPageProps) => {
                                     </div>
                                 )}
                             </motion.div>
+                            {/* 登入模式下的記住帳號和保持登入選項 */}
+                            {isLogin && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.4, delay: 0.55 }}
+                                    className='flex items-center justify-center gap-6'
+                                >
+                                    <div className='flex items-center space-x-2'>
+                                        <Checkbox
+                                            id='rememberEmail'
+                                            checked={rememberEmail}
+                                            onCheckedChange={(checked) => setRememberEmail(checked === true)}
+                                        />
+                                        <Label
+                                            htmlFor='rememberEmail'
+                                            className='text-sm font-normal cursor-pointer text-neutral-700 hover:text-emerald-700'
+                                        >
+                                            記住帳號
+                                        </Label>
+                                    </div>
+                                    <div className='flex items-center space-x-2'>
+                                        <Checkbox
+                                            id='keepLoggedIn'
+                                            checked={keepLoggedIn}
+                                            onCheckedChange={(checked) => setKeepLoggedIn(checked === true)}
+                                        />
+                                        <Label
+                                            htmlFor='keepLoggedIn'
+                                            className='text-sm font-normal cursor-pointer text-neutral-700 hover:text-emerald-700'
+                                        >
+                                            保持登入
+                                        </Label>
+                                    </div>
+                                </motion.div>
+                            )}
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -277,6 +382,7 @@ const LoginPage = ({ isAuthenticated, onLoggedIn }: LoginPageProps) => {
                                     setIsLogin(!isLogin);
                                     setError("");
                                     setPasswordError("");
+                                    setUsername(""); // 切換模式時清除使用者名稱
                                 }}
                                 className='text-emerald-600 hover:text-emerald-700 hover:underline'
                                 whileHover={{ scale: 1.05 }}

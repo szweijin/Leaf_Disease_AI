@@ -13,6 +13,7 @@ import { Loader2, User, Lock, Mail, Calendar, LogOut, Eye, EyeOff } from "lucide
 
 interface UserProfile {
     email?: string;
+    username?: string;
     created_at?: string;
     last_login?: string;
 }
@@ -27,10 +28,12 @@ function AccountPage({ onLogout }: AccountPageProps) {
     const [oldPassword, setOldPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
+    const [username, setUsername] = useState("");
     const [error, setError] = useState("");
     const [passwordError, setPasswordError] = useState("");
     const [loading, setLoading] = useState(false);
     const [loadingProfile, setLoadingProfile] = useState(true);
+    const [loadingUsername, setLoadingUsername] = useState(false);
 
     // 新增三個狀態來控制密碼可見性
     const [showOldPassword, setShowOldPassword] = useState(false);
@@ -59,6 +62,7 @@ function AccountPage({ onLogout }: AccountPageProps) {
             }
 
             setUserProfile(data);
+            setUsername(data.username || ""); // 初始化使用者名稱
         } catch (err) {
             setError(err instanceof Error ? err.message : "網絡錯誤");
         } finally {
@@ -111,6 +115,48 @@ function AccountPage({ onLogout }: AccountPageProps) {
             setError(err instanceof Error ? err.message : "網絡錯誤");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleUpdateUsername = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError("");
+
+        if (!username.trim()) {
+            setError("請輸入使用者名稱");
+            return;
+        }
+
+        // 如果使用者名稱沒有改變，不需要更新
+        if (username.trim() === (userProfile?.username || "")) {
+            toast.info("使用者名稱沒有變更");
+            return;
+        }
+
+        setLoadingUsername(true);
+
+        try {
+            const res = await apiFetch("/user/update-profile", {
+                method: "POST",
+                body: JSON.stringify({
+                    username: username.trim(),
+                }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                setError(data.error || "更新失敗");
+                return;
+            }
+
+            toast.success("暱稱修改成功");
+            // 重新載入個人資料以獲取最新資訊
+            await loadProfile();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "網絡錯誤");
+        } finally {
+            setLoadingUsername(false);
         }
     };
 
@@ -210,6 +256,37 @@ function AccountPage({ onLogout }: AccountPageProps) {
                                 className='bg-neutral-50 text-neutral-600'
                                 tooltip='您的 Email 地址（無法修改）'
                             />
+                        </div>
+
+                        <div className='space-y-2'>
+                            <Label className='flex items-center gap-2 text-neutral-700'>
+                                <User className='w-4 h-4' />
+                                暱稱
+                            </Label>
+                            <form onSubmit={handleUpdateUsername} className='flex gap-2'>
+                                <Input
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    placeholder='請輸入您的暱稱'
+                                    maxLength={100}
+                                    className='flex-1 border-neutral-300 focus:border-emerald-500 focus:ring-emerald-500'
+                                    tooltip='您的暱稱（可修改）'
+                                />
+                                <Button
+                                    type='submit'
+                                    disabled={loadingUsername || username.trim() === (userProfile?.username || "")}
+                                    className='flex-shrink-0'
+                                >
+                                    {loadingUsername ? (
+                                        <>
+                                            <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                                            更新中...
+                                        </>
+                                    ) : (
+                                        "更新"
+                                    )}
+                                </Button>
+                            </form>
                         </div>
 
                         <div className='grid grid-cols-1 md:grid-cols-2 gap-4 pt-2'>

@@ -20,7 +20,7 @@ const HomePage = ({ isAuthenticated }: HomePageProps) => {
             // 稍微延遲一下，讓用戶看到 Loading
             const timer = setTimeout(() => {
                 navigate("/predict", { replace: true });
-            }, 1500);
+            }, 2000); // 增加延遲時間，讓用戶看到歡迎訊息
             return () => clearTimeout(timer);
         }
 
@@ -36,7 +36,15 @@ const HomePage = ({ isAuthenticated }: HomePageProps) => {
 
     // 如果正在重定向、已登入或手機版，顯示 Loading
     if (isAuthenticated || isMobile) {
-        return <Loading message='跳轉中...' />;
+        // 從 localStorage 獲取用戶顯示名稱（username 或 email）
+        const userDisplayName = localStorage.getItem("userDisplayName") || "";
+        return (
+            <Loading
+                message='跳轉中...'
+                username={isAuthenticated ? userDisplayName : undefined}
+                showWelcome={isAuthenticated}
+            />
+        );
     }
 
     const containerVariants = {

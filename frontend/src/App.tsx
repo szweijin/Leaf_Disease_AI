@@ -88,6 +88,8 @@ function App() {
     const handleLogout = () => {
         setIsAuthenticated(false);
         setUserEmail("");
+        // 清除用戶顯示名稱
+        localStorage.removeItem("userDisplayName");
     };
 
     return (
