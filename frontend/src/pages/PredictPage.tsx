@@ -397,16 +397,20 @@ function PredictPage() {
     return (
         <div
             ref={pageContainerRef}
-            className={`container mx-auto p-4 md:p-6 lg:p-8 max-w-4xl h-[calc(100vh-4rem)] md:h-[calc(100vh-3.5rem)] overflow-hidden flex items-center ${
-                isDragging && mode === "idle" ? "bg-emerald-50/50" : ""
-            }`}
+            className='w-full p-4 md:p-6 lg:p-8 h-[calc(100vh-4rem)] md:h-[calc(100vh-3.5rem)] overflow-hidden flex items-center bg-gradient-to-b from-white to-emerald-50'
         >
-            <Card className='w-full h-full flex flex-col'>
+            <Card
+                className={`w-screen h-full flex flex-col border-none ${
+                    isMobile
+                        ? "bg-gradient-to-b from-white to-emerald-50 min-h-screen min-w-screen fixed top-0 left-0 z-10 w-full"
+                        : "bg-transparent mx-auto flex justify-center max-w-4xl"
+                }`}
+            >
                 <CardHeader>
-                    <CardTitle className='text-2xl md:text-3xl'>葉片病害檢測</CardTitle>
-                    <CardDescription className='text-base md:text-lg'>
-                        上傳圖片{isMobile && "或使用相機拍攝"}進行病害檢測
-                    </CardDescription>
+                    {!isMobile && <CardTitle className='text-2xl md:text-3xl'>葉片病害檢測</CardTitle>}
+                    {!isMobile && (
+                        <CardDescription className='text-base md:text-lg'>上傳圖片進行病害檢測</CardDescription>
+                    )}
                 </CardHeader>
                 <CardContent className='flex-1 flex flex-col justify-center space-y-6 overflow-hidden'>
                     {mode === "processing" && (
@@ -428,13 +432,13 @@ function PredictPage() {
                                         onDragOver={handleDragOver}
                                         onDragLeave={handleDragLeave}
                                         onDrop={handleDrop}
-                                        className={`fixed inset-0 z-40 pointer-events-none transition-colors duration-200 ${
-                                            isDragging ? "bg-emerald-50/80 border-4 border-emerald-400" : ""
+                                        className={`fixed inset-0 z-40 pointer-events-none transition-colors duration-200 h-full w-full ${
+                                            isDragging ? "bg-emerald-50/80 border-8 border-emerald-400" : ""
                                         }`}
                                         style={{ display: isDragging ? "block" : "none" }}
                                     >
                                         <div className='flex items-center justify-center w-full h-full'>
-                                            <div className='bg-white/95 border-2 border-dashed border-emerald-400 rounded-xl p-10 shadow-xl text-center'>
+                                            <div className='bg-white/95 rounded-xl p-10 shadow-xl text-center'>
                                                 <Upload className='w-16 h-16 mx-auto mb-6 text-emerald-600 animate-bounce' />
                                                 <p className='text-2xl font-semibold text-emerald-700 mb-2'>
                                                     拖曳圖片到此處上傳
@@ -449,7 +453,7 @@ function PredictPage() {
                                         className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
                                             isDragging
                                                 ? "border-emerald-500 bg-emerald-50"
-                                                : "border-neutral-300 bg-neutral-50 hover:border-emerald-400 hover:bg-emerald-50/50"
+                                                : "border-neutral-300 bg-white/50 hover:border-emerald-400 hover:bg-white/95"
                                         }`}
                                     >
                                         <Upload className='w-12 h-12 mx-auto mb-4 text-emerald-600' />
@@ -461,26 +465,37 @@ function PredictPage() {
                             )}
 
                             {/* 按鈕組（手機版和桌面版，統一外觀） */}
-                            <div className={`grid gap-4 ${isMobile ? "grid-cols-1" : "grid-cols-2"}`}>
+                            <div
+                                className={`flex flex-col items-center ${
+                                    isMobile ? "gap-5" : "grid grid-cols-2 gap-4"
+                                }`}
+                            >
                                 {isMobile && (
-                                    <Button
-                                        onClick={() => setMode("camera")}
-                                        className='h-16 text-base flex items-center justify-center gap-2 rounded-lg font-medium'
-                                        variant='outline'
-                                    >
-                                        <Camera className='h-6 w-6' />
-                                        <span>拍攝照片</span>
-                                    </Button>
+                                    <img
+                                        src='./public/Logo_V.png'
+                                        alt='Logo'
+                                        className='w-auto h-44 sm:h-48 md:h-52 mx-auto mb-2'
+                                    />
                                 )}
                                 {isMobile && (
-                                    <Button
-                                        onClick={() => fileInputRef.current?.click()}
-                                        className='h-16 text-base flex items-center justify-center gap-2 rounded-lg font-medium'
-                                        variant='secondary'
-                                    >
-                                        <Upload className='h-6 w-6' />
-                                        <span>選擇圖片</span>
-                                    </Button>
+                                    <div className='flex flex-col w-3/4 gap-4 mt-2'>
+                                        <Button
+                                            onClick={() => setMode("camera")}
+                                            className='h-14 sm:h-16 md:h-20 text-base sm:text-lg md:text-xl flex items-center justify-center gap-2 rounded-lg font-medium w-full'
+                                            variant='outline'
+                                        >
+                                            <Camera className='h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8' />
+                                            <span>拍攝照片</span>
+                                        </Button>
+                                        <Button
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className='h-14 sm:h-16 md:h-20 text-base sm:text-lg md:text-xl flex items-center justify-center gap-2 rounded-lg font-medium w-full'
+                                            variant='default'
+                                        >
+                                            <Upload className='h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8' />
+                                            <span>選擇圖片</span>
+                                        </Button>
+                                    </div>
                                 )}
                             </div>
 

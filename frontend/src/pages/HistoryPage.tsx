@@ -41,6 +41,7 @@ import {
     PaginationNext,
     PaginationPrevious,
 } from "@/components/ui/pagination";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface DiseaseInfo {
     id?: number;
@@ -92,9 +93,9 @@ function HistoryPage() {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [recordToDelete, setRecordToDelete] = useState<HistoryRecord | null>(null);
     const [deleting, setDeleting] = useState(false);
-    // 批量删除相关状态
     const [selectMode, setSelectMode] = useState(false);
     const [selectedRecordIds, setSelectedRecordIds] = useState<Set<number>>(new Set());
+    const isMobile = useIsMobile();
 
     useEffect(() => {
         if (error) {
@@ -454,7 +455,13 @@ function HistoryPage() {
 
     if (loading) {
         return (
-            <div className='container mx-auto p-4 max-w-6xl'>
+            <div
+                className={`container mx-auto p-4 max-w-6xl ${
+                    isMobile
+                        ? "bg-gradient-to-b from-white to-emerald-50 min-h-screen"
+                        : "bg-gradient-to-b from-white to-emerald-50"
+                }`}
+            >
                 <div className='text-center py-12'>
                     <Loader2 className='w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-4' />
                     <p className='text-lg text-neutral-600'>載入中...</p>
@@ -464,51 +471,64 @@ function HistoryPage() {
     }
 
     return (
-        <div className='container mx-auto p-3 sm:p-4 md:p-6 lg:p-8 max-w-6xl'>
-            <div className='space-y-4 sm:space-y-6'>
+        <div
+            className={`${
+                isMobile
+                    ? "w-full p-6 pt-8 bg-gradient-to-b from-white to-emerald-50 min-h-screen "
+                    : "container mx-auto p-4 md:p-6 lg:p-8 max-w-6xl"
+            }`}
+        >
+            <div className={`space-y-4 ${isMobile ? "space-y-4" : "sm:space-y-6"}`}>
                 <div className='flex items-center justify-between flex-wrap gap-3'>
                     <div>
-                        <h1 className='text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-emerald-700 mb-1 sm:mb-2'>
+                        <h1
+                            className={`
+                                ${isMobile ? "text-3xl" : "text-2xl sm:text-3xl md:text-4xl"} 
+                                font-extrabold tracking-tight text-emerald-700 
+                                ${isMobile ? "mb-1" : "mb-1 sm:mb-2"}
+                            `}
+                        >
                             檢測歷史
                         </h1>
-                        <p className='text-sm sm:text-base md:text-lg text-neutral-600'>查看過去的檢測記錄</p>
+                        {!isMobile && <p className='text-sm text-neutral-600'>查看過去的檢測記錄</p>}
                     </div>
                     {/* 右上角選取/刪除按鈕 */}
-                    <div className='flex items-center gap-2'>
+                    <div className={`flex items-center gap-2 ${isMobile ? "gap-1" : "gap-2"}`}>
                         {selectMode && selectedRecordIds.size > 0 && (
                             <Button
                                 variant='destructive'
                                 onClick={handleBatchDelete}
                                 disabled={deleting}
-                                className='flex items-center gap-2'
+                                className={`flex items-center gap-2 ${isMobile ? "text-xs h-7 px-2 py-1 gap-1" : ""}`}
                             >
                                 {deleting ? (
                                     <>
-                                        <Loader2 className='h-4 w-4 animate-spin' />
+                                        <Loader2 className={`${isMobile ? "h-3 w-3" : "h-4 w-4"} animate-spin`} />
                                         刪除中...
                                     </>
                                 ) : (
                                     <>
-                                        <Trash2 className='h-4 w-4' />
-                                        刪除 ({selectedRecordIds.size})
+                                        <Trash2 className={isMobile ? "h-3 w-3" : "h-4 w-4"} />
+                                        刪除
+                                        <span className={isMobile ? "inline" : ""}>({selectedRecordIds.size})</span>
                                     </>
                                 )}
                             </Button>
                         )}
                         <Button
-                            variant={selectMode ? "default" : "outline"}
+                            variant={selectMode ? "default" : "ghost"}
                             onClick={toggleSelectMode}
-                            className='flex items-center gap-2'
+                            className={`flex items-center gap-2 ${isMobile ? "text-xs h-7 px-2 py-1 gap-1" : ""}`}
                         >
                             {selectMode ? (
                                 <>
-                                    <X className='h-4 w-4' />
-                                    取消選取
+                                    <X className={isMobile ? "h-3 w-3" : "h-4 w-4"} />
+                                    <span>取消選取</span>
                                 </>
                             ) : (
                                 <>
-                                    <CheckSquare className='h-4 w-4' />
-                                    選取
+                                    <CheckSquare className={isMobile ? "h-3 w-3" : "h-4 w-4"} />
+                                    <span>選取</span>
                                 </>
                             )}
                         </Button>
@@ -519,9 +539,15 @@ function HistoryPage() {
                 <div className='flex flex-row flex-wrap items-center gap-2 overflow-x-auto pb-2'>
                     {/* 排序 */}
                     <div className='flex items-center gap-1.5 flex-shrink-0'>
-                        <ArrowUpDown className='w-3.5 h-3.5 text-neutral-500' />
+                        <ArrowUpDown className={`${isMobile ? "hidden" : "w-3.5 h-3.5"} text-neutral-500`} />
                         <Select value={sortField} onValueChange={(value) => setSortField(value as SortField)}>
-                            <SelectTrigger className='w-20 sm:w-36 md:w-40 h-8 text-xs sm:text-sm'>
+                            <SelectTrigger
+                                className={`shadow-none ${
+                                    isMobile
+                                        ? "w-auto h-7 text-[13px] px-0 border-none"
+                                        : "w-auto h-8 text-xs sm:text-sm"
+                                }`}
+                            >
                                 <SelectValue placeholder='排序欄位' />
                             </SelectTrigger>
                             <SelectContent>
@@ -532,7 +558,13 @@ function HistoryPage() {
                         </Select>
 
                         <Select value={sortOrder} onValueChange={(value) => setSortOrder(value as SortOrder)}>
-                            <SelectTrigger className='w-16 sm:w-28 md:w-32 h-8 text-xs sm:text-sm'>
+                            <SelectTrigger
+                                className={`shadow-none  ${
+                                    isMobile
+                                        ? "w-auto h-7 text-[13px] px-0 border-none"
+                                        : "w-auto h-8 text-xs sm:text-sm "
+                                }`}
+                            >
                                 <SelectValue placeholder='排序方式' />
                             </SelectTrigger>
                             <SelectContent>
@@ -546,23 +578,29 @@ function HistoryPage() {
                     <Popover open={filterOpen} onOpenChange={setFilterOpen}>
                         <PopoverTrigger asChild>
                             <Button
-                                variant='outline'
-                                className='gap-1.5 h-8 px-2 sm:px-3 text-xs sm:text-sm flex-shrink-0'
+                                variant={isMobile ? "ghost" : "default"}
+                                className={`gap-1.5 flex-shrink-0 ${
+                                    isMobile ? "h-7 px-1 text-[11px]" : "h-8.5 py-2 sm:px-3 text-xs sm:text-sm"
+                                }`}
                             >
-                                <Filter className='w-3.5 h-3.5' />
-                                <span className='hidden xs:inline'>篩選</span>
+                                <Filter className={isMobile ? "w-3 h-3" : "w-3.5 h-3.5"} />
+                                <span className={isMobile ? "inline text-[13px]" : "inline"}>篩選</span>
                                 {(selectedCrops.length > 0 || selectedDiseaseTypes.length > 0) && (
-                                    <Badge className='ml-0.5 h-4 px-1 text-[10px]'>
+                                    <Badge
+                                        className={`ml-0.5 ${
+                                            isMobile ? "h-3.5 px-0.5 text-[9px]" : "h-4 px-1 text-[10px]"
+                                        }`}
+                                    >
                                         {selectedCrops.length + selectedDiseaseTypes.length}
                                     </Badge>
                                 )}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className='w-[calc(100vw-2rem)] sm:w-80' align='start'>
+                        <PopoverContent className="w-auto align='start">
                             <div className='space-y-4'>
                                 {/* 作物類別篩選 */}
                                 <div className='space-y-2'>
-                                    <Label className='text-sm font-semibold'>作物類別</Label>
+                                    <Label className='text-[13px] font-semibold'>作物類別</Label>
                                     <ToggleGroup
                                         type='multiple'
                                         value={selectedCrops}
@@ -574,6 +612,7 @@ function HistoryPage() {
                                                 key={crop}
                                                 value={crop}
                                                 aria-label={cropLabels[crop] || crop}
+                                                className={isMobile ? "h-7 px-2 text-[13px]" : ""}
                                             >
                                                 {cropLabels[crop] || crop}
                                             </ToggleGroupItem>
@@ -586,7 +625,7 @@ function HistoryPage() {
 
                                 {/* 病害類別篩選 */}
                                 <div className='space-y-2'>
-                                    <Label className='text-sm font-semibold'>病害類別</Label>
+                                    <Label className='text-[13px] font-semibold'>病害類別</Label>
                                     <ToggleGroup
                                         type='multiple'
                                         value={selectedDiseaseTypes}
@@ -598,6 +637,7 @@ function HistoryPage() {
                                                 key={diseaseType}
                                                 value={diseaseType}
                                                 aria-label={diseaseTypeLabels[diseaseType] || diseaseType}
+                                                className={isMobile ? "h-7 px-2 text-[13px]" : ""}
                                             >
                                                 {diseaseTypeLabels[diseaseType] || diseaseType}
                                             </ToggleGroupItem>
@@ -610,8 +650,12 @@ function HistoryPage() {
 
                                 {/* 清除篩選 */}
                                 {(selectedCrops.length > 0 || selectedDiseaseTypes.length > 0) && (
-                                    <Button variant='outline' onClick={clearFilters} className='w-full'>
-                                        <X className='w-4 h-4 mr-2' />
+                                    <Button
+                                        variant='outline'
+                                        onClick={clearFilters}
+                                        className={`w-full ${isMobile ? "h-7 text-[11px]" : ""}`}
+                                    >
+                                        <X className={isMobile ? "w-3 h-3 mr-1" : "w-4 h-4 mr-2"} />
                                         清除所有篩選
                                     </Button>
                                 )}
@@ -620,31 +664,40 @@ function HistoryPage() {
                     </Popover>
 
                     {/* 每頁顯示數量選擇 */}
-                    <div className='flex items-center gap-1.5 flex-shrink-0'>
-                        <Label className='text-[10px] sm:text-xs text-neutral-600 whitespace-nowrap hidden xs:inline'>
-                            每頁：
-                        </Label>
+                    <div className={`${isMobile ? "hidden" : "flex items-center gap-1.5 flex-shrink-0"}`}>
                         <Select
                             value={itemsPerPage.toString()}
+                            defaultValue='20'
                             onValueChange={(value) => {
                                 setItemsPerPage(Number(value));
                                 setCurrentPage(1);
                             }}
                         >
-                            <SelectTrigger className='w-14 sm:w-24 h-8 text-xs sm:text-sm'>
+                            <SelectTrigger
+                                className={`${
+                                    isMobile ? "w-11 h-7 text-[11px] px-1" : "w-auto h-8 text-xs sm:text-sm"
+                                }`}
+                            >
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value='6'>6</SelectItem>
-                                <SelectItem value='12'>12</SelectItem>
-                                <SelectItem value='24'>24</SelectItem>
-                                <SelectItem value='48'>48</SelectItem>
+                                <SelectItem value='default' disabled>
+                                    每頁顯示數量
+                                </SelectItem>
+                                <SelectItem value='10'>10 筆</SelectItem>
+                                <SelectItem value='20'>20 筆</SelectItem>
+                                <SelectItem value='30'>30 筆</SelectItem>
+                                <SelectItem value='50'>50 筆</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
 
                     {/* 顯示結果數量 */}
-                    <div className='text-[10px] sm:text-xs text-neutral-600 ml-auto flex-shrink-0 whitespace-nowrap'>
+                    <div
+                        className={`${
+                            isMobile ? "text-[9px]" : "text-[10px] sm:text-xs"
+                        } text-neutral-600 ml-auto flex-shrink-0 whitespace-nowrap`}
+                    >
                         {filteredAndSortedHistory.length > 0 ? (
                             <>
                                 {startIndex + 1}-{Math.min(endIndex, filteredAndSortedHistory.length)} /{" "}
@@ -663,15 +716,27 @@ function HistoryPage() {
                     <Card>
                         <CardContent className='py-8 sm:py-12'>
                             <div className='text-center'>
-                                <Calendar className='w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 text-neutral-400' />
-                                <p className='text-base sm:text-lg font-medium text-neutral-600 mb-2'>
+                                <Calendar
+                                    className={`${
+                                        isMobile ? "w-10 h-10" : "w-12 h-12 sm:w-16 sm:h-16"
+                                    } mx-auto mb-3 sm:mb-4 text-neutral-400`}
+                                />
+                                <p
+                                    className={`${
+                                        isMobile ? "text-sm" : "text-base sm:text-lg"
+                                    } font-medium text-neutral-600 mb-2`}
+                                >
                                     {history.length === 0 ? "尚無檢測記錄" : "沒有符合篩選條件的記錄"}
                                 </p>
-                                <p className='text-xs sm:text-sm text-neutral-500 px-4'>
+                                <p className={`${isMobile ? "text-xs" : "text-xs sm:text-sm"} text-neutral-500 px-4`}>
                                     {history.length === 0 ? "開始使用 AI 診斷功能來建立您的檢測歷史" : "請調整篩選條件"}
                                 </p>
                                 {history.length > 0 && (
-                                    <Button variant='outline' onClick={clearFilters} className='mt-4'>
+                                    <Button
+                                        variant='outline'
+                                        onClick={clearFilters}
+                                        className={`${isMobile ? "mt-4 h-7 text-[11px]" : "mt-4"}`}
+                                    >
                                         清除篩選
                                     </Button>
                                 )}
@@ -685,25 +750,25 @@ function HistoryPage() {
                             <div className='flex items-center justify-between mb-4'>
                                 <div className='flex items-center gap-2'>
                                     <Button
-                                        variant='outline'
+                                        variant='secondary'
                                         size='sm'
                                         onClick={toggleSelectAll}
-                                        className='flex items-center gap-2'
+                                        className={`flex items-center gap-2 ${isMobile ? "h-7 text-[11px]" : ""}`}
                                     >
                                         {selectedRecordIds.size === paginatedHistory.length ? (
                                             <>
-                                                <CheckSquare className='h-4 w-4' />
+                                                <CheckSquare className={isMobile ? "h-3 w-3" : "h-4 w-4"} />
                                                 取消全選
                                             </>
                                         ) : (
                                             <>
-                                                <Square className='h-4 w-4' />
+                                                <Square className={isMobile ? "h-3 w-3" : "h-4 w-4"} />
                                                 全選本頁
                                             </>
                                         )}
                                     </Button>
                                     {selectedRecordIds.size > 0 && (
-                                        <span className='text-sm text-neutral-600'>
+                                        <span className={`${isMobile ? "text-xs" : "text-sm"} text-neutral-600`}>
                                             已選取 {selectedRecordIds.size} 項
                                         </span>
                                     )}
@@ -711,7 +776,13 @@ function HistoryPage() {
                             </div>
                         )}
 
-                        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6'>
+                        <div
+                            className={`grid ${
+                                isMobile
+                                    ? "grid-cols-1 gap-2"
+                                    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6"
+                            }`}
+                        >
                             {paginatedHistory.map((record) => {
                                 const displayImageUrl =
                                     record.original_image_url || record.image_path || record.annotated_image_url;
@@ -722,7 +793,7 @@ function HistoryPage() {
                                         key={record.id}
                                         className={`hover:shadow-lg transition-shadow border-neutral-200 hover:border-emerald-300 py-0 relative ${
                                             selectMode ? "cursor-default" : "cursor-pointer"
-                                        } ${isSelected ? "ring-2 ring-emerald-500 border-emerald-500" : ""}`}
+                                        } ${isSelected ? "ring-1 ring-emerald-500 border-emerald-500" : ""}`}
                                         onClick={() => {
                                             if (!selectMode) {
                                                 setSelectedRecord(record);
@@ -735,20 +806,28 @@ function HistoryPage() {
                                                 <Button
                                                     variant='ghost'
                                                     size='sm'
-                                                    className='h-8 w-8 p-0 bg-white/90 hover:bg-emerald-50 text-neutral-500 shadow-sm'
+                                                    className={`p-0 bg-white/90 hover:bg-emerald-50 text-neutral-500 shadow-sm ${
+                                                        isMobile ? "h-7 w-7" : "h-8 w-8"
+                                                    }`}
                                                     onClick={(e) => toggleRecordSelection(e, record.id)}
                                                     aria-label={isSelected ? "取消選取" : "選取"}
                                                 >
                                                     {isSelected ? (
-                                                        <div className='relative h-5 w-5'>
-                                                            <Square className='h-5 w-5 text-emerald-600' />
+                                                        <div className={`relative ${isMobile ? "h-4 w-4" : "h-5 w-5"}`}>
+                                                            <Square
+                                                                className={`${
+                                                                    isMobile ? "h-4 w-4" : "h-5 w-5"
+                                                                } text-emerald-600`}
+                                                            />
                                                             <Check
-                                                                className='h-3.5 w-3.5 text-emerald-600 absolute top-0.5 left-0.5'
+                                                                className={`${
+                                                                    isMobile ? "h-3 w-3" : "h-3.5 w-3.5"
+                                                                } text-emerald-600 absolute top-0 left-0.5`}
                                                                 strokeWidth={3}
                                                             />
                                                         </div>
                                                     ) : (
-                                                        <Square className='h-5 w-5' />
+                                                        <Square className={isMobile ? "h-4 w-4" : "h-5 w-5"} />
                                                     )}
                                                 </Button>
                                             </div>
@@ -756,11 +835,19 @@ function HistoryPage() {
                                         <div className='flex flex-row sm:flex-col'>
                                             {/* 手機版：左邊圖片 */}
                                             {displayImageUrl && (
-                                                <div className='relative w-32 sm:w-full h-32 sm:h-48 flex-shrink-0 overflow-hidden rounded-lg sm:rounded-b-none sm:rounded-t-lg group'>
+                                                <div
+                                                    className={`relative ${
+                                                        isMobile ? "w-24 h-24" : "w-32 h-32 sm:w-full sm:h-48"
+                                                    } flex-shrink-0 overflow-hidden group`}
+                                                >
                                                     <img
                                                         src={displayImageUrl}
                                                         alt='檢測結果'
-                                                        className='w-full h-full object-cover rounded-lg sm:rounded-b-none sm:rounded-t-lg'
+                                                        className={`${
+                                                            isMobile
+                                                                ? "w-24 h-24 rounded-l-xl"
+                                                                : "w-full h-full rounded-t-lg"
+                                                        } object-cover  sm:rounded-b-none sm:rounded-t-lg`}
                                                     />
                                                     {/* 嚴重程度等級 */}
                                                     {/* <div className='absolute top-2 right-2'>
@@ -780,7 +867,9 @@ function HistoryPage() {
                                                             <Button
                                                                 size='sm'
                                                                 variant='secondary'
-                                                                className='text-xs'
+                                                                className={`${
+                                                                    isMobile ? "text-xs h-7 px-2" : "text-xs"
+                                                                }`}
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
                                                                     const img = e.currentTarget
@@ -812,10 +901,18 @@ function HistoryPage() {
                                             )}
                                             {/* 手機版：右邊文字 */}
                                             <div className='flex-1 flex flex-col min-w-0'>
-                                                <CardHeader className='p-3 sm:p-4 md:pb-0 pl-5 sm:pl-6'>
+                                                <CardHeader
+                                                    className={`pl-4 ${
+                                                        isMobile ? "p-2 pb-0" : "p-3 sm:p-4 md:pb-0 pl-5 sm:pl-6"
+                                                    }`}
+                                                >
                                                     <div className='flex items-start justify-between gap-2'>
                                                         <CardTitle
-                                                            className={`text-base sm:text-xl md:text-2xl truncate ${(() => {
+                                                            className={`truncate ${
+                                                                isMobile
+                                                                    ? "text-[15px]"
+                                                                    : "text-base sm:text-xl md:text-2xl"
+                                                            } ${(() => {
                                                                 // 只在 CNN 檢測結果時顯示錯誤（disease_name 為 "others" 或 "whole_plant" 表示 CNN 檢測）
                                                                 const diseaseName = record.disease_name?.toLowerCase();
                                                                 const isCNNDetection =
@@ -851,10 +948,24 @@ function HistoryPage() {
                                                         )}
                                                     </div>
                                                 </CardHeader>
-                                                <CardContent className='space-y-2 sm:space-y-3 p-5 sm:p-6 pt-0 flex-1'>
+                                                <CardContent
+                                                    className={`flex-1 ${
+                                                        isMobile
+                                                            ? "space-y-1 p-2 pt-0"
+                                                            : "space-y-2 sm:space-y-3 p-5 sm:p-6 pt-0"
+                                                    }`}
+                                                >
                                                     {record.confidence !== undefined && (
-                                                        <div className='flex items-center gap-2 text-xs sm:text-sm'>
-                                                            <TrendingUp className='w-3 h-3 sm:w-4 sm:h-4 text-emerald-600 flex-shrink-0' />
+                                                        <div
+                                                            className={`flex items-center gap-2 ${
+                                                                isMobile ? "text-[11px]" : "text-xs sm:text-sm"
+                                                            }`}
+                                                        >
+                                                            <TrendingUp
+                                                                className={`${
+                                                                    isMobile ? "w-3 h-3" : "w-3 h-3 sm:w-4 sm:h-4"
+                                                                } text-emerald-600 flex-shrink-0`}
+                                                            />
                                                             <span className='text-neutral-600 truncate'>
                                                                 信心度:{" "}
                                                                 <span className='font-semibold text-emerald-700'>
@@ -863,8 +974,14 @@ function HistoryPage() {
                                                             </span>
                                                         </div>
                                                     )}
-                                                    <div className='flex items-center gap-2 text-xs sm:text-sm text-neutral-500'>
-                                                        <Calendar className='w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0' />
+                                                    <div
+                                                        className={`flex items-center gap-2 text-neutral-500 ${
+                                                            isMobile ? "text-[11px]" : "text-xs sm:text-sm"
+                                                        }`}
+                                                    >
+                                                        <Calendar
+                                                            className={isMobile ? "w-3 h-3" : "w-3 h-3 sm:w-4 sm:h-4"}
+                                                        />
                                                         <span className='truncate'>
                                                             {formatDate(record.timestamp || record.created_at)}
                                                         </span>
@@ -872,7 +989,9 @@ function HistoryPage() {
 
                                                     {/* 病害詳細資訊摘要（只顯示有資訊的欄位） */}
                                                     {record.disease_info && (
-                                                        <div className='pt-2 border-t border-neutral-200 space-y-2 hidden sm:block'>
+                                                        <div
+                                                            className={`pt-2 border-t border-neutral-200 space-y-2 hidden sm:block`}
+                                                        >
                                                             {/* 目標作物 */}
                                                             {record.disease_info.target_crops && (
                                                                 <div className='text-xs text-neutral-600 line-clamp-1'>
@@ -1005,12 +1124,22 @@ function HistoryPage() {
 
                 {/* 詳細說明 Dialog */}
                 <Dialog open={!!selectedRecord} onOpenChange={(open) => !open && setSelectedRecord(null)}>
-                    <DialogContent className='max-w-full max-h-[100vh] w-full h-[100vh] sm:max-w-[90vw] sm:max-h-[95vh] md:max-w-4xl p-0 sm:p-6 rounded-none sm:rounded-lg flex flex-col overflow-hidden'>
+                    <DialogContent
+                        className={`${
+                            isMobile
+                                ? "max-w-full max-h-[100vh] w-full h-[100vh] p-0 rounded-none"
+                                : "max-w-[90vw] max-h-[95vh] md:max-w-4xl p-6 rounded-lg"
+                        } flex flex-col overflow-hidden [&>button]:hidden`}
+                    >
                         {selectedRecord && (
                             <>
-                                {/* 手機版(小螢幕)右上角列印＋刪除＋關閉 */}
-                                <div className='sm:hidden relative'>
-                                    <div className='absolute right-3 top-3 flex z-20 gap-1'>
+                                {/* 右上角列印＋刪除＋關閉（統一顯示在手機版和桌面版） */}
+                                <div className='relative'>
+                                    <div
+                                        className={`absolute ${
+                                            isMobile ? "right-3 top-3" : "right-6 top-6"
+                                        } flex z-20 gap-1`}
+                                    >
                                         <PrintButton
                                             contentRef={printRef}
                                             filename={getPrintFilename()}
@@ -1027,8 +1156,13 @@ function HistoryPage() {
                                             }}
                                             aria-label='刪除記錄'
                                             className='hover:bg-red-50 text-red-600 rounded p-2'
+                                            disabled={deleting}
                                         >
-                                            <Trash2 className='h-5 w-5' />
+                                            {deleting ? (
+                                                <Loader2 className='h-5 w-5 animate-spin' />
+                                            ) : (
+                                                <Trash2 className='h-5 w-5' />
+                                            )}
                                         </button>
                                         <button
                                             type='button'
@@ -1056,15 +1190,39 @@ function HistoryPage() {
                                     </div>
                                 </div>
                                 <div ref={printRef} className='flex-1 overflow-y-auto'>
-                                    <DialogHeader className='px-4 pt-4 pb-0 sm:px-0 sm:pt-0 sticky top-0 bg-white z-10'>
+                                    <DialogHeader
+                                        className={`sticky top-[-5px] pb-0 bg-white ${
+                                            isMobile ? "px-0 pt-0" : "sm:px-0 sm:pt-0"
+                                        }`}
+                                    >
                                         <div>
-                                            <DialogTitle className='text-lg sm:text-xl'>檢測結果詳情</DialogTitle>
-                                            <DialogDescription className='text-xs sm:text-sm'>
+                                            <DialogTitle
+                                                className={`${
+                                                    isMobile
+                                                        ? "text-lg m-2 text-left pl-4"
+                                                        : "text-lg sm:text-xl m-2 text-left pl-4"
+                                                }`}
+                                            >
+                                                檢測結果詳情
+                                            </DialogTitle>
+                                            <DialogDescription
+                                                className={`${
+                                                    isMobile
+                                                        ? "text-xs m-2 text-left pl-4 pb-2"
+                                                        : "text-xs sm:text-sm m-2 text-left pl-4 pb-2"
+                                                } border-b border-neutral-200`}
+                                            >
                                                 查看完整的檢測信息和病害詳細說明
                                             </DialogDescription>
                                         </div>
                                     </DialogHeader>
-                                    <div className='space-y-4 sm:space-y-6 mt-2 sm:mt-4 px-4 pb-4 sm:px-0'>
+                                    <div
+                                        className={`${
+                                            isMobile
+                                                ? "space-y-4 mt-2 px-4 pb-4"
+                                                : "space-y-4 sm:space-y-6 mt-2 sm:mt-4 px-4 pb-4 sm:px-0"
+                                        }`}
+                                    >
                                         {/* 圖片顯示區域 */}
                                         {(selectedRecord.original_image_url ||
                                             selectedRecord.image_path ||
@@ -1080,7 +1238,7 @@ function HistoryPage() {
                                                 {/* 原始圖片 */}
                                                 {(selectedRecord.original_image_url || selectedRecord.image_path) && (
                                                     <div className='space-y-2'>
-                                                        <h3 className='text-xs sm:text-sm font-medium text-neutral-700'>
+                                                        <h3 className='text-xs sm:text-sm font-medium text-neutral-700 text-center'>
                                                             原始圖片
                                                         </h3>
                                                         <div className='rounded-lg overflow-hidden border border-neutral-200 bg-neutral-50 h-auto'>
@@ -1108,7 +1266,7 @@ function HistoryPage() {
                                                 {/* 帶框圖片 */}
                                                 {selectedRecord.annotated_image_url && (
                                                     <div className='space-y-2'>
-                                                        <h3 className='text-xs sm:text-sm font-medium text-neutral-700'>
+                                                        <h3 className='text-xs sm:text-sm font-medium text-neutral-700 text-center'>
                                                             檢測結果
                                                         </h3>
                                                         <div className='rounded-lg overflow-hidden border border-neutral-200 bg-neutral-50'>
@@ -1475,39 +1633,6 @@ function HistoryPage() {
                                                     )}
                                                 </>
                                             )}
-                                    </div>
-                                </div>
-
-                                {/* 桌面版固定在底部的按鈕區域 */}
-                                <div className='border-t pt-4 bg-white flex-shrink-0 hidden sm:block'>
-                                    <div className='flex justify-center gap-3'>
-                                        <Button
-                                            variant='destructive'
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleDeleteClick(e, selectedRecord);
-                                            }}
-                                            className='min-w-[120px]'
-                                            disabled={deleting}
-                                        >
-                                            {deleting ? (
-                                                <>
-                                                    <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                                                    刪除中...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Trash2 className='mr-2 h-4 w-4' />
-                                                    刪除記錄
-                                                </>
-                                            )}
-                                        </Button>
-                                        <PrintButton
-                                            contentRef={printRef}
-                                            filename={getPrintFilename()}
-                                            className='w-full sm:w-auto min-w-[200px] bg-emerald-600 hover:bg-emerald-700 text-white'
-                                            variant='default'
-                                        />
                                     </div>
                                 </div>
                             </>

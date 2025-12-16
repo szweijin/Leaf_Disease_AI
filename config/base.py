@@ -108,6 +108,12 @@ class Config:
     CNN_MODEL_PATH_RELATIVE = os.getenv('CNN_MODEL_PATH_RELATIVE', 'model/CNN/CNN_v1.0_20251204/best_mobilenetv3_large.pth')  # CNN 模型路徑
     YOLO_MODEL_PATH_RELATIVE = os.getenv('YOLO_MODEL_PATH_RELATIVE', 'model/yolov11/best_v1_50.pt')  # YOLO 模型路徑
     
+    # 超解析度模型配置（可選，可從 .env 檔案設定）
+    ENABLE_SR = os.getenv('ENABLE_SR', 'true').lower() == 'true'  # 是否啟用超解析度預處理
+    SR_MODEL_PATH_RELATIVE = os.getenv('SR_MODEL_PATH_RELATIVE', None)  # 超解析度模型路徑（可選，如果為 None 則使用預設架構）
+    SR_MODEL_TYPE = os.getenv('SR_MODEL_TYPE', 'edsr')  # 超解析度模型類型 ('edsr', 'rcan' 等)
+    SR_SCALE = int(os.getenv('SR_SCALE', 2))  # 超解析度放大倍數 (2, 4, 8)
+    
     # 向後兼容
     MODEL_PATH_RELATIVE = os.getenv('MODEL_PATH_RELATIVE', os.getenv('YOLO_MODEL_PATH_RELATIVE', 'model/yolov11/best_v1_50.pt'))  # 相對於專案根目錄的模型路徑
     

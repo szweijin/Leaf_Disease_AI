@@ -275,10 +275,17 @@ def load_integrated_models(base_dir: str, config) -> IntegratedDetectionService:
     """
     載入整合模型
     載入 CNN 和 YOLO 模型並創建整合檢測服務
+    支持可選的超解析度預處理
     """
     # 從 config 讀取模型相對路徑
     cnn_model_path_relative = getattr(config, 'CNN_MODEL_PATH_RELATIVE', 'model/CNN/CNN_v1.0_20251204/best_mobilenetv3_large.pth')
     yolo_model_path_relative = getattr(config, 'YOLO_MODEL_PATH_RELATIVE', 'model/yolov11/best_v1_50.pt')
+    
+    # 超解析度模型配置（可選）
+    sr_model_path_relative = getattr(config, 'SR_MODEL_PATH_RELATIVE', None)
+    sr_model_type = getattr(config, 'SR_MODEL_TYPE', 'edsr')
+    sr_scale = getattr(config, 'SR_SCALE', 2)
+    enable_sr = getattr(config, 'ENABLE_SR', True)
     
     cnn_model_path = os.path.join(base_dir, cnn_model_path_relative)
     yolo_model_path = os.path.join(base_dir, yolo_model_path_relative)
@@ -294,15 +301,41 @@ def load_integrated_models(base_dir: str, config) -> IntegratedDetectionService:
         logger.error(f"   請檢查 YOLO_MODEL_PATH_RELATIVE 配置或確保模型文件存在")
         return None
     
+    # 處理超解析度模型路徑
+    sr_model_path = None
+    if enable_sr and sr_model_path_relative:
+        sr_model_path = os.path.join(base_dir, sr_model_path_relative)
+        if not os.path.exists(sr_model_path):
+            logger.warning(f"⚠️  超解析度模型文件不存在: {sr_model_path}")
+            logger.warning(f"   將使用預設超解析度模型架構（無預訓練權重）")
+            sr_model_path = None  # 使用預設模型架構
+    
     logger.info(f"📦 開始載入整合檢測服務...")
     logger.info(f"   CNN 模型路徑: {cnn_model_path}")
     logger.info(f"   YOLO 模型路徑: {yolo_model_path}")
+    if enable_sr:
+        logger.info(f"   超解析度: 啟用 (類型: {sr_model_type}, scale: {sr_scale}x)")
+        if sr_model_path:
+            logger.info(f"   超解析度模型路徑: {sr_model_path}")
+        else:
+            logger.info(f"   超解析度模型: 使用預設架構（無預訓練權重）")
+    else:
+        logger.info(f"   超解析度: 禁用")
     
     try:
-        integrated_service = IntegratedDetectionService(cnn_model_path, yolo_model_path)
+        integrated_service = IntegratedDetectionService(
+            cnn_model_path=cnn_model_path,
+            yolo_model_path=yolo_model_path,
+            sr_model_path=sr_model_path,
+            sr_model_type=sr_model_type,
+            sr_scale=sr_scale,
+            enable_sr=enable_sr
+        )
         logger.info(f"✅ 整合檢測服務載入成功")
         logger.info(f"   CNN: {cnn_model_path}")
         logger.info(f"   YOLO: {yolo_model_path}")
+        if enable_sr:
+            logger.info(f"   超解析度: {sr_model_type} ({sr_scale}x)")
         return integrated_service
     except FileNotFoundError as e:
         logger.error(f"❌ 模型文件未找到: {str(e)}")

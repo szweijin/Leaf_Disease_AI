@@ -21,6 +21,10 @@ from src.services.service_image import ImageService
 from modules.yolo_detect import yolo_detect
 from modules.yolo_postprocess import postprocess_yolo_result, draw_boxes_on_image
 
+# 導入超解析度模組
+from modules.sr_load import SuperResolutionModelLoader
+from modules.sr_preprocess import preprocess_with_sr
+
 # 設定日誌
 logging.basicConfig(
     level=logging.INFO,
@@ -32,13 +36,25 @@ logger = logging.getLogger(__name__)
 class IntegratedDetectionService:
     """整合檢測服務類 - 整合 CNN 分類和 YOLO 檢測"""
     
-    def __init__(self, cnn_model_path: str, yolo_model_path: str):
+    def __init__(
+        self, 
+        cnn_model_path: str, 
+        yolo_model_path: str,
+        sr_model_path: Optional[str] = None,
+        sr_model_type: str = 'edsr',
+        sr_scale: int = 2,
+        enable_sr: bool = True
+    ):
         """
         初始化整合檢測服務
         
         Args:
             cnn_model_path: CNN 模型路徑
             yolo_model_path: YOLO 模型路徑
+            sr_model_path: 超解析度模型路徑（可選）
+            sr_model_type: 超解析度模型類型 ('edsr', 'rcan' 等)
+            sr_scale: 超解析度放大倍數 (2, 4, 8)
+            enable_sr: 是否啟用超解析度預處理
         """
         try:
             # 初始化 CNN 分類服務
@@ -48,6 +64,30 @@ class IntegratedDetectionService:
             # 初始化 YOLO 檢測服務
             self.yolo_service = DetectionService(yolo_model_path)
             logger.info("✅ YOLO 檢測服務初始化成功")
+            
+            # 初始化超解析度模型（可選）
+            self.enable_sr = enable_sr
+            self.sr_model = None
+            self.sr_scale = sr_scale
+            self.sr_device = 'cuda' if __import__('torch').cuda.is_available() else 'cpu'
+            
+            if self.enable_sr:
+                try:
+                    self.sr_loader = SuperResolutionModelLoader(
+                        model_path=sr_model_path,
+                        device=self.sr_device
+                    )
+                    self.sr_model = self.sr_loader.load_model(
+                        model_type=sr_model_type,
+                        scale=sr_scale
+                    )
+                    logger.info(f"✅ 超解析度模型初始化成功 (類型: {sr_model_type}, scale: {sr_scale}x)")
+                except Exception as e:
+                    logger.warning(f"⚠️  超解析度模型初始化失敗，將跳過超解析度預處理: {str(e)}")
+                    self.enable_sr = False
+                    self.sr_model = None
+            else:
+                logger.info("ℹ️  超解析度預處理已禁用")
             
         except Exception as e:
             logger.error(f"❌ 整合檢測服務初始化失敗: {str(e)}")
@@ -83,11 +123,48 @@ class IntegratedDetectionService:
         prediction_id = str(uuid.uuid4())
         
         try:
+            # ========== 階段 0: 超解析度預處理（可選）==========
+            processed_image_path = image_path
+            sr_time = 0
+            
+            if self.enable_sr and self.sr_model is not None:
+                try:
+                    logger.info(f"🔍 階段 0: 執行超解析度預處理 (scale={self.sr_scale}x)...")
+                    sr_start = time.time()
+                    
+                    # 創建臨時目錄用於存放超解析度處理後的圖片
+                    temp_dir = os.path.join(os.path.dirname(image_path), 'sr_temp')
+                    os.makedirs(temp_dir, exist_ok=True)
+                    
+                    # 執行超解析度處理
+                    processed_image_path = preprocess_with_sr(
+                        image_path=image_path,
+                        model=self.sr_model,
+                        device=self.sr_device,
+                        scale=self.sr_scale,
+                        temp_dir=temp_dir
+                    )
+                    
+                    sr_time = int((time.time() - sr_start) * 1000)
+                    logger.info(f"✅ 超解析度預處理完成，耗時: {sr_time}ms")
+                except Exception as e:
+                    logger.warning(f"⚠️  超解析度預處理失敗，使用原始圖片: {str(e)}")
+                    processed_image_path = image_path
+                    sr_time = 0
+            
             # ========== 階段 1: CNN 分類 ==========
             logger.info("🔍 階段 1: 執行 CNN 分類...")
             cnn_start = time.time()
-            cnn_result = self.cnn_service.predict(image_path)
+            cnn_result = self.cnn_service.predict(processed_image_path)
             cnn_time = int((time.time() - cnn_start) * 1000)
+            
+            # 清理臨時超解析度圖片（如果創建了）
+            if processed_image_path != image_path and os.path.exists(processed_image_path):
+                try:
+                    os.remove(processed_image_path)
+                    logger.debug(f"🗑️  已清理臨時超解析度圖片: {processed_image_path}")
+                except:
+                    pass
             
             best_class = cnn_result['best_class']
             mean_score = cnn_result['mean_score']
@@ -409,6 +486,12 @@ class IntegratedDetectionService:
                 'cnn_time_ms': cnn_time
             }
             
+            # 添加超解析度處理時間（如果執行了）
+            if sr_time > 0:
+                result['sr_time_ms'] = sr_time
+                result['sr_enabled'] = True
+                result['sr_scale'] = self.sr_scale
+            
             # 添加 YOLO 結果（如有）
             if yolo_result is not None:
                 result['yolo_result'] = {
@@ -554,11 +637,48 @@ class IntegratedDetectionService:
             raise
         
         # 3. 使用裁切後的圖片執行完整檢測流程
+        # ========== 階段 0: 超解析度預處理（可選）==========
+        processed_cropped_image_path = cropped_image_path
+        sr_time = 0
+        
+        if self.enable_sr and self.sr_model is not None:
+            try:
+                logger.info(f"🔍 階段 0: 執行超解析度預處理（裁切後圖片）(scale={self.sr_scale}x)...")
+                sr_start = time.time()
+                
+                # 創建臨時目錄用於存放超解析度處理後的圖片
+                temp_dir = os.path.join(os.path.dirname(cropped_image_path), 'sr_temp')
+                os.makedirs(temp_dir, exist_ok=True)
+                
+                # 執行超解析度處理
+                processed_cropped_image_path = preprocess_with_sr(
+                    image_path=cropped_image_path,
+                    model=self.sr_model,
+                    device=self.sr_device,
+                    scale=self.sr_scale,
+                    temp_dir=temp_dir
+                )
+                
+                sr_time = int((time.time() - sr_start) * 1000)
+                logger.info(f"✅ 超解析度預處理完成，耗時: {sr_time}ms")
+            except Exception as e:
+                logger.warning(f"⚠️  超解析度預處理失敗，使用原始圖片: {str(e)}")
+                processed_cropped_image_path = cropped_image_path
+                sr_time = 0
+        
         # ========== 階段 1: CNN 分類 ==========
         logger.info("🔍 階段 1: 執行 CNN 分類（裁切後圖片）...")
         cnn_start = time.time()
-        cnn_result = self.cnn_service.predict(cropped_image_path)
+        cnn_result = self.cnn_service.predict(processed_cropped_image_path)
         cnn_time = int((time.time() - cnn_start) * 1000)
+        
+        # 清理臨時超解析度圖片（如果創建了）
+        if processed_cropped_image_path != cropped_image_path and os.path.exists(processed_cropped_image_path):
+            try:
+                os.remove(processed_cropped_image_path)
+                logger.debug(f"🗑️  已清理臨時超解析度圖片: {processed_cropped_image_path}")
+            except:
+                pass
         
         best_class = cnn_result['best_class']
         mean_score = cnn_result['mean_score']
@@ -860,6 +980,12 @@ class IntegratedDetectionService:
             'crop_count': crop_count,
             'max_crop_count': 3
         }
+        
+        # 添加超解析度處理時間（如果執行了）
+        if sr_time > 0:
+            result['sr_time_ms'] = sr_time
+            result['sr_enabled'] = True
+            result['sr_scale'] = self.sr_scale
         
         # 添加 YOLO 結果（如有）
         if yolo_result is not None:
