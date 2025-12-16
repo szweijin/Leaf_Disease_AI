@@ -478,7 +478,8 @@ class IntegratedDetectionService:
         crop_coordinates: Dict,
         image_source: str = 'crop',
         web_image_path: str = None,
-        image_bytes: Optional[bytes] = None
+        image_bytes: Optional[bytes] = None,
+        crop_count: int = 1
     ) -> Dict[str, Any]:
         """
         使用裁切後的圖片重新執行檢測，並替換原始圖片資料
@@ -491,6 +492,7 @@ class IntegratedDetectionService:
             image_source: 圖片來源（預設為 'crop'）
             web_image_path: Web 訪問路徑
             image_bytes: 裁切後的圖片位元組
+            crop_count: 裁切次數（默認為 1，最多 3 次）
         
         Returns:
             檢測結果字典
@@ -572,6 +574,68 @@ class IntegratedDetectionService:
         yolo_start = None
         yolo_time = None
         final_status = self.cnn_service.get_final_status(best_class)
+        
+        # 檢查：如果 crop 後還是 'whole_plant'，處理 crop 次數限制
+        if best_class == 'whole_plant':
+            if crop_count >= 3:
+                # 第 3 次 crop 後還是 'whole_plant'，強制返回 'others'
+                logger.warning(f"⚠️  已達到最大 crop 次數 ({crop_count}/3)，強制設置為 'others'")
+                best_class = 'others'
+                final_status = 'not_plant'
+                # 更新 CNN 結果以反映強制設置
+                all_scores['others'] = all_scores.get('others', 0.0)
+                all_scores['whole_plant'] = best_score
+                best_score = all_scores.get('others', 0.0)
+                
+                # 更新 prediction_log 表中的 CNN 分類結果
+                try:
+                    db.execute_update(
+                        """
+                        UPDATE prediction_log
+                        SET cnn_best_class = %s,
+                            cnn_best_score = %s,
+                            cnn_all_scores = %s,
+                            final_status = %s,
+                            updated_at = NOW()
+                        WHERE id = %s AND user_id = %s
+                        """,
+                        (
+                            best_class,
+                            best_score,
+                            json.dumps(all_scores),
+                            final_status,
+                            prediction_log_id,
+                            user_id
+                        )
+                    )
+                    logger.info(f"✅ 已更新 prediction_log: 強制設置為 'others'")
+                except Exception as e:
+                    logger.error(f"❌ 更新 prediction_log 失敗: {str(e)}")
+                    # 不中斷流程，繼續執行
+            else:
+                # 還未達到最大次數，返回需要繼續 crop
+                logger.info(f"✂️  Crop 後仍為 'whole_plant'，需要繼續 crop ({crop_count}/3)")
+                final_status = 'need_crop'
+                # 返回結果，提示前端需要繼續 crop
+                return {
+                    'prediction_id': prediction_log_id,
+                    'status': 'need_crop',
+                    'final_status': 'need_crop',
+                    'cnn_result': {
+                        'best_class': best_class,
+                        'best_score': best_score,
+                        'mean_score': mean_score,
+                        'all_scores': all_scores
+                    },
+                    'disease': best_class,
+                    'confidence': best_score,
+                    'severity': 'Unknown',
+                    'crop_count': crop_count,
+                    'max_crop_count': 3,
+                    'message': f'請重新裁切圖片中的葉片區域 ({crop_count}/3)',
+                    'processing_time_ms': int((time.time() - start_time) * 1000),
+                    'cnn_time_ms': cnn_time
+                }
         
         # 路徑 A: 進入 YOLO 檢測
         if self.cnn_service.should_run_yolo(best_class):
@@ -792,7 +856,9 @@ class IntegratedDetectionService:
             'image_stored_in_db': True,
             'processing_time_ms': total_time,
             'cnn_time_ms': cnn_time,
-            'crop_coordinates': crop_coordinates
+            'crop_coordinates': crop_coordinates,
+            'crop_count': crop_count,
+            'max_crop_count': 3
         }
         
         # 添加 YOLO 結果（如有）

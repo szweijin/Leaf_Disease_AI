@@ -372,6 +372,7 @@ class IntegratedDetectionAPIService:
             prediction_log_id = data.get("prediction_id")
             crop_coordinates = data.get("crop_coordinates")
             cropped_image = data.get("cropped_image")
+            crop_count = data.get("crop_count", 1)  # 默認為第 1 次 crop
             
             if not prediction_log_id:
                 return jsonify({"error": "缺少 prediction_id"}), 400
@@ -379,6 +380,18 @@ class IntegratedDetectionAPIService:
                 return jsonify({"error": "缺少 crop_coordinates"}), 400
             if not cropped_image:
                 return jsonify({"error": "缺少 cropped_image"}), 400
+            
+            # 確保 crop_count 是整數且在合理範圍內
+            try:
+                crop_count = int(crop_count)
+                if crop_count < 1:
+                    crop_count = 1
+                elif crop_count > 3:
+                    crop_count = 3
+            except (ValueError, TypeError):
+                crop_count = 1
+            
+            logger.info(f"📊 Crop 次數: {crop_count}/3")
             
             # 2. 處理裁切後的圖片（使用圖片管理器）
             try:
@@ -412,7 +425,8 @@ class IntegratedDetectionAPIService:
                         prediction_log_id=prediction_log_id,
                         crop_coordinates=crop_coordinates,
                         web_image_path=None,  # 先不傳 URL，稍後更新
-                        image_bytes=processed_bytes
+                        image_bytes=processed_bytes,
+                        crop_count=crop_count
                     )
                     
                     # 5. 上傳裁切後的原始圖片到 Cloudinary（如果啟用）- 存儲到 origin 資料夾

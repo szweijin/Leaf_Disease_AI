@@ -8,6 +8,7 @@ import sys
 import logging
 from flask import Flask
 from flask_caching import Cache
+from flask_cors import CORS
 from flasgger import Swagger
 from dotenv import load_dotenv
 
@@ -84,6 +85,14 @@ def create_app():
     # 確保 JSON 響應正確處理 Unicode 字符（中文）
     app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
     app.config['JSON_AS_ASCII'] = False  # 確保中文不被轉義為 \uXXXX 格式
+    
+    # 配置 CORS（跨域資源共享）
+    # 允許前端（localhost:5173）訪問後端 API（localhost:5000）
+    CORS(app, 
+         origins=["http://localhost:5173", "http://127.0.0.1:5173"],  # 允許的前端地址
+         supports_credentials=True,  # 允許發送 cookies 和認證信息
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # 允許的 HTTP 方法
+         allow_headers=["Content-Type", "Authorization"])  # 允許的請求頭
     
     # 配置靜態文件服務：uploads 資料夾用於提供上傳的圖片
     app.static_folder = BASE_DIR

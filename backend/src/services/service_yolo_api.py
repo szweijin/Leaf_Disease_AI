@@ -140,6 +140,61 @@ class DetectionAPIService:
             )
             return jsonify({"error": "系統發生錯誤"}), 500
     
+    def delete_record(self):
+        """刪除檢測記錄"""
+        start_time = datetime.now()
+        user_id = get_user_id_from_session()
+        if not user_id:
+            return jsonify({"error": "請先登入"}), 401
+        
+        try:
+            # 檢查請求內容類型
+            if not request.is_json:
+                logger.warning(f"⚠️ 刪除記錄請求：Content-Type 不是 application/json")
+                return jsonify({"error": "請求格式錯誤，請使用 JSON 格式"}), 400
+            
+            # 獲取 JSON 資料
+            data = request.get_json(silent=True)
+            if data is None:
+                logger.warning(f"⚠️ 刪除記錄請求：無法解析 JSON 資料")
+                return jsonify({"error": "無法解析 JSON 資料"}), 400
+            
+            record_id = data.get("record_id")
+            if not record_id:
+                return jsonify({"error": "請提供記錄 ID"}), 400
+            
+            success, message = DetectionQueries.delete_detection(user_id=user_id, record_id=record_id)
+            
+            execution_time = int((datetime.now() - start_time).total_seconds() * 1000)
+            log_api_request(
+                user_id=user_id,
+                endpoint="/history/delete",
+                method="DELETE",
+                status_code=200 if success else 400,
+                execution_time_ms=execution_time,
+                error_message=None if success else message
+            )
+            
+            if not success:
+                return jsonify({"error": message}), 400
+            
+            logger.info(f"✅ 刪除記錄成功: record_id={record_id}, user_id={user_id}")
+            return jsonify({"status": message})
+            
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"❌ 刪除記錄錯誤: {error_msg}", exc_info=True)
+            execution_time = int((datetime.now() - start_time).total_seconds() * 1000)
+            log_api_request(
+                user_id=user_id,
+                endpoint="/history/delete",
+                method="DELETE",
+                status_code=500,
+                execution_time_ms=execution_time,
+                error_message=error_msg
+            )
+            return jsonify({"error": "系統錯誤"}), 500
+    
     def get_history(self):
         """獲取檢測歷史記錄（支持分頁、排序、過濾）"""
         start_time = datetime.now()

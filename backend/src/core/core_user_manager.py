@@ -56,7 +56,7 @@ class UserManager:
     
     @staticmethod
     def register(email: str, password: str, full_name: str = None, 
-                ip_address: str = None) -> Tuple[bool, str, Optional[int]]:
+                username: str = None, ip_address: str = None) -> Tuple[bool, str, Optional[int]]:
         """
         註冊新使用者
         
@@ -64,6 +64,7 @@ class UserManager:
             email: 使用者郵箱
             password: 密碼
             full_name: 全名
+            username: 使用者名稱（暱稱）
             ip_address: IP 地址（用於日誌）
         
         Returns:
@@ -73,7 +74,8 @@ class UserManager:
             success, msg, user_id = UserManager.register(
                 "user@example.com",
                 "SecurePass123",
-                "John Doe"
+                "John Doe",
+                "johndoe"
             )
         """
         # 1. 驗證郵箱
@@ -101,25 +103,48 @@ class UserManager:
             else:
                 return False, f"資料庫查詢錯誤: {error_msg[:100]}", None
         
-        # 3. 驗證密碼
+        # 3. 檢查使用者名稱是否已存在（如果提供）
+        if username:
+            try:
+                result = db.execute_query(
+                    "SELECT id FROM users WHERE username = %s",
+                    (username,),
+                    fetch_one=True
+                )
+                if result:
+                    logger.warning(f"⚠️ 註冊失敗: 使用者名稱已存在 ({username})")
+                    return False, "該使用者名稱已被使用", None
+            except Exception as e:
+                error_msg = str(e)
+                logger.error(f"❌ 查詢使用者名稱失敗: {error_msg}", exc_info=True)
+                return False, f"資料庫查詢錯誤: {error_msg[:100]}", None
+        
+        # 4. 驗證密碼
         is_valid, msg = UserManager.validate_password(password)
         if not is_valid:
             return False, msg, None
         
-        # 4. 加密密碼並插入資料庫
+        # 5. 加密密碼並插入資料庫
         try:
             password_hash = generate_password_hash(password)
             full_name_value = full_name or email
             
-            logger.debug(f"準備插入使用者: email={email}, full_name={full_name_value}")
+            logger.debug(f"準備插入使用者: email={email}, full_name={full_name_value}, username={username}")
             
-            sql = """
-                INSERT INTO users (email, password_hash, full_name, role_id, created_at)
-                VALUES (%s, %s, %s, 1, NOW())
-                RETURNING id;
-            """
-            
-            result = db.execute_returning(sql, (email, password_hash, full_name_value))
+            if username:
+                sql = """
+                    INSERT INTO users (email, password_hash, full_name, username, role_id, created_at)
+                    VALUES (%s, %s, %s, %s, 1, NOW())
+                    RETURNING id;
+                """
+                result = db.execute_returning(sql, (email, password_hash, full_name_value, username))
+            else:
+                sql = """
+                    INSERT INTO users (email, password_hash, full_name, role_id, created_at)
+                    VALUES (%s, %s, %s, 1, NOW())
+                    RETURNING id;
+                """
+                result = db.execute_returning(sql, (email, password_hash, full_name_value))
             if not result or len(result) == 0:
                 logger.error("❌ INSERT 操作未返回 user_id")
                 return False, "註冊失敗：無法獲取使用者 ID", None
@@ -714,6 +739,47 @@ class DetectionQueries:
             if "relation" in error_msg.lower() and "does not exist" in error_msg.lower():
                 logger.error("   提示: detection_records 表不存在，請執行: python database/database_manager.py init")
             return ([], 0)
+    
+    @staticmethod
+    def delete_detection(user_id: int, record_id: int) -> Tuple[bool, str]:
+        """
+        刪除檢測記錄
+        
+        Args:
+            user_id: 使用者 ID
+            record_id: 記錄 ID
+        
+        Returns:
+            (success, message)
+        """
+        try:
+            # 先檢查記錄是否存在且屬於該使用者
+            check_sql = """
+                SELECT id FROM detection_records
+                WHERE id = %s AND user_id = %s
+            """
+            result = db.execute_query(check_sql, (record_id, user_id), fetch_one=True)
+            
+            if not result:
+                return False, "記錄不存在或無權限刪除"
+            
+            # 刪除記錄
+            delete_sql = """
+                DELETE FROM detection_records
+                WHERE id = %s AND user_id = %s
+            """
+            rows_affected = db.execute_update(delete_sql, (record_id, user_id))
+            
+            if rows_affected > 0:
+                logger.info(f"✅ 刪除檢測記錄成功: record_id={record_id}, user_id={user_id}")
+                return True, "記錄已刪除"
+            else:
+                return False, "刪除失敗"
+                
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"❌ 刪除檢測記錄失敗: {error_msg}", exc_info=True)
+            return False, "系統錯誤"
     
     @staticmethod
     def get_disease_statistics(user_id: int) -> List[Dict[str, Any]]:

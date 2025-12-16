@@ -391,6 +391,55 @@ def change_password():
     return user_service.change_password()
 
 
+@app.route("/user/update-profile", methods=["POST"])
+def update_user_profile():
+    """
+    更新使用者個人資料
+    ---
+    tags:
+      - 使用者
+    summary: 更新使用者個人資料
+    description: 更新已登入使用者的個人資料資訊（如使用者名稱）
+    security:
+      - session: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - username
+          properties:
+            username:
+              type: string
+              example: newusername
+              description: 使用者名稱（暱稱）
+    responses:
+      200:
+        description: 更新成功
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              example: 個人資訊已更新
+      400:
+        description: 更新失敗（使用者名稱已被使用或參數錯誤）
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: 該使用者名稱已被使用
+      401:
+        description: 未登入
+      500:
+        description: 系統錯誤
+    """
+    return user_service.update_profile()
+
+
 @app.route("/user/stats", methods=["GET"])
 @cache.cached(timeout=300, key_prefix='user_stats')
 def get_user_stats():
@@ -670,6 +719,55 @@ def history():
         description: 系統錯誤
     """
     return yolo_api_service.get_history()
+
+
+@app.route("/history/delete", methods=["DELETE"])
+def delete_history_record():
+    """
+    刪除檢測歷史記錄
+    ---
+    tags:
+      - 檢測
+    summary: 刪除檢測歷史記錄
+    description: 刪除指定 ID 的檢測歷史記錄（只能刪除自己的記錄）
+    security:
+      - session: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - record_id
+          properties:
+            record_id:
+              type: integer
+              example: 123
+              description: 要刪除的記錄 ID
+    responses:
+      200:
+        description: 刪除成功
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              example: 記錄已刪除
+      400:
+        description: 刪除失敗（記錄不存在或無權限）
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: 記錄不存在或無權限刪除
+      401:
+        description: 未登入
+      500:
+        description: 系統錯誤
+    """
+    return yolo_api_service.delete_record()
 
 
 @app.route("/uploads/<filename>")

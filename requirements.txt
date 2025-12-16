@@ -4,6 +4,7 @@
 
 # 基礎依賴
 Flask
+flask-cors  # CORS support for cross-origin requests
 psycopg2-binary
 python-dotenv
 werkzeug

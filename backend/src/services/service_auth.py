@@ -39,9 +39,10 @@ class AuthService:
             
             email = data.get("email")
             password = data.get("password")
+            username = data.get("username")  # 獲取使用者名稱（暱稱）
             
             # 記錄請求資訊（不記錄密碼）
-            logger.info(f"📝 註冊請求：email={email}, IP={request.remote_addr}")
+            logger.info(f"📝 註冊請求：email={email}, username={username}, IP={request.remote_addr}")
             
             if not email or not password:
                 error_msg = "請輸入 Email 和密碼"
@@ -49,7 +50,7 @@ class AuthService:
                 return jsonify({"error": error_msg}), 400
             
             success, message, user_id = UserManager.register(
-                email=email, password=password, ip_address=request.remote_addr
+                email=email, password=password, username=username, ip_address=request.remote_addr
             )
             
             execution_time = int((datetime.now() - start_time).total_seconds() * 1000)
@@ -91,12 +92,27 @@ class AuthService:
         """處理使用者登入"""
         start_time = datetime.now()
         try:
-            data = request.json
+            # 檢查請求內容類型
+            if not request.is_json:
+                logger.warning(f"⚠️ 登入請求：Content-Type 不是 application/json")
+                return jsonify({"error": "請求格式錯誤，請使用 JSON 格式"}), 400
+            
+            # 獲取 JSON 資料
+            data = request.get_json(silent=True)
+            if data is None:
+                logger.warning(f"⚠️ 登入請求：無法解析 JSON 資料")
+                return jsonify({"error": "無法解析 JSON 資料"}), 400
+            
             email = data.get("email")
             password = data.get("password")
             
+            # 記錄請求資訊（不記錄密碼）
+            logger.info(f"📝 登入請求：email={email}, IP={request.remote_addr}")
+            
             if not email or not password:
-                return jsonify({"error": "請輸入 Email 和密碼"}), 400
+                error_msg = "請輸入 Email 和密碼"
+                logger.warning(f"⚠️ 登入失敗：{error_msg}")
+                return jsonify({"error": error_msg}), 400
             
             # 檢查快取中的登入嘗試次數
             login_attempt_key = f"login_attempts:{email}"
