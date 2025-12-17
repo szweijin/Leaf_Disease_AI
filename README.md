@@ -397,9 +397,7 @@ Leaf_Disease_AI_local/
 ├── .railwayignore              # Railway 部署忽略文件
 ├── .dockerignore               # Docker 構建忽略文件
 ├── requirements.txt            # Python 依賴
-├── package.json                # 根目錄 package.json
 ├── Dockerfile                  # Docker 多階段構建配置
-├── Procfile                    # Heroku/Railway 啟動配置
 ├── railway.json                # Railway 部署配置
 ├── start.sh                    # 應用啟動腳本（資料庫初始化 + Gunicorn）
 ├── railway-init.sh             # Railway 資料庫初始化腳本
