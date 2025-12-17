@@ -2,6 +2,14 @@
 
 本文檔使用 Mermaid 格式描述系統的主要流程序列圖。
 
+## 版本資訊
+
+-   **專案版本**：2.1.0
+-   **文檔版本**：1.1
+-   **最後更新**：2024-12
+
+---
+
 ## 角色說明
 
 -   **User**: 使用者
@@ -718,6 +726,16 @@ sequenceDiagram
     -   `/image/prediction/{prediction_id}` - 獲取 prediction_log 圖片
     -   如果是 Cloudinary URL（http:// 或 https://），會重定向到 Cloudinary
     -   如果是資料庫 URL（/image/xxx），會返回錯誤（圖片應在 Cloudinary）
+
+---
+
+## 相關文檔
+
+-   [後端架構文檔](./backend.md)
+-   [前端架構文檔](./frontend.md)
+-   [資料庫架構文檔](./database.md)
+-   [Railway 部署文檔](./railway_deployment.md)
+-   [專案總體說明](../README.md)
 
 ### AI Model 整合
 

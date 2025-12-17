@@ -1,0 +1,14 @@
+{
+  "name": "leaf-disease-ai",
+  "version": "1.0.0",
+  "description": "Leaf Disease AI - Root package.json to trigger NIXPACKS Node.js installation",
+  "private": true,
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "scripts": {
+    "build": "echo 'Root build script - actual build handled by build.sh'"
+  }
+}
+

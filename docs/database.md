@@ -825,9 +825,37 @@ psql -U postgres -d leaf_disease_ai -f init_database.sql
 
 ## 版本資訊
 
+-   **專案版本**：2.1.0
 -   **資料庫版本**：PostgreSQL 13+
--   **文檔版本**：1.0
+-   **文檔版本**：1.1
 -   **最後更新**：2024-12
+
+---
+
+## 資料庫初始化
+
+### Railway 自動初始化
+
+專案已配置 Railway 自動資料庫初始化：
+
+-   **自動初始化腳本**：`railway-init.sh`
+-   **功能**：
+    -   自動檢查資料庫是否已初始化
+    -   如果未初始化，自動執行初始化 SQL
+    -   如果已初始化，跳過初始化步驟
+    -   包含錯誤處理，不會因初始化失敗而阻止應用啟動
+
+詳細部署指南請參考：
+-   **快速指南**：`RAILWAY_DEPLOYMENT.md`
+-   **完整文檔**：`docs/railway_deployment.md`
+
+### 本地手動初始化
+
+執行初始化腳本：
+
+```bash
+psql -U postgres -d leaf_disease_ai -f database/init_database.sql
+```
 
 ---
 
@@ -835,4 +863,6 @@ psql -U postgres -d leaf_disease_ai -f init_database.sql
 
 -   [資料庫初始化腳本](../database/init_database.sql)
 -   [資料庫管理器](../database/database_manager.py)
--   [完整系統文檔](../docs/complete_documentation.md)
+-   [後端架構文檔](../docs/backend.md)
+-   [前端架構文檔](../docs/frontend.md)
+-   [Railway 部署文檔](../docs/railway_deployment.md)

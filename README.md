@@ -396,6 +396,8 @@ Leaf_Disease_AI_local/
 ├── .gitignore                  # Git 忽略文件
 ├── .railwayignore              # Railway 部署忽略文件
 ├── requirements.txt            # Python 依賴
+├── package.json                # 根目錄 package.json（觸發 NIXPACKS 安裝 Node.js）
+├── nixpacks.toml               # NIXPACKS 配置文件（明確指定 Node.js 和 Python）
 ├── Procfile                    # Heroku/Railway 啟動配置
 ├── railway.json                # Railway 部署配置
 ├── build.sh                    # Railway 構建腳本
@@ -930,11 +932,25 @@ npm run build
 
 專案已配置 Railway 部署支援，包含完整的生產環境配置：
 
+-   **NIXPACKS 配置**：`nixpacks.toml` - 明確指定需要 Node.js 20 和 Python 3
+-   **根目錄 package.json**：`package.json` - 觸發 NIXPACKS 自動安裝 Node.js（備用觸發器）
 -   **部署配置**：`railway.json` - Railway 部署配置
 -   **構建腳本**：`build.sh` - 自動構建前端和安裝依賴
 -   **初始化腳本**：`railway-init.sh` - 資料庫自動初始化
 -   **生產配置**：`config/production.py` - 生產環境配置
 -   **Procfile**：Heroku/Railway 啟動配置
+
+**部署流程**：
+
+1. **構建階段**：
+   - NIXPACKS 讀取 `nixpacks.toml`，自動安裝 Node.js 20 和 Python 3
+   - 執行 `railway.json` 中的 `buildCommand: "./build.sh"`
+   - `build.sh` 自動構建前端（`cd frontend && npm install && npm run build`）
+   - 安裝 Python 依賴（`pip install -r requirements.txt`）
+
+2. **部署階段**：
+   - 執行 `railway-init.sh` 初始化資料庫（如果尚未初始化）
+   - 啟動 Gunicorn WSGI 服務器
 
 詳細部署指南請參考：
 -   **快速指南**：`RAILWAY_DEPLOYMENT.md` - Railway 部署快速參考
@@ -983,9 +999,12 @@ npm run build
     -   ✅ TypeScript 完整支援
     -   ✅ 完整的日誌系統（活動、錯誤、API、性能日誌）
 -   **部署支援**:
+    -   ✅ NIXPACKS 配置（nixpacks.toml - 明確指定 Node.js 20 和 Python 3）
+    -   ✅ 根目錄 package.json（觸發 NIXPACKS 自動安裝 Node.js）
     -   ✅ Railway 部署配置（railway.json, build.sh, railway-init.sh）
     -   ✅ 生產環境配置（config/production.py）
     -   ✅ 前端靜態文件服務（生產環境 SPA 路由）
     -   ✅ Gunicorn WSGI 服務器配置
     -   ✅ 自動資料庫初始化
 -   **最後更新**: 2025-12-17
+-   **部署修復**: 已修正 NIXPACKS 構建流程，添加 nixpacks.toml 和根目錄 package.json 確保 Node.js 正確安裝

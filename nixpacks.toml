@@ -1,0 +1,6 @@
+# NIXPACKS 配置文件
+# 明確指定需要 Node.js 和 Python
+
+[phases.setup]
+nixPkgs = ["nodejs-20_x", "python3"]
+

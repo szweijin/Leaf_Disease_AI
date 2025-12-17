@@ -1030,6 +1030,18 @@ npm run lint
 
 ## 部署說明
 
+### Railway 部署（推薦）
+
+專案已配置 Railway 部署支援：
+
+1. **構建**：`build.sh` 會自動構建前端
+2. **服務**：後端會自動服務前端靜態文件（生產環境）
+3. **路由**：SPA 路由由後端處理（所有路由返回 `index.html`）
+
+詳細部署指南請參考：
+- **快速指南**：`RAILWAY_DEPLOYMENT.md`
+- **完整文檔**：`docs/railway_deployment.md`
+
 ### 建置生產版本
 
 ```bash
@@ -1056,6 +1068,7 @@ VITE_API_BASE_URL=https://api.example.com
 
 ## 版本資訊
 
+-   **專案版本**：2.1.0
 -   **React**：19.2.0
 -   **TypeScript**：5.9.3
 -   **Vite**：7.2.4
@@ -1066,14 +1079,22 @@ VITE_API_BASE_URL=https://api.example.com
 
 ## 相關文檔
 
--   `backend/backend.md`：後端架構文檔
--   `database/database.md`：資料庫架構文檔
+-   `docs/backend.md`：後端架構文檔
+-   `docs/database.md`：資料庫架構文檔
 -   `docs/sequences_diagram.md`：序列圖文檔
+-   `docs/railway_deployment.md`：Railway 部署詳細文檔
 -   `README.md`：專案總體說明
 
 ---
 
 ## 更新日誌
+
+### v2.1.0
+
+-   支援 Railway 生產環境部署
+-   生產環境配置優化
+-   自動資料庫初始化支援
+-   前端構建流程優化
 
 ### v2.0.0
 
