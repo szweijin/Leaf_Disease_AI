@@ -596,7 +596,7 @@ function HistoryPage() {
                                 )}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto align='start">
+                        <PopoverContent className='w-auto' align='start'>
                             <div className='space-y-4'>
                                 {/* 作物類別篩選 */}
                                 <div className='space-y-2'>
@@ -955,25 +955,39 @@ function HistoryPage() {
                                                             : "space-y-2 sm:space-y-3 p-5 sm:p-6 pt-0"
                                                     }`}
                                                 >
-                                                    {record.confidence !== undefined && (
-                                                        <div
-                                                            className={`flex items-center gap-2 ${
-                                                                isMobile ? "text-[11px]" : "text-xs sm:text-sm"
-                                                            }`}
-                                                        >
-                                                            <TrendingUp
-                                                                className={`${
-                                                                    isMobile ? "w-3 h-3" : "w-3 h-3 sm:w-4 sm:h-4"
-                                                                } text-emerald-600 flex-shrink-0`}
-                                                            />
-                                                            <span className='text-neutral-600 truncate'>
-                                                                信心度:{" "}
-                                                                <span className='font-semibold text-emerald-700'>
-                                                                    {(record.confidence * 100).toFixed(1)}%
-                                                                </span>
-                                                            </span>
-                                                        </div>
-                                                    )}
+                                                    {(() => {
+                                                        const diseaseName = record.disease_name?.toLowerCase();
+                                                        if (
+                                                            !diseaseName ||
+                                                            diseaseName === "others" ||
+                                                            diseaseName === "whole_plant"
+                                                        )
+                                                            return null;
+                                                        if (record.confidence !== undefined) {
+                                                            return (
+                                                                <div
+                                                                    className={`flex items-center gap-2 ${
+                                                                        isMobile ? "text-[11px]" : "text-xs sm:text-sm"
+                                                                    }`}
+                                                                >
+                                                                    <TrendingUp
+                                                                        className={`${
+                                                                            isMobile
+                                                                                ? "w-3 h-3"
+                                                                                : "w-3 h-3 sm:w-4 sm:h-4"
+                                                                        } text-emerald-600 flex-shrink-0`}
+                                                                    />
+                                                                    <span className='text-neutral-600 truncate'>
+                                                                        信心度:{" "}
+                                                                        <span className='font-semibold text-emerald-700'>
+                                                                            {(record.confidence * 100).toFixed(1)}%
+                                                                        </span>
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        }
+                                                        return null;
+                                                    })()}
                                                     <div
                                                         className={`flex items-center gap-2 text-neutral-500 ${
                                                             isMobile ? "text-[11px]" : "text-xs sm:text-sm"
