@@ -125,8 +125,9 @@ class Config:
             )
     
     # AI 模型配置（可從 .env 檔案設定）
-    CNN_MODEL_PATH_RELATIVE = os.getenv('CNN_MODEL_PATH_RELATIVE', 'model/CNN/CNN_v1.0_20251204/best_mobilenetv3_large.pth')  # CNN 模型路徑
-    YOLO_MODEL_PATH_RELATIVE = os.getenv('YOLO_MODEL_PATH_RELATIVE', 'model/yolov11/best_v1_50.pt')  # YOLO 模型路徑
+    # 注意：預設路徑必須與 Dockerfile 中複製的模型路徑一致
+    CNN_MODEL_PATH_RELATIVE = os.getenv('CNN_MODEL_PATH_RELATIVE', 'model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth')  # CNN 模型路徑
+    YOLO_MODEL_PATH_RELATIVE = os.getenv('YOLO_MODEL_PATH_RELATIVE', 'model/yolov11/YOLOv11_v1_20251212/weights/best.pt')  # YOLO 模型路徑
     
     # 超解析度模型配置（可選，可從 .env 檔案設定）
     ENABLE_SR = os.getenv('ENABLE_SR', 'true').lower() == 'true'  # 是否啟用超解析度預處理
@@ -135,7 +136,7 @@ class Config:
     SR_SCALE = get_env_int('SR_SCALE', 2)  # 超解析度放大倍數 (2, 4, 8)
     
     # 向後兼容
-    MODEL_PATH_RELATIVE = os.getenv('MODEL_PATH_RELATIVE', os.getenv('YOLO_MODEL_PATH_RELATIVE', 'model/yolov11/best_v1_50.pt'))  # 相對於專案根目錄的模型路徑
+    MODEL_PATH_RELATIVE = os.getenv('MODEL_PATH_RELATIVE', os.getenv('YOLO_MODEL_PATH_RELATIVE', 'model/yolov11/YOLOv11_v1_20251212/weights/best.pt'))  # 相對於專案根目錄的模型路徑
     
     # Swagger API 文檔配置（可從 .env 檔案設定）
     SWAGGER_TITLE = os.getenv('SWAGGER_TITLE', 'Leaf Disease AI API')

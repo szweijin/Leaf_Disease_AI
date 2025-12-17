@@ -275,7 +275,8 @@ def load_model(base_dir: str, config) -> DetectionService:
     從 config 讀取路徑並載入 YOLO 模型（向後兼容）
     """
     # 從 config 讀取模型相對路徑
-    model_path_relative = getattr(config, 'MODEL_PATH_RELATIVE', 'model/yolov11/best_v1_50.pt')
+    # 注意：預設路徑必須與 Dockerfile 中複製的模型路徑一致
+    model_path_relative = getattr(config, 'MODEL_PATH_RELATIVE', 'model/yolov11/YOLOv11_v1_20251212/weights/best.pt')
     model_path = os.path.join(base_dir, model_path_relative)
     
     try:
@@ -294,8 +295,9 @@ def load_integrated_models(base_dir: str, config) -> IntegratedDetectionService:
     支持可選的超解析度預處理
     """
     # 從 config 讀取模型相對路徑
-    cnn_model_path_relative = getattr(config, 'CNN_MODEL_PATH_RELATIVE', 'model/CNN/CNN_v1.0_20251204/best_mobilenetv3_large.pth')
-    yolo_model_path_relative = getattr(config, 'YOLO_MODEL_PATH_RELATIVE', 'model/yolov11/best_v1_50.pt')
+    # 注意：預設路徑必須與 Dockerfile 中複製的模型路徑一致
+    cnn_model_path_relative = getattr(config, 'CNN_MODEL_PATH_RELATIVE', 'model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth')
+    yolo_model_path_relative = getattr(config, 'YOLO_MODEL_PATH_RELATIVE', 'model/yolov11/YOLOv11_v1_20251212/weights/best.pt')
     
     # 超解析度模型配置（可選）
     sr_model_path_relative = getattr(config, 'SR_MODEL_PATH_RELATIVE', None)
