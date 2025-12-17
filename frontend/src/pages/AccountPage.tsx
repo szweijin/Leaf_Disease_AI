@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { useIsMobile } from "@/hooks/use-mobile";
 // 引入所有必要的圖標，包含新的 Eye, EyeOff
 import { Loader2, User, Lock, Mail, Calendar, LogOut, Eye, EyeOff } from "lucide-react";
 
@@ -24,6 +25,7 @@ interface AccountPageProps {
 
 function AccountPage({ onLogout }: AccountPageProps) {
     const navigate = useNavigate();
+    const isMobile = useIsMobile();
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [oldPassword, setOldPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
@@ -226,17 +228,29 @@ function AccountPage({ onLogout }: AccountPageProps) {
     }
 
     return (
-        <div className='container mx-auto p-4 md:p-6 lg:p-8 max-w-2xl'>
+        <div
+            className={`${
+                isMobile
+                    ? "w-full p-6 pt-8 bg-gradient-to-b from-white to-emerald-50 min-h-screen "
+                    : "container mx-auto p-4 md:p-6 lg:p-8 max-w-2xl"
+            }`}
+        >
             <div className='space-y-6'>
                 <div>
-                    <h1 className='text-3xl md:text-4xl font-extrabold tracking-tight text-emerald-700 mb-2'>
+                    <h1
+                        className={`
+                            ${isMobile ? "text-3xl" : "text-2xl sm:text-3xl md:text-4xl"} 
+                            font-extrabold tracking-tight text-emerald-700 
+                            ${isMobile ? "mb-1" : "mb-1 sm:mb-2"}
+                        `}
+                    >
                         帳號設定
                     </h1>
                     <p className='text-lg text-neutral-600'>管理您的帳號資訊</p>
                 </div>
 
                 {/* 個人資料卡片 */}
-                <Card className='border-neutral-200'>
+                <Card className='border-neutral-200 '>
                     <CardHeader>
                         <div className='flex items-center gap-2'>
                             <User className='w-5 h-5 text-emerald-600' />
@@ -289,7 +303,7 @@ function AccountPage({ onLogout }: AccountPageProps) {
                             </form>
                         </div>
 
-                        <div className='grid grid-cols-1 md:grid-cols-2 gap-4 pt-2'>
+                        <div className={`grid ${isMobile ? "grid-cols-1" : "grid-cols-2"} gap-4 pt-2`}>
                             <div className='space-y-2'>
                                 <Label className='flex items-center gap-2 text-neutral-700'>
                                     <Calendar className='w-4 h-4' />
@@ -365,7 +379,7 @@ function AccountPage({ onLogout }: AccountPageProps) {
                                         }}
                                         required
                                         minLength={8}
-                                        placeholder='至少 8 個字符，包含大小寫字母和數字'
+                                        placeholder='至少 8 個字符'
                                         className={`pr-10 border-neutral-300 focus:border-emerald-500 focus:ring-emerald-500 ${
                                             passwordError ? "border-red-500" : ""
                                         }`}

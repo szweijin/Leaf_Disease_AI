@@ -44,6 +44,20 @@ function ImageCropper({
         }
     }, [cropCount, maxCropCount]);
 
+    // 處理 Cropper 準備就緒
+    const handleReady = () => {
+        const cropper = cropperRef.current?.cropper;
+        if (cropper) {
+            // 設置初始裁切區域為圖片中心 80% 的區域
+            cropper.setCropBoxData({
+                width: cropper.getImageData().naturalWidth * 0.8,
+                height: cropper.getImageData().naturalHeight * 0.8,
+                left: cropper.getImageData().naturalWidth * 0.1,
+                top: cropper.getImageData().naturalHeight * 0.1,
+            });
+        }
+    };
+
     const handleCrop = () => {
         const cropper = cropperRef.current?.cropper;
         if (!cropper) {
@@ -80,9 +94,13 @@ function ImageCropper({
     };
 
     return (
-        <div className={`container mx-auto ${isMobile ? "p-2" : "p-4"} max-w-4xl`}>
-            <Card>
-                <CardHeader className={isMobile ? "p-4" : ""}>
+        <div
+            className={`container mx-auto ${isMobile ? "p-2" : "p-4"} max-w-4xl ${
+                isMobile ? "h-[calc(100vh-4rem)]" : "h-[calc(100vh-3.5rem)]"
+            } flex flex-col`}
+        >
+            <Card className='h-full flex flex-col border-none '>
+                <CardHeader>
                     <CardTitle className={isMobile ? "text-lg" : ""}>裁切圖片</CardTitle>
                     <CardDescription className={isMobile ? "text-sm" : ""}>
                         {cropCount > 1
@@ -90,18 +108,17 @@ function ImageCropper({
                             : "請拖動綠色框選擇要檢測的葉片區域"}
                     </CardDescription>
                 </CardHeader>
-                <CardContent className={`space-y-4 ${isMobile ? "p-4" : ""}`}>
+                <CardContent className={`space-y-4 flex-1 flex flex-col overflow-hidden`}>
                     <div
-                        className='relative border rounded-lg overflow-hidden bg-neutral-100'
+                        className='relative border rounded-lg overflow-hidden bg-neutral-100 flex-1 min-h-0'
                         style={{
-                            height: isMobile ? "300px" : "auto",
                             position: "relative",
                         }}
                     >
                         <Cropper
                             ref={cropperRef}
                             src={image}
-                            style={{ height: "100%", width: "100%" }}
+                            style={{ height: "100%", width: "100%", display: "block" }}
                             aspectRatio={1}
                             guides={true}
                             viewMode={1}
@@ -114,13 +131,16 @@ function ImageCropper({
                             rotatable={false}
                             responsive={true}
                             restore={false}
+                            autoCropArea={0.8}
+                            ready={handleReady}
+                            background={false}
                         />
                     </div>
-                    <div className={`flex ${isMobile ? "flex-col" : "flex-row"} gap-4`}>
+                    <div className={`flex ${isMobile ? "flex-col" : "flex-row"} gap-4 flex-shrink-0`}>
                         <Button onClick={handleCrop} className='flex-1'>
                             確認裁切
                         </Button>
-                        <Button variant='outline' onClick={onCancel} className={isMobile ? "w-full" : ""}>
+                        <Button variant='destructive' onClick={onCancel} className={isMobile ? "w-full" : ""}>
                             <X className={`${isMobile ? "h-4 w-4" : "h-4 w-4"} mr-2`} />
                             取消
                         </Button>

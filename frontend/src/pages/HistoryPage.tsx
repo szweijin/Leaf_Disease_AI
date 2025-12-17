@@ -900,7 +900,7 @@ function HistoryPage() {
                                                 </div>
                                             )}
                                             {/* 手機版：右邊文字 */}
-                                            <div className='flex-1 flex flex-col min-w-0'>
+                                            <div className='flex-1 flex flex-col min-w-0 pl-2 justify-center'>
                                                 <CardHeader
                                                     className={`pl-4 ${
                                                         isMobile ? "p-2 pb-0" : "p-3 sm:p-4 md:pb-0 pl-5 sm:pl-6"
@@ -910,7 +910,7 @@ function HistoryPage() {
                                                         <CardTitle
                                                             className={`truncate ${
                                                                 isMobile
-                                                                    ? "text-[15px]"
+                                                                    ? "text-[15px] pt-1"
                                                                     : "text-base sm:text-xl md:text-2xl"
                                                             } ${(() => {
                                                                 // 只在 CNN 檢測結果時顯示錯誤（disease_name 為 "others" 或 "whole_plant" 表示 CNN 檢測）
