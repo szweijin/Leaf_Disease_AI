@@ -31,10 +31,16 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# 安裝系統依賴（最小化，包含 bash）
+# 安裝系統依賴（最小化，包含 bash 和 OpenCV 所需的庫）
 RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client \
     bash \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
