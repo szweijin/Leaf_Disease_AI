@@ -83,3 +83,29 @@ railway.json
 # NIXPACKS（使用 Dockerfile 時不需要）
 nixpacks.toml
 
+# 模型文件：只保留指定的模型，其餘全部排除
+# 保留的模型：
+# - model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth
+# - model/yolov11/YOLOv11_v1_20251212/weights/best.pt
+
+# 排除舊版本模型
+model/CNN/CNN_v1.0_20251204/
+
+# 排除 CNN v1.1 目錄中的其他文件（只保留 .pth 模型文件）
+model/CNN/CNN_v1.1_20251210/*.txt
+model/CNN/CNN_v1.1_20251210/*.json
+model/CNN/CNN_v1.1_20251210/*.png
+model/CNN/CNN_v1.1_20251210/*.ipynb
+model/CNN/CNN_v1.1_20251210/*.csv
+
+# 排除 YOLO 目錄中的其他文件（只保留 weights/best.pt）
+model/yolov11/YOLOv11_v1_20251212/args.yaml
+model/yolov11/YOLOv11_v1_20251212/csv/
+model/yolov11/YOLOv11_v1_20251212/img/
+model/yolov11/YOLOv11_v1_20251212/weights/last.pt
+model/yolov11/YOLOv11_v1_20251212/YOLOv11_seg_v1_20251212
+
+# 排除其他模型文件
+model/SR/
+model/yolov11/best_v1_50.pt
+
