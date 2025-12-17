@@ -4,19 +4,26 @@
 
 ## 功能特色
 
--   🤖 AI 病害檢測：使用 YOLOv11 模型進行葉片病害檢測
--   📊 統計分析：使用者檢測歷史與統計資料
--   🔐 使用者認證：註冊、登入、個人資料管理
--   ⚡ Redis 快取：提升 API 響應速度
--   📚 Swagger API 文檔：完整的 API 文檔與測試介面
--   ☁️ Cloudinary 圖片儲存：可選的雲端圖片儲存服務（支援自動優化）
+-   🤖 **整合 AI 病害檢測**：使用 CNN + YOLO 兩階段檢測流程
+    -   CNN 分類：判斷圖片類型（pepper_bell, potato, tomato, whole_plant, others）
+    -   YOLO 檢測：針對特定類別執行病害檢測
+    -   超解析度預處理（可選）：使用 EDSR 模型增強圖片解析度
+-   ✂️ **智能圖片裁切**：支援最多 3 次裁切嘗試，自動處理整株植物圖片
+-   📊 **統計分析**：使用者檢測歷史與統計資料（支援分頁、排序、過濾）
+-   🔐 **使用者認證**：註冊、登入、個人資料管理、密碼修改
+-   ⚡ **Redis 快取**：提升 API 響應速度（檢測結果、使用者統計、登入限制）
+-   📚 **Swagger API 文檔**：完整的 API 文檔與測試介面
+-   ☁️ **Cloudinary 圖片儲存**：可選的雲端圖片儲存服務（支援自動優化）
     -   原始圖片存儲在 `leaf_disease_ai/origin` 資料夾
     -   帶檢測框的圖片存儲在 `leaf_disease_ai/predictions` 資料夾
--   🖼️ 雙圖片顯示：前端同時顯示原始圖片和帶檢測框的結果圖片
--   🎨 現代化 UI：使用 Tailwind CSS 3.x 和 shadcn/ui 構建的響應式前端介面
--   🎭 組件庫：使用 shadcn/ui 官方組件，採用灰階配色方案
--   📱 響應式設計：支援手機、平板、桌面三種裝置佈局
--   🛣️ 路由管理：使用 React Router 實現 URL 路由和瀏覽器導航
+-   🖼️ **雙圖片顯示**：前端同時顯示原始圖片和帶檢測框的結果圖片
+-   📷 **多種上傳方式**：文件上傳、相機拍攝、圖片庫選擇
+-   🎨 **現代化 UI**：使用 Tailwind CSS 4.x 和 shadcn/ui 構建的響應式前端介面
+-   🎭 **組件庫**：使用 shadcn/ui 官方組件，採用灰階配色方案
+-   📱 **響應式設計**：支援手機、平板、桌面三種裝置佈局
+-   🛣️ **路由管理**：使用 React Router 實現 URL 路由和瀏覽器導航
+-   🖨️ **列印功能**：支援列印檢測結果和 PDF 生成
+-   📝 **完整日誌系統**：活動日誌、錯誤日誌、API 日誌、性能日誌
 
 ## 系統需求
 
@@ -43,25 +50,29 @@ cd frontend
 npm install
 ```
 
-前端使用 **React 19**、**Vite 7**、**Tailwind CSS 3.x**、**shadcn/ui** 和 **React Router** 作為核心框架，所有依賴已包含在 `package.json` 中：
+前端使用 **React 19**、**Vite 7**、**Tailwind CSS 4.x**、**shadcn/ui** 和 **React Router** 作為核心框架，所有依賴已包含在 `package.json` 中：
 
 -   React 19.2.0
 -   React Router DOM 7.10.1（路由管理）
--   Vite 7.2.7（建置工具）
+-   Vite 7.2.4（建置工具）
 -   @vitejs/plugin-react 5.1.1
--   Tailwind CSS 3.4.19
+-   Tailwind CSS 4.1.18
 -   shadcn/ui 組件庫（基於 Radix UI）
 -   PostCSS 8.5.6
 -   Autoprefixer 10.4.22
 -   ESLint 9.39.1（代碼檢查）
+-   TypeScript 5.9.3
 -   lucide-react（圖標庫）
+-   react-to-print 3.2.0（列印功能）
+-   react-cropper 2.1.3（圖片裁切）
+-   cropperjs 1.6.2（圖片裁切庫）
 
 **注意**：
 
 -   `package.json` 中包含 `"type": "module"`，確保所有配置使用 ES 模組語法
 -   所有頁面組件已完全使用 shadcn/ui 組件重構，採用灰階配色方案
--   前端同時支援 TypeScript（`tsconfig.json`）和 JavaScript（`jsconfig.json`）配置
--   詳細的 shadcn/ui 使用指南請參考 `frontend/SHADCN_UI_GUIDE.md`
+-   前端使用 TypeScript（`tsconfig.json`、`tsconfig.app.json`、`tsconfig.node.json`）進行型別檢查
+-   詳細的 shadcn/ui 使用指南請參考 `frontend/README.md`
 
 ### 2. 設定環境變數
 
@@ -97,6 +108,12 @@ SECRET_KEY=your-secret-key-here  # ⚠️ 請替換為實際的隨機字串
 # AI 模型路徑設定（可選，使用預設值時可省略）
 # CNN_MODEL_PATH_RELATIVE=model/CNN/CNN_v1.0_20251204/best_mobilenetv3_large.pth
 # YOLO_MODEL_PATH_RELATIVE=model/yolov11/best_v1_50.pt
+
+# 超解析度模型設定（可選）
+# ENABLE_SR=true                    # 是否啟用超解析度預處理
+# SR_MODEL_PATH_RELATIVE=model/SR/model_pytorch/EDSR_x2.pt
+# SR_MODEL_TYPE=edsr                # 模型類型：edsr, rcan 等
+# SR_SCALE=2                        # 放大倍數：2, 4, 8
 ```
 
 **生成 SECRET_KEY**：
@@ -188,23 +205,14 @@ docker run -d -p 6379:6379 redis:latest
 
 ### 5. 啟動服務
 
-**方式一：使用啟動腳本**
-
-```bash
-chmod +x scripts/start.sh
-./scripts/start.sh
-```
-
-**方式二：手動啟動**
-
-後端：
+**後端啟動**：
 
 ```bash
 cd backend
 python app.py
 ```
 
-前端：
+**前端啟動**：
 
 ```bash
 cd frontend
@@ -258,36 +266,56 @@ npm run dev:fast  # 強制重新構建依賴緩存
 -   **Swagger UI**: http://localhost:5000/api-docs
 -   **API Spec JSON**: http://localhost:5000/apispec.json
 
+## 系統架構文檔
+
+專案提供完整的架構文檔，詳細說明各模組的功能和實現：
+
+-   **後端架構**：`docs/backend.md` - 後端完整架構、核心模組、服務層、模型模組說明
+-   **前端架構**：`docs/frontend.md` - 前端完整架構、頁面組件、UI 組件、路由結構說明
+-   **資料庫架構**：`docs/database.md` - 資料庫完整架構、表結構、視圖、函數說明
+-   **序列圖**：`docs/sequences_diagram.md` - 系統主要流程的 Mermaid 序列圖
+
 ## 目錄結構
 
 ```
 Leaf_Disease_AI_local/
 ├── backend/                    # Flask 後端
 │   ├── app.py                  # 主應用程式（路由定義）
+│   ├── test_model_loading.py  # 模型載入測試腳本
 │   ├── modules/                # AI 模型模組
-│   │   ├── cnn_*.py            # CNN 相關模組
-│   │   ├── yolo_*.py           # YOLO 相關模組
-│   │   └── yolo_postprocess.py # YOLO 後處理（包含帶框圖片生成功能）
+│   │   ├── cnn_load.py         # CNN 模型載入
+│   │   ├── cnn_preprocess.py   # CNN 圖片預處理
+│   │   ├── cnn_predict.py      # CNN 預測
+│   │   ├── cnn_postprocess.py # CNN 結果後處理
+│   │   ├── cnn_utils.py        # CNN 工具函數
+│   │   ├── yolo_load.py        # YOLO 模型載入
+│   │   ├── yolo_detect.py      # YOLO 檢測
+│   │   ├── yolo_postprocess.py # YOLO 結果後處理（包含帶框圖片生成功能）
+│   │   ├── yolo_utils.py       # YOLO 工具函數
+│   │   ├── sr_load.py          # 超解析度模型載入
+│   │   ├── sr_preprocess.py    # 超解析度預處理
+│   │   ├── sr_utils.py         # 超解析度工具函數
+│   │   └── SR_README.md       # 超解析度模組說明
 │   └── src/
 │       ├── core/               # 核心模組
 │       │   ├── __init__.py
 │       │   ├── core_app_config.py    # 應用程式配置和初始化
-│       │   ├── core_db_manager.py    # 資料庫管理
+│       │   ├── core_db_manager.py    # 資料庫管理（連接池、日誌記錄）
 │       │   ├── core_helpers.py       # 核心輔助函數（認證、日誌）
 │       │   ├── core_redis_manager.py # Redis 快取管理
-│       │   └── core_user_manager.py  # 使用者管理
+│       │   └── core_user_manager.py  # 使用者管理（註冊、登入、查詢）
 │       └── services/           # 業務服務
 │           ├── __init__.py
-│           ├── service_auth.py              # 認證服務
+│           ├── service_auth.py              # 認證服務（註冊、登入、登出）
 │           ├── service_cnn.py                # CNN 分類服務
 │           ├── service_cloudinary.py         # Cloudinary 儲存服務
 │           ├── service_image.py              # 圖片處理服務
-│           ├── service_image_manager.py      # 圖片管理器
-│           ├── service_integrated.py         # 整合檢測服務
+│           ├── service_image_manager.py      # 圖片管理器（統一管理圖片流程）
+│           ├── service_integrated.py         # 整合檢測服務（CNN + YOLO）
 │           ├── service_integrated_api.py     # 整合檢測 API 服務
-│           ├── service_user.py               # 使用者服務
+│           ├── service_user.py               # 使用者服務（個人資料、統計）
 │           ├── service_yolo.py               # YOLO 檢測服務
-│           └── service_yolo_api.py           # YOLO 檢測 API 服務
+│           └── service_yolo_api.py           # YOLO 檢測 API 服務（向後兼容）
 ├── config/                     # 配置檔案
 │   ├── __init__.py
 │   ├── base.py                 # 基礎配置
@@ -299,62 +327,67 @@ Leaf_Disease_AI_local/
 │   ├── README.md               # 資料庫說明
 │   └── SQL_REFERENCE.md        # SQL 語句參考文檔
 ├── docs/                       # 文檔
-│   ├── complete_documentation.md # 完整系統文檔
+│   ├── backend.md              # 後端架構文檔
+│   ├── frontend.md             # 前端架構文檔
+│   ├── database.md             # 資料庫架構文檔
 │   └── sequences_diagram.md    # 系統序列圖
-├── frontend/                   # React 前端（React 19 + Vite 7 + Tailwind CSS 3.x）
+├── frontend/                   # React 前端（React 19 + Vite 7 + Tailwind CSS 4.x + TypeScript）
 │   ├── src/
-│   │   ├── api.js              # API 調用封裝
-│   │   ├── App.jsx             # 主應用組件
+│   │   ├── App.tsx             # 主應用組件
 │   │   ├── App.css             # 應用樣式
-│   │   ├── main.jsx            # 入口文件
+│   │   ├── main.tsx            # 入口文件
 │   │   ├── index.css           # Tailwind CSS 入口文件（@tailwind 指令）
 │   │   ├── pages/              # 頁面組件（一個檔案一個頁面）
-│   │   │   ├── LoginPage.jsx    # 登入頁面
-│   │   │   ├── HomePage.jsx     # HOME 頁面（檢測功能）
-│   │   │   ├── HistoryPage.jsx  # HISTORY 頁面（檢測歷史）
-│   │   │   └── AccountPage.jsx  # ACCOUNT 頁面（帳號設定）
+│   │   │   ├── LoginPage.tsx    # 登入頁面
+│   │   │   ├── HomePage.tsx     # HOME 頁面（檢測功能）
+│   │   │   ├── HistoryPage.tsx  # HISTORY 頁面（檢測歷史）
+│   │   │   ├── AccountPage.tsx  # ACCOUNT 頁面（帳號設定）
+│   │   │   └── PredictPage.tsx  # 預測結果頁面
 │   │   ├── components/         # 共用組件
-│   │   │   ├── ProtectedRoute.jsx      # 路由守衛（保護需要登入的路由）
-│   │   │   ├── ResponsiveNavbar.jsx   # 響應式導覽列
-│   │   │   ├── AppLayout.jsx           # 應用佈局（包含路由）
-│   │   │   ├── ImageCropper.jsx        # 圖片裁切組件
-│   │   │   ├── CameraView.jsx          # 相機視圖組件
-│   │   │   ├── LeafDetectionView.jsx   # 葉片檢測視圖（同時顯示原始和帶框圖片）
+│   │   │   ├── ProtectedRoute.tsx      # 路由守衛（保護需要登入的路由）
+│   │   │   ├── ResponsiveNavbar.tsx   # 響應式導覽列
+│   │   │   ├── AppLayout.tsx           # 應用佈局（包含路由）
+│   │   │   ├── ImageCropper.tsx        # 圖片裁切組件
+│   │   │   ├── CameraView.tsx          # 相機視圖組件
+│   │   │   ├── LeafDetectionView.tsx   # 葉片檢測視圖（同時顯示原始和帶框圖片）
+│   │   │   ├── PrintButton.tsx         # 列印按鈕組件
+│   │   │   ├── Loading.tsx              # 載入中組件
+│   │   │   ├── Navigation.tsx           # 導覽組件
+│   │   │   ├── AccountSidebar.tsx        # 帳號側邊欄組件
 │   │   │   └── ui/                      # shadcn/ui 組件
-│   │   │       ├── button.jsx          # 按鈕組件
-│   │   │       ├── card.jsx            # 卡片組件
-│   │   │       ├── input.jsx           # 輸入框組件
-│   │   │       ├── label.jsx           # 標籤組件
-│   │   │       ├── select.jsx          # 下拉選單組件
-│   │   │       ├── badge.jsx           # 徽章組件
-│   │   │       ├── alert.jsx           # 警告提示組件
-│   │   │       ├── dialog.jsx          # 對話框組件
-│   │   │       ├── sheet.jsx           # 側邊欄組件
-│   │   │       └── separator.jsx        # 分隔線組件
-│   │   └── lib/                # 工具函數
-│   │       └── utils.js        # 通用工具函數
+│   │   │       └── [28 個組件文件]     # shadcn/ui 組件庫
+│   │   ├── lib/                # 工具函數
+│   │   │   ├── api.ts          # API 調用封裝
+│   │   │   └── utils.ts        # 通用工具函數
+│   │   └── hooks/              # React Hooks
+│   │       └── use-mobile.ts   # 行動裝置檢測 Hook
 │   ├── tailwind.config.js      # Tailwind 主題配置（ES 模組）
-│   ├── postcss.config.js       # PostCSS 配置（ES 模組）
-│   ├── vite.config.js          # Vite 配置（ES 模組）
+│   ├── vite.config.ts          # Vite 配置（TypeScript）
 │   ├── eslint.config.js        # ESLint 配置（ES 模組）
 │   ├── components.json         # shadcn/ui 配置文件
-│   ├── jsconfig.json           # JavaScript 路徑別名配置
-│   ├── tsconfig.json           # TypeScript 配置（支援 JavaScript）
+│   ├── tsconfig.json           # TypeScript 配置
+│   ├── tsconfig.app.json       # TypeScript 應用配置
+│   ├── tsconfig.node.json      # TypeScript Node 配置
 │   ├── package.json            # 包含 "type": "module"
-│   └── SHADCN_UI_GUIDE.md     # shadcn/ui 使用指南（如果存在）
+│   └── README.md               # 前端說明文檔
 ├── model/                      # AI 模型
 │   ├── CNN/                    # CNN 模型
 │   │   ├── CNN_v1.0_20251204/   # CNN v1.0 模型
 │   │   │   └── best_mobilenetv3_large.pth
 │   │   └── CNN_v1.1_20251210/   # CNN v1.1 模型
 │   │       └── best_mobilenetv3_large.pth
+│   ├── SR/                     # 超解析度模型（可選）
+│   │   └── model_pytorch/
+│   │       ├── EDSR_x2.pt      # EDSR 2x 模型
+│   │       ├── EDSR_x3.pt      # EDSR 3x 模型
+│   │       ├── EDSR_x4.pt      # EDSR 4x 模型
+│   │       └── MDSR.pt         # MDSR 模型
 │   └── yolov11/                # YOLO 模型
 │       ├── best_v1_50.pt       # 預設 YOLO 模型（可通過環境變數配置）
 │       └── YOLOv11_v1_20251212/ # YOLO v1 訓練結果
 │           └── weights/
 │               └── best.pt
-├── scripts/                    # 腳本文件
-│   └── start.sh                # 啟動腳本
+├── scripts/                    # 腳本文件（預留目錄）
 ├── tests/                      # 測試文件（預留）
 │   ├── __init__.py
 │   └── README.md
@@ -367,30 +400,93 @@ Leaf_Disease_AI_local/
 
 ## 主要功能說明
 
+### 整合檢測流程（CNN + YOLO）
+
+系統採用兩階段檢測流程：
+
+1. **階段 0：超解析度預處理**（可選）
+
+    - 使用 EDSR 模型增強圖片解析度（2x、4x、8x）
+    - 提高檢測準確度
+
+2. **階段 1：CNN 分類**
+
+    - 使用 MobileNetV3-Large 模型進行圖片分類
+    - 分類結果：`pepper_bell`, `potato`, `tomato`, `whole_plant`, `others`
+
+3. **階段 2：分流邏輯**
+
+    - **路徑 A**：如果是 `pepper_bell`, `potato`, `tomato` → 執行 YOLO 檢測
+    - **路徑 B**：如果是 `whole_plant` → 提示使用者裁切（最多 3 次）
+    - **路徑 C**：如果是 `others` → 返回非植物影像錯誤
+
+4. **階段 3：YOLO 檢測**（僅在路徑 A 執行）
+
+    - 使用 YOLOv11 模型進行病害檢測
+    - 生成帶檢測框的圖片（不包含文字標籤）
+    - 返回病害名稱、置信度、邊界框等資訊
+
+5. **階段 4：結果儲存**
+    - 儲存到 `prediction_log` 表（完整檢測流程記錄）
+    - 儲存到 `detection_records` 表（使用者檢測歷史）
+    - 上傳圖片到 Cloudinary（原始圖片和帶框圖片）
+
 ### 圖片處理與儲存
 
 系統支援完整的圖片處理流程：
 
+-   **圖片上傳方式**：
+
+    -   文件選擇（拖放或點擊）
+    -   相機拍攝（支援前後相機切換）
+    -   圖片庫選擇
+
+-   **圖片處理**：
+
+    -   驗證圖片格式和大小（最大 5MB）
+    -   Resize 到標準尺寸（640x640）
+    -   計算 SHA256 hash（用於檢測重複和快取）
+
 -   **原始圖片儲存**：上傳到 Cloudinary 的 `leaf_disease_ai/origin` 資料夾
 -   **帶框圖片生成**：當 YOLO 檢測到病害時，自動生成帶檢測框的圖片
     -   只顯示檢測框，不顯示文字標籤
-    -   框線寬度為 2 像素（不會太粗）
-    -   框線顏色為綠色 (RGB: 0, 255, 0)
+    -   框線寬度為 2 像素
+    -   使用 YOLO 模型的 `predict().plot()` 方法生成
 -   **帶框圖片儲存**：上傳到 Cloudinary 的 `leaf_disease_ai/predictions` 資料夾
 -   **資料庫記錄**：
     -   `prediction_log.image_path`：存儲原始圖片的 Cloudinary URL
     -   `prediction_log.predict_img_url`：存儲帶框圖片的 Cloudinary URL
+    -   `detection_records.original_image_url`：原始圖片 URL
+    -   `detection_records.annotated_image_url`：帶框圖片 URL
 -   **前端顯示**：檢測結果頁面會同時顯示兩張圖片（桌面版並排，手機版上下排列）
+
+### 圖片裁切功能
+
+-   **觸發條件**：CNN 分類結果為 `whole_plant`
+-   **裁切流程**：
+    1. 顯示裁切介面（使用 `react-cropper`）
+    2. 使用者調整裁切區域（初始為圖片中心 80%）
+    3. 確認裁切
+    4. 發送裁切後的圖片到 `/api/predict-crop`
+    5. 重新執行檢測流程
+-   **裁切次數限制**：最多 3 次
+    -   第 1 次：提示「檢測到整株植物圖片，請裁切出葉片區域進行檢測」
+    -   第 2-3 次：提示「第 X/3 次裁切，請重新裁切葉片區域」
+    -   第 3 次後仍為 `whole_plant`：強制設置為 `others`，顯示錯誤訊息
 
 ### Redis 快取
 
 系統使用 Redis 進行以下快取：
 
--   **使用者統計資料**：快取 5 分鐘
--   **檢測結果**：快取 1 小時（基於圖片 hash）
--   **登入嘗試限制**：防止暴力破解
+-   **使用者統計資料**：快取 5 分鐘（使用 Flask-Caching）
+-   **檢測結果**：快取 1 小時（基於圖片 hash 和使用者 ID）
+-   **登入嘗試限制**：防止暴力破解（5 分鐘過期）
 
-如果 Redis 未安裝或無法連接，系統會自動降級，不影響基本功能。
+如果 Redis 未安裝或無法連接，系統會自動降級：
+
+-   Flask-Caching 使用簡單記憶體快取
+-   檢測結果快取失效（仍可正常檢測）
+-   登入嘗試限制失效（仍可正常登入）
 
 ### Swagger API 文檔
 
@@ -400,6 +496,16 @@ Leaf_Disease_AI_local/
 -   回應格式範例
 -   錯誤碼說明
 -   線上測試功能
+
+### 日誌系統
+
+系統提供完整的日誌記錄功能：
+
+-   **活動日誌** (`activity_logs`)：使用者操作記錄（登入、登出、上傳、檢測等）
+-   **錯誤日誌** (`error_logs`)：系統錯誤記錄（包含錯誤堆疊和上下文資訊）
+-   **審計日誌** (`audit_logs`)：管理員操作記錄（角色分配、帳戶停用等）
+-   **API 日誌** (`api_logs`)：API 請求記錄（執行時間、狀態碼、錯誤訊息）
+-   **性能日誌** (`performance_logs`)：性能指標記錄（執行時間、記憶體使用、CPU 使用率）
 
 ### API 端點
 
@@ -414,43 +520,69 @@ Leaf_Disease_AI_local/
 
 -   `GET /user/profile` - 獲取個人資料
 -   `POST /user/change-password` - 修改密碼
--   `GET /user/stats` - 獲取統計資料（快取）
+-   `POST /user/update-profile` - 更新個人資料（使用者名稱）
+-   `GET /user/stats` - 獲取統計資料（快取 5 分鐘）
 
 #### 檢測相關
 
 -   `POST /api/predict` - 整合檢測（CNN + YOLO，快取）
+    -   支援超解析度預處理（可選）
     -   返回結果包含 `image_path`（原始圖片 URL）和 `predict_img_url`（帶框圖片 URL）
     -   原始圖片上傳到 Cloudinary 的 `leaf_disease_ai/origin` 資料夾
     -   帶框圖片上傳到 Cloudinary 的 `leaf_disease_ai/predictions` 資料夾
+    -   返回完整的檢測結果（CNN 結果、YOLO 結果、病害資訊等）
 -   `POST /api/predict-crop` - 裁切後重新檢測
+    -   支援 `crop_count` 參數（追蹤裁切次數，最多 3 次）
     -   同樣返回原始圖片和帶框圖片的 URL
--   `POST /predict` - 舊版檢測端點（向後兼容）
--   `GET /history` - 獲取檢測歷史
+    -   支援超解析度預處理（可選）
+-   `POST /predict` - 舊版檢測端點（向後兼容，建議使用 `/api/predict`）
+-   `GET /history` - 獲取檢測歷史（支援分頁、排序、過濾）
+    -   支援分頁：`page`, `per_page`（每頁最多 100 筆）
+    -   支援排序：`order_by`（created_at, confidence, disease_name, severity）, `order_dir`（ASC, DESC）
+    -   支援過濾：`disease`（病害名稱，不區分大小寫），`min_confidence`（最小置信度）
+    -   自動查詢病害詳細資訊（`disease_library` 表）
+-   `DELETE /history/delete` - 刪除檢測記錄（單筆或批量）
 
 ## 開發說明
 
--   **後端配置**：使用 `config.development.DevelopmentConfig`
+### 後端開發
+
+-   **配置**：使用 `config.development.DevelopmentConfig`
 -   **資料庫**：PostgreSQL，連接資訊在 `.env` 中設定
 -   **快取**：Redis（可選），配置在 `.env` 中設定
--   **前端**：Vite 7.2.7 dev server + React 19.2.0 + React Router + Tailwind CSS 3.x，自動 proxy 到後端
--   **前端路由**：使用 React Router DOM 7.10.1 實現 URL 路由，支援瀏覽器導航和路由守衛
--   **前端樣式**：使用 Tailwind CSS 3.4.19 + PostCSS 8.5.6，主題配置在 `frontend/tailwind.config.js`
--   **前端配置**：
-    -   `tsconfig.json`：TypeScript 配置（支援 JavaScript，`allowJs: true`）
-    -   `jsconfig.json`：JavaScript 路徑別名配置
+-   **AI 模型**：
+    -   CNN：MobileNetV3-Large（預設：`model/CNN/CNN_v1.0_20251204/best_mobilenetv3_large.pth`）
+    -   YOLO：YOLOv11（預設：`model/yolov11/best_v1_50.pt`）
+    -   超解析度：EDSR（可選，預設：`model/SR/model_pytorch/EDSR_x2.pt`）
+-   **圖片儲存**：Cloudinary（推薦）或本地文件系統
+-   **日誌系統**：活動日誌、錯誤日誌、API 日誌、性能日誌
+
+### 前端開發
+
+-   **框架**：Vite 7.2.4 dev server + React 19.2.0 + React Router + Tailwind CSS 4.x + TypeScript
+-   **路由**：使用 React Router DOM 7.10.1 實現 URL 路由，支援瀏覽器導航和路由守衛
+-   **樣式**：使用 Tailwind CSS 4.1.18 + PostCSS 8.5.6，主題配置在 `frontend/tailwind.config.js`
+-   **UI 組件庫**：shadcn/ui（基於 Radix UI），採用灰階配色方案
+-   **配置檔案**：
+    -   `tsconfig.json`：TypeScript 主配置
+    -   `tsconfig.app.json`：TypeScript 應用配置
+    -   `tsconfig.node.json`：TypeScript Node 配置
     -   `eslint.config.js`：ESLint 代碼檢查配置
-    -   `vite.config.js`：Vite 建置配置（ES 模組）
+    -   `vite.config.ts`：Vite 建置配置（TypeScript）
 -   **響應式設計**：支援手機（底部導覽列）、平板、桌面（頂部導覽列）三種佈局
 -   **頁面結構**：使用 `pages/` 目錄組織頁面組件，`components/` 目錄存放共用組件
 -   **模組系統**：使用 ES 模組（`"type": "module"`），所有配置檔案使用 ES 模組語法
+-   **列印功能**：使用 `react-to-print` 實現 PDF 列印功能，支援 A4 格式、自動等待圖片載入、優化列印樣式（黑白列印、移除背景色、確保文字可見）
+-   **圖片裁切**：使用 `react-cropper` 實現圖片裁切功能，支援最多 3 次裁切嘗試
 
 ## 注意事項
 
 1. 此專案僅用於本地端開發，不適合直接部署到生產環境
 2. 確保 PostgreSQL 和 Redis 服務已啟動
 3. 模型檔案需要存在：
-    - YOLO 模型：預設 `model/yolov11/best_v1_50.pt`（可通過環境變數 `YOLO_MODEL_PATH_RELATIVE` 配置）
-    - CNN 模型：預設 `model/CNN/CNN_v1.0_20251204/best_mobilenetv3_large.pth`（可通過環境變數 `CNN_MODEL_PATH_RELATIVE` 配置）
+    - **CNN 模型**：預設 `model/CNN/CNN_v1.0_20251204/best_mobilenetv3_large.pth`（可通過環境變數 `CNN_MODEL_PATH_RELATIVE` 配置）
+    - **YOLO 模型**：預設 `model/yolov11/best_v1_50.pt`（可通過環境變數 `YOLO_MODEL_PATH_RELATIVE` 配置）
+    - **超解析度模型**（可選）：預設 `model/SR/model_pytorch/EDSR_x2.pt`（可通過環境變數 `SR_MODEL_PATH_RELATIVE` 配置）
 4. 圖片儲存：
     - **Cloudinary（推薦）**：圖片現在完全儲存在 Cloudinary 雲端，不再儲存在資料庫 BLOB
     - 預設啟用 Cloudinary，需要在 `.env` 中設定 `CLOUDINARY_API_SECRET`
@@ -537,8 +669,10 @@ redis-cli ping  # 應該返回 PONG
 如果使用不同的模型路徑，請在 `.env` 檔案中設定：
 
 ```bash
-YOLO_MODEL_PATH_RELATIVE=model/yolov11/YOLOv11_v1_20251212/weights/best.pt
 CNN_MODEL_PATH_RELATIVE=model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth
+YOLO_MODEL_PATH_RELATIVE=model/yolov11/YOLOv11_v1_20251212/weights/best.pt
+SR_MODEL_PATH_RELATIVE=model/SR/model_pytorch/EDSR_x4.pt
+SR_SCALE=4  # 4x 放大
 ```
 
 ### 帶框圖片未顯示
@@ -646,8 +780,8 @@ npm run dev -- --port 3000
     - 確認 `tailwind.config.js` 存在且 `content` 路徑正確
     - 確認 `postcss.config.js` 存在且包含 `tailwindcss` 和 `autoprefixer`
     - 確認 `src/index.css` 包含 `@tailwind` 指令
-    - 確認 `src/main.jsx` 導入 `./index.css`
-    - 確認 `tsconfig.json` 和 `jsconfig.json` 配置正確
+    - 確認 `src/main.tsx` 導入 `./index.css`
+    - 確認 `tsconfig.json`、`tsconfig.app.json` 和 `tsconfig.node.json` 配置正確
 
 4. **檢查瀏覽器控制台**：
 
@@ -717,15 +851,16 @@ npm run dev -- --port 3000
 
 #### 前端技術棧
 
-前端使用 **React 19.2.0** + **Vite 7.2.7** + **Tailwind CSS 3.4.19** 作為核心技術棧：
+前端使用 **React 19.2.0** + **Vite 7.2.4** + **Tailwind CSS 4.1.18** + **TypeScript 5.9.3** 作為核心技術棧：
 
 -   **React 19.2.0**：最新版本的 React 框架
--   **Vite 7.2.7**：快速的前端建置工具，提供 HMR（熱模組替換）
+-   **Vite 7.2.4**：快速的前端建置工具，提供 HMR（熱模組替換）
 -   **React Router DOM 7.10.1**：路由管理，支援瀏覽器導航
+-   **TypeScript 5.9.3**：型別安全的 JavaScript 超集
 
-#### Tailwind CSS 3.x
+#### Tailwind CSS 4.x
 
-前端使用 **Tailwind CSS 3.4.19** 作為樣式框架：
+前端使用 **Tailwind CSS 4.1.18** 作為樣式框架：
 
 -   **配置方式**：
 
@@ -750,14 +885,15 @@ npm run dev -- --port 3000
     -   所有頁面組件已完全使用 shadcn/ui 組件重構
     -   採用灰階配色方案，統一視覺風格
     -   組件配置在 `components.json` 中
-    -   詳細使用指南請參考 `frontend/SHADCN_UI_GUIDE.md`（如果存在）
+    -   詳細使用指南請參考 `frontend/README.md`
 
 -   **配置檔案**：
 
-    -   `tsconfig.json`：TypeScript 配置（支援 JavaScript，`allowJs: true`, `checkJs: false`）
-    -   `jsconfig.json`：JavaScript 路徑別名配置（`@/*` 對應 `./src/*`）
+    -   `tsconfig.json`：TypeScript 主配置
+    -   `tsconfig.app.json`：TypeScript 應用配置
+    -   `tsconfig.node.json`：TypeScript Node 配置
     -   `eslint.config.js`：ESLint 代碼檢查配置（ES 模組格式）
-    -   `vite.config.js`：Vite 建置配置（ES 模組格式）
+    -   `vite.config.ts`：Vite 建置配置（TypeScript）
     -   `package.json`：包含 `"type": "module"`，所有配置檔案使用 ES 模組語法
 
 ### 建置前端
@@ -782,21 +918,38 @@ npm run build
 
 **注意**：生產環境部署時，需要配置服務器支援 SPA 路由（所有路由都返回 `index.html`）。
 
+## 文檔
+
+專案提供完整的架構文檔：
+
+-   **後端架構**：`docs/backend.md` - 後端完整架構與檔案功能說明
+-   **前端架構**：`docs/frontend.md` - 前端完整架構與檔案功能說明
+-   **資料庫架構**：`docs/database.md` - 資料庫完整架構與表結構說明
+-   **序列圖**：`docs/sequences_diagram.md` - 系統主要流程的序列圖
+
 ## 版本資訊
 
--   **版本**: 2.4.1
+-   **版本**: 2.0.0
 -   **模式**: 本地端開發
--   **前端框架**: React 19.2.0 + React Router DOM 7.10.1 + Vite 7.2.7 + Tailwind CSS 3.4.19 + shadcn/ui + PostCSS 8.5.6
--   **前端工具**: ESLint 9.39.1 + TypeScript 支援（tsconfig.json）
+-   **前端框架**: React 19.2.0 + React Router DOM 7.10.1 + Vite 7.2.4 + Tailwind CSS 4.1.18 + shadcn/ui + TypeScript 5.9.3 + PostCSS 8.5.6
+-   **前端工具**: ESLint 9.39.1 + TypeScript 5.9.3
 -   **UI 組件庫**: shadcn/ui（灰階配色方案）
 -   **後端框架**: Flask + PostgreSQL + Redis（可選）
 -   **AI 模型**:
-    -   CNN: MobileNetV3-Large（預設：CNN_v1.0_20251204）
-    -   YOLO: YOLOv11（預設：best_v1_50.pt，可通過環境變數配置）
--   **新功能**:
+    -   **CNN**: MobileNetV3-Large（預設：`CNN_v1.0_20251204/best_mobilenetv3_large.pth`，可通過環境變數配置）
+    -   **YOLO**: YOLOv11（預設：`best_v1_50.pt`，可通過環境變數配置）
+    -   **超解析度**: EDSR（可選，預設：`EDSR_x2.pt`，可通過環境變數配置）
+-   **主要功能**:
+    -   ✅ 整合檢測流程（CNN + YOLO 兩階段檢測）
+    -   ✅ 超解析度預處理（可選，使用 EDSR 模型）
+    -   ✅ 智能圖片裁切（支援最多 3 次裁切嘗試）
     -   ✅ 帶檢測框的圖片生成（只顯示框，不顯示文字標籤）
     -   ✅ 原始圖片和帶框圖片分別存儲在 Cloudinary 的不同資料夾
     -   ✅ 前端同時顯示原始圖片和帶框圖片
-    -   ✅ 資料庫新增 `predict_img_url` 欄位存儲帶框圖片 URL
-    -   ✅ 修復前端路由跳轉問題（嵌套路由、狀態更新時序、動畫阻塞）
--   **最後更新**: 2024-12-13
+    -   ✅ 完整的歷史記錄功能（分頁、排序、過濾、批量刪除）
+    -   ✅ PDF 列印功能（使用 react-to-print，支援 A4 格式列印）
+    -   ✅ 多種圖片上傳方式（文件上傳、相機拍攝、圖片庫選擇）
+    -   ✅ 響應式設計（手機、平板、桌面三種佈局）
+    -   ✅ TypeScript 完整支援
+    -   ✅ 完整的日誌系統（活動、錯誤、API、性能日誌）
+-   **最後更新**: 2024-12-20

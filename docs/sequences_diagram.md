@@ -10,6 +10,7 @@
 -   **ImageManager**: 圖片管理服務（處理圖片解碼、處理、臨時文件、Cloudinary 上傳）
 -   **Database**: PostgreSQL 資料庫
 -   **Cloudinary**: 雲端圖片存儲服務（可選，如果啟用）
+-   **SR Model**: 超解析度模型（EDSR，可選，用於圖片預處理）
 -   **CNN Model**: CNN 分類模型（MobileNetV3）
 -   **YOLO Model**: YOLOv11 病害檢測模型
 -   **Redis**: Redis 快取服務（用於登入嘗試限制和檢測結果快取）
@@ -164,6 +165,7 @@ sequenceDiagram
     participant Redis
     participant Database
     participant Cloudinary
+    participant SR Model
     participant CNN Model
     participant YOLO Model
 
@@ -196,73 +198,184 @@ sequenceDiagram
             ImageManager->>ImageManager: 寫入暫存文件<br/>uploads/tmp{uuid}.jpg
             ImageManager-->>Backend: 返回臨時文件路徑
 
+            Note over Backend,SR Model: 階段 0: 超解析度預處理（可選）
+            alt 啟用超解析度
+                Backend->>SR Model: 執行超解析度預處理<br/>preprocess_with_sr(image_path, scale=2x)
+                SR Model-->>Backend: 返回增強後圖片路徑
+                Note over Backend: 使用增強後圖片進行後續處理
+            end
+
+            Note over Backend,CNN Model: 階段 1: CNN 分類
             Backend->>CNN Model: 執行 CNN 分類<br/>cnn_service.predict(image_path)
             CNN Model-->>Backend: 返回分類結果<br/>{best_class, best_score, mean_score, all_scores}
 
+            Note over Backend: 清理臨時超解析度圖片（如果創建）
+
+            Note over Backend,YOLO Model: 階段 2: 分流邏輯
             Backend->>Backend: 判斷分流邏輯<br/>根據 best_class 決定流程
 
-            alt best_class in ['pepper_bell', 'potato', 'tomato']
+            alt best_class in ['pepper_bell', 'potato', 'tomato']<br/>（需要執行 YOLO）
+                Note over Backend,YOLO Model: 階段 2A: YOLO 檢測流程
                 Backend->>YOLO Model: 執行 YOLO 檢測<br/>yolo_detect(model, image_path)
                 YOLO Model-->>Backend: 返回檢測結果<br/>{detected, detections: [{class, confidence, bbox}]}
 
-                Backend->>Database: 保存預測記錄<br/>INSERT INTO prediction_log<br/>(id, cnn_result, yolo_result, final_status, image_path)
+                Note over Backend,Database: 階段 3: 儲存到資料庫
+                Backend->>Database: 保存預測記錄<br/>INSERT INTO prediction_log<br/>(id, cnn_result, yolo_result,<br/>final_status: "yolo_detected", ...)
                 Database-->>Backend: 返回 prediction_id
 
                 Backend->>Database: 保存檢測記錄<br/>INSERT INTO detection_records<br/>(prediction_log_id, disease, confidence, ...)
                 Database-->>Backend: 返回 record_id
 
-                Backend->>Cloudinary: 上傳原始圖片<br/>upload_to_cloudinary(origin/{prediction_id})
-                Cloudinary-->>Backend: 返回 secure_url
+                Note over Backend,Cloudinary: 階段 4: 上傳圖片到 Cloudinary
+                alt Cloudinary 啟用
+                    Backend->>ImageManager: 上傳原始圖片<br/>upload_to_cloudinary(origin/{prediction_id})
+                    ImageManager->>Cloudinary: 上傳圖片
+                    Cloudinary-->>ImageManager: 返回 secure_url
+                    ImageManager-->>Backend: 返回 secure_url
 
-                Backend->>Database: 更新圖片 URL<br/>UPDATE prediction_log<br/>SET original_image_url = secure_url
-                Backend->>Database: 更新檢測記錄圖片 URL<br/>UPDATE detection_records<br/>SET original_image_url = secure_url
+                    Backend->>Database: 更新圖片 URL<br/>UPDATE prediction_log<br/>SET image_path = secure_url,<br/>original_image_url = secure_url
+                    Backend->>Database: 更新檢測記錄圖片 URL<br/>UPDATE detection_records<br/>SET original_image_url = secure_url
 
-                Backend->>YOLO Model: 生成帶檢測框圖片<br/>model.predict().plot()
-                YOLO Model-->>Backend: 返回帶框圖片（numpy array）
+                    Backend->>YOLO Model: 生成帶檢測框圖片<br/>model.predict().plot(labels=False)
+                    YOLO Model-->>Backend: 返回帶框圖片（numpy array）
 
-                Backend->>Cloudinary: 上傳帶框圖片<br/>upload_to_cloudinary(predictions/{prediction_id})
-                Cloudinary-->>Backend: 返回 predict_img_url
+                    Backend->>ImageManager: 上傳帶框圖片<br/>upload_to_cloudinary(predictions/{prediction_id})
+                    ImageManager->>Cloudinary: 上傳帶框圖片
+                    Cloudinary-->>ImageManager: 返回 predict_img_url
+                    ImageManager-->>Backend: 返回 predict_img_url
 
-                Backend->>Database: 更新帶框圖片 URL<br/>UPDATE prediction_log<br/>SET predict_img_url = predict_img_url
-                Backend->>Database: 更新檢測記錄帶框圖片 URL<br/>UPDATE detection_records<br/>SET annotated_image_url = predict_img_url
+                    Backend->>Database: 更新帶框圖片 URL<br/>UPDATE prediction_log<br/>SET predict_img_url = predict_img_url
+                    Backend->>Database: 更新檢測記錄帶框圖片 URL<br/>UPDATE detection_records<br/>SET annotated_image_url = predict_img_url
+                end
 
                 Backend->>Database: 查詢病害資訊<br/>SELECT * FROM disease_library<br/>WHERE disease_name = ?
                 Database-->>Backend: 返回病害詳細資訊
 
-                Backend->>ImageManager: 清理臨時文件<br/>cleanup_temp_file()（自動）
+                Backend->>ImageManager: 清理臨時文件<br/>（上下文管理器自動清理）
                 ImageManager->>ImageManager: 刪除暫存文件
 
                 Backend->>Redis: 快取檢測結果（1小時）<br/>set(integrated_detection:hash:user_id, result, expire=3600)
                 Backend->>Database: 記錄活動日誌<br/>INSERT INTO activity_logs
+                Backend->>Database: 記錄性能日誌<br/>INSERT INTO performance_logs
                 Backend->>Database: 記錄 API 請求日誌<br/>INSERT INTO api_logs
 
-                Backend-->>Frontend: 200 {cnn_result, yolo_result,<br/>final_status: "yolo_detected",<br/>disease_info, original_image_url,<br/>predict_img_url, ...}
+                Backend-->>Frontend: 200 {cnn_result, yolo_result,<br/>final_status: "yolo_detected",<br/>disease_info, original_image_url,<br/>predict_img_url, processing_time_ms, ...}
                 Frontend-->>User: 顯示檢測結果（CNN + YOLO）
 
-            else best_class == 'whole_plant'
+            else best_class == 'whole_plant'<br/>（需要裁切）
                 Backend->>Database: 保存預測記錄<br/>INSERT INTO prediction_log<br/>(cnn_result, final_status: "need_crop")
                 Database-->>Backend: 返回 prediction_id
 
-                Backend->>ImageManager: 清理臨時文件<br/>cleanup_temp_file()（自動）
+                Backend->>ImageManager: 清理臨時文件<br/>（上下文管理器自動清理）
 
                 Backend-->>Frontend: 200 {cnn_result,<br/>final_status: "need_crop",<br/>prediction_id, message: "請裁切..."}
                 Frontend-->>User: 顯示裁切介面
 
-                User->>Frontend: 裁切圖片
-                Frontend->>Backend: POST /api/predict-crop<br/>{prediction_id, crop_coordinates, cropped_image}
-                Backend->>Backend: 使用裁切圖片重新執行流程
-                Note over Backend: 重新執行 CNN + YOLO 流程<br/>（類似上述流程）
-
-            else best_class == 'others'
+            else best_class == 'others'<br/>（非植物影像）
                 Backend->>Database: 保存預測記錄<br/>INSERT INTO prediction_log<br/>(cnn_result, final_status: "not_plant")
                 Backend->>Database: 保存檢測記錄<br/>INSERT INTO detection_records<br/>(disease: "others", ...)
                 Database-->>Backend: 返回 prediction_id, record_id
 
-                Backend->>ImageManager: 清理臨時文件<br/>cleanup_temp_file()（自動）
+                Backend->>ImageManager: 清理臨時文件<br/>（上下文管理器自動清理）
 
                 Backend-->>Frontend: 200 {cnn_result,<br/>final_status: "not_plant",<br/>error: "非植物影像..."}
                 Frontend-->>User: 顯示錯誤訊息
             end
+        end
+    end
+```
+
+---
+
+## 4.1. 裁切後重新檢測流程 (Predict with Crop)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant Backend
+    participant ImageManager
+    participant Database
+    participant Cloudinary
+    participant SR Model
+    participant CNN Model
+    participant YOLO Model
+
+    User->>Frontend: 裁切圖片（第 crop_count 次）
+    Frontend->>Backend: POST /api/predict-crop<br/>{prediction_id, crop_coordinates,<br/>cropped_image, crop_count}
+
+    Backend->>Backend: 檢查 session<br/>get_user_id_from_session()
+
+    alt 未登入
+        Backend-->>Frontend: 401 {error: "請先登入"}
+    else 已登入
+        Backend->>ImageManager: 處理裁切圖片<br/>process_cropped_image(cropped_base64)
+        ImageManager-->>Backend: 返回處理後位元組和 image_hash
+
+        Backend->>ImageManager: 創建臨時文件（上下文管理器）<br/>create_temp_file(processed_bytes)
+        ImageManager-->>Backend: 返回臨時文件路徑
+
+        Backend->>Database: 更新 prediction_log<br/>UPDATE prediction_log<br/>SET image_path = ?, crop_coordinates = ?<br/>WHERE id = ?
+        Database-->>Backend: 更新成功
+
+        Note over Backend,SR Model: 階段 0: 超解析度預處理（可選）
+        alt 啟用超解析度
+            Backend->>SR Model: 執行超解析度預處理（裁切後圖片）
+            SR Model-->>Backend: 返回增強後圖片路徑
+        end
+
+        Note over Backend,CNN Model: 階段 1: CNN 分類（裁切後圖片）
+        Backend->>CNN Model: 執行 CNN 分類<br/>cnn_service.predict(cropped_image_path)
+        CNN Model-->>Backend: 返回分類結果
+
+        Backend->>Backend: 檢查 crop 次數限制<br/>if crop_count >= 3 and best_class == 'whole_plant'
+
+        alt crop_count >= 3 且仍為 'whole_plant'
+            Backend->>Backend: 強制設置為 'others'<br/>best_class = 'others', final_status = 'not_plant'
+            Backend->>Database: 更新 prediction_log<br/>UPDATE prediction_log<br/>SET cnn_best_class = 'others',<br/>final_status = 'not_plant'
+            Backend-->>Frontend: 200 {final_status: "not_plant",<br/>error: "已達到最大裁切次數..."}
+            Frontend-->>User: 顯示錯誤訊息
+        else best_class == 'whole_plant' 且 crop_count < 3
+            Backend-->>Frontend: 200 {final_status: "need_crop",<br/>crop_count, max_crop_count: 3,<br/>message: "請重新裁切..."}
+            Frontend-->>User: 顯示裁切介面（提示繼續裁切）
+        else best_class in ['pepper_bell', 'potato', 'tomato']
+            Note over Backend,YOLO Model: 階段 2: YOLO 檢測
+            Backend->>YOLO Model: 執行 YOLO 檢測<br/>yolo_detect(model, cropped_image_path)
+            YOLO Model-->>Backend: 返回檢測結果
+
+            Backend->>Database: 更新/創建檢測記錄<br/>UPDATE detection_records<br/>SET disease_name = ?, confidence = ?, ...<br/>WHERE prediction_log_id = ?
+            Database-->>Backend: 更新成功
+
+            alt Cloudinary 啟用
+                Backend->>ImageManager: 上傳裁切後原始圖片<br/>upload_to_cloudinary(origin/{prediction_id})
+                ImageManager->>Cloudinary: 上傳圖片
+                Cloudinary-->>Backend: 返回 secure_url
+
+                Backend->>YOLO Model: 生成帶檢測框圖片
+                YOLO Model-->>Backend: 返回帶框圖片
+
+                Backend->>ImageManager: 上傳帶框圖片<br/>upload_to_cloudinary(predictions/{prediction_id})
+                ImageManager->>Cloudinary: 上傳帶框圖片
+                Cloudinary-->>Backend: 返回 predict_img_url
+
+                Backend->>Database: 更新圖片 URL<br/>UPDATE prediction_log<br/>SET original_image_url = secure_url,<br/>predict_img_url = predict_img_url
+                Backend->>Database: 更新檢測記錄圖片 URL<br/>UPDATE detection_records<br/>SET original_image_url = secure_url,<br/>annotated_image_url = predict_img_url
+            end
+
+            Backend->>Database: 查詢病害資訊
+            Database-->>Backend: 返回病害詳細資訊
+
+            Backend->>ImageManager: 清理臨時文件<br/>（上下文管理器自動清理）
+
+            Backend->>Database: 記錄活動日誌<br/>INSERT INTO activity_logs
+            Backend->>Database: 記錄 API 請求日誌<br/>INSERT INTO api_logs
+
+            Backend-->>Frontend: 200 {cnn_result, yolo_result,<br/>final_status: "yolo_detected",<br/>disease_info, crop_count, ...}
+            Frontend-->>User: 顯示檢測結果
+        else best_class == 'others'
+            Backend->>Database: 更新檢測記錄<br/>UPDATE detection_records<br/>SET disease_name = 'others', ...
+            Backend-->>Frontend: 200 {final_status: "not_plant",<br/>error: "非植物影像..."}
+            Frontend-->>User: 顯示錯誤訊息
         end
     end
 ```
@@ -278,8 +391,8 @@ sequenceDiagram
     participant Backend
     participant Database
 
-    User->>Frontend: 點擊查看歷史記錄
-    Frontend->>Backend: GET /history<br/>?page=1&per_page=20&order_by=created_at&order_dir=DESC
+    User->>Frontend: 點擊查看歷史記錄<br/>（可選擇分頁、排序、過濾）
+    Frontend->>Backend: GET /history<br/>?page=1&per_page=20&order_by=created_at<br/>&order_dir=DESC&disease=Leaf_Spot<br/>&min_confidence=0.8
 
     Backend->>Backend: 檢查 session<br/>get_user_id_from_session()
 
@@ -287,21 +400,69 @@ sequenceDiagram
         Backend-->>Frontend: 401 {error: "請先登入"}
         Frontend-->>User: 顯示錯誤，導向登入頁
     else 已登入
-        Backend->>Database: 查詢檢測記錄（支持分頁、排序、過濾）<br/>SELECT id, disease_name, severity, confidence,<br/>image_path, original_image_url, annotated_image_url,<br/>created_at, status, processing_time_ms<br/>FROM detection_records<br/>WHERE user_id = ?<br/>ORDER BY created_at DESC<br/>LIMIT ? OFFSET ?
-        Database-->>Backend: 返回記錄列表
-
-        Backend->>Database: 查詢總記錄數<br/>SELECT COUNT(*) FROM detection_records<br/>WHERE user_id = ?
+        Backend->>Database: 查詢總記錄數（支持過濾）<br/>SELECT COUNT(*) FROM detection_records<br/>WHERE user_id = ?<br/>AND disease_name ILIKE ?<br/>AND confidence >= ?
         Database-->>Backend: 返回總數
+
+        Backend->>Database: 查詢檢測記錄（支持分頁、排序、過濾）<br/>SELECT id, disease_name, severity, confidence,<br/>image_path, original_image_url, annotated_image_url,<br/>created_at, status, processing_time_ms<br/>FROM detection_records<br/>WHERE user_id = ?<br/>AND disease_name ILIKE ?<br/>AND confidence >= ?<br/>ORDER BY created_at DESC<br/>LIMIT ? OFFSET ?
+        Database-->>Backend: 返回記錄列表
 
         alt 無記錄
             Backend->>Database: 記錄 API 請求日誌<br/>INSERT INTO api_logs
-            Backend-->>Frontend: 200 []
+            Backend-->>Frontend: 200 {records: [], pagination: {...}}
             Frontend-->>User: 顯示"尚無檢測記錄"
         else 有記錄
-            Backend->>Backend: 格式化記錄<br/>處理圖片 URL（Cloudinary URL 或本地路徑）<br/>處理時間戳格式
+            loop 對每筆記錄
+                alt disease_name 不是 'others' 或 'whole_plant'
+                    Backend->>Database: 查詢病害資訊<br/>SELECT * FROM disease_library<br/>WHERE disease_name = ?
+                    Database-->>Backend: 返回病害詳細資訊
+                    Note over Backend: 使用中文名稱作為顯示名稱
+                end
+                Backend->>Backend: 格式化記錄<br/>處理圖片 URL（Cloudinary URL）<br/>處理時間戳格式<br/>處理病害顯示名稱
+            end
+
+            Backend->>Backend: 計算分頁資訊<br/>total_pages, has_next, has_prev
+
             Backend->>Database: 記錄 API 請求日誌<br/>INSERT INTO api_logs
-            Backend-->>Frontend: 200 [{id, disease, severity,<br/>confidence, image_path,<br/>original_image_url, annotated_image_url,<br/>timestamp, created_at, ...}, ...]
-            Frontend-->>User: 顯示歷史記錄列表<br/>（支持分頁、排序、過濾）
+            Backend-->>Frontend: 200 {records: [{id, disease, disease_name,<br/>severity, confidence, image_path,<br/>original_image_url, annotated_image_url,<br/>disease_info, timestamp, created_at, ...}, ...],<br/>pagination: {page, per_page, total,<br/>total_pages, has_next, has_prev}}
+            Frontend-->>User: 顯示歷史記錄列表<br/>（支持分頁、排序、過濾、病害資訊）
+        end
+    end
+```
+
+---
+
+## 5.1. 刪除檢測記錄 (Delete History Record)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant Backend
+    participant Database
+
+    User->>Frontend: 點擊刪除記錄
+    Frontend->>Backend: DELETE /history/delete<br/>{record_id: 123}
+
+    Backend->>Backend: 檢查 session<br/>get_user_id_from_session()
+
+    alt 未登入
+        Backend-->>Frontend: 401 {error: "請先登入"}
+    else 已登入
+        Backend->>Database: 檢查記錄是否存在且屬於該使用者<br/>SELECT id FROM detection_records<br/>WHERE id = ? AND user_id = ?
+        Database-->>Backend: 返回記錄或空
+
+        alt 記錄不存在或無權限
+            Backend->>Database: 記錄 API 請求日誌<br/>INSERT INTO api_logs (status_code: 400)
+            Backend-->>Frontend: 400 {error: "記錄不存在或無權限刪除"}
+            Frontend-->>User: 顯示錯誤訊息
+        else 記錄存在且屬於該使用者
+            Backend->>Database: 刪除記錄<br/>DELETE FROM detection_records<br/>WHERE id = ? AND user_id = ?
+            Database-->>Backend: 刪除成功
+
+            Backend->>Database: 記錄活動日誌<br/>INSERT INTO activity_logs<br/>(action_type: 'delete_detection')
+            Backend->>Database: 記錄 API 請求日誌<br/>INSERT INTO api_logs (status_code: 200)
+            Backend-->>Frontend: 200 {status: "記錄已刪除"}
+            Frontend-->>User: 顯示成功訊息，更新列表
         end
     end
 ```
@@ -339,25 +500,17 @@ sequenceDiagram
             Backend-->>Frontend: 404 {error: "記錄不存在或無權限"}
             Frontend-->>User: 顯示錯誤或佔位圖
         else 記錄存在
-            alt image_path 是 Cloudinary URL
-                Backend->>Backend: 檢查 URL 格式<br/>image_path.startswith('https://')
+            alt image_path 是 Cloudinary URL<br/>（http:// 或 https://）
+                Backend->>Backend: 檢查 URL 格式<br/>image_path.startswith('http')
                 Backend-->>Frontend: 302 Redirect<br/>Location: Cloudinary URL
-                Frontend->>Cloudinary: 請求圖片
+                Frontend->>Cloudinary: 請求圖片（CDN 加速）
                 Cloudinary-->>Frontend: 200 image/jpeg<br/>(圖片二進位資料)
                 Frontend-->>User: 顯示圖片
-            else image_path 是本地路徑
+            else image_path 是資料庫 URL<br/>（/image/xxx，向後兼容）
                 Backend->>Backend: 檢查路徑格式<br/>image_path.startswith('/image/')
-                Backend->>Database: 查詢圖片資料（向後兼容）<br/>SELECT image_data<br/>FROM detection_records<br/>WHERE id = ?
-                Database-->>Backend: 返回圖片資料（BYTEA）或 NULL
-
-                alt 圖片資料存在
-                    Backend->>Backend: 返回圖片二進位資料
-                    Backend-->>Frontend: 200 image/jpeg<br/>(圖片二進位資料)
-                    Frontend-->>User: 顯示圖片
-                else 圖片資料不存在
-                    Backend-->>Frontend: 404 {error: "圖片不存在"}
-                    Frontend-->>User: 顯示錯誤或佔位圖
-                end
+                Note over Backend: 圖片應在 Cloudinary，<br/>資料庫 URL 僅用於向後兼容
+                Backend-->>Frontend: 404 {error: "圖片未找到，請檢查 Cloudinary 配置"}
+                Frontend-->>User: 顯示錯誤或佔位圖
             end
         end
     end
@@ -393,7 +546,100 @@ sequenceDiagram
 
 ---
 
-## 8. 獲取使用者統計 (User Stats)
+## 8. 修改密碼 (Change Password)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant Backend
+    participant Database
+
+    User->>Frontend: 輸入舊密碼和新密碼
+    Frontend->>Backend: POST /user/change-password<br/>{old_password, new_password}
+
+    Backend->>Backend: 檢查 session<br/>get_user_id_from_session()
+
+    alt 未登入
+        Backend-->>Frontend: 401 {error: "請先登入"}
+    else 已登入
+        Backend->>Database: 查詢使用者密碼<br/>SELECT password_hash FROM users<br/>WHERE id = ?
+        Database-->>Backend: 返回 password_hash
+
+        Backend->>Backend: 驗證舊密碼<br/>check_password_hash(password_hash, old_password)
+
+        alt 舊密碼錯誤
+            Backend->>Database: 記錄錯誤日誌<br/>INSERT INTO error_logs<br/>(error_type: 'AuthenticationError')
+            Backend->>Database: 記錄 API 請求日誌<br/>INSERT INTO api_logs (status_code: 400)
+            Backend-->>Frontend: 400 {error: "舊密碼不正確"}
+            Frontend-->>User: 顯示錯誤訊息
+        else 舊密碼正確
+            Backend->>Backend: 驗證新密碼複雜度<br/>validate_password(new_password)
+
+            alt 新密碼不符合要求
+                Backend-->>Frontend: 400 {error: "密碼不符合要求"}
+                Frontend-->>User: 顯示錯誤訊息
+            else 新密碼符合要求
+                Backend->>Backend: 確認新密碼與舊密碼不同
+                alt 新密碼與舊密碼相同
+                    Backend-->>Frontend: 400 {error: "新密碼不能與舊密碼相同"}
+                    Frontend-->>User: 顯示錯誤訊息
+                else 新密碼不同
+                    Backend->>Backend: 加密新密碼<br/>generate_password_hash(new_password)
+                    Backend->>Database: 更新密碼<br/>UPDATE users<br/>SET password_hash = ?, updated_at = NOW()<br/>WHERE id = ?
+                    Database-->>Backend: 更新成功
+
+                    Backend->>Database: 記錄活動日誌<br/>INSERT INTO activity_logs<br/>(action_type: 'password_change')
+                    Backend->>Database: 記錄 API 請求日誌<br/>INSERT INTO api_logs (status_code: 200)
+                    Backend-->>Frontend: 200 {status: "密碼已成功更新"}
+                    Frontend-->>User: 顯示成功訊息
+                end
+            end
+        end
+    end
+```
+
+---
+
+## 9. 更新個人資料 (Update Profile)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant Backend
+    participant Database
+
+    User->>Frontend: 輸入新的使用者名稱
+    Frontend->>Backend: POST /user/update-profile<br/>{username: "newusername"}
+
+    Backend->>Backend: 檢查 session<br/>get_user_id_from_session()
+
+    alt 未登入
+        Backend-->>Frontend: 401 {error: "請先登入"}
+    else 已登入
+        Backend->>Database: 檢查使用者名稱是否已被使用<br/>SELECT id FROM users<br/>WHERE username = ? AND id != ?
+        Database-->>Backend: 返回記錄或空
+
+        alt 使用者名稱已被使用
+            Backend->>Database: 記錄 API 請求日誌<br/>INSERT INTO api_logs (status_code: 400)
+            Backend-->>Frontend: 400 {error: "該使用者名稱已被使用"}
+            Frontend-->>User: 顯示錯誤訊息
+        else 使用者名稱可用
+            Backend->>Database: 更新使用者資訊<br/>UPDATE users<br/>SET username = ?, updated_at = NOW()<br/>WHERE id = ?
+            Database-->>Backend: 更新成功
+
+            Backend->>Database: 記錄活動日誌<br/>INSERT INTO activity_logs<br/>(action_type: 'profile_update')
+            Backend->>Database: 記錄 API 請求日誌<br/>INSERT INTO api_logs (status_code: 200)
+            Backend-->>Frontend: 200 {status: "個人資訊已更新"}
+            Frontend-->>User: 顯示成功訊息，更新顯示
+        end
+    end
+```
+
+---
+
+## 10. 獲取使用者統計 (User Stats)
 
 ```mermaid
 sequenceDiagram
@@ -449,37 +695,83 @@ sequenceDiagram
 
 ### 圖片存儲
 
--   上傳的圖片會先暫存到 `uploads/` 目錄（使用臨時文件）
--   檢測完成後，圖片會上傳到 Cloudinary（如果啟用）：
+-   **圖片處理流程**：
+    -   使用 `ImageManager` 統一管理圖片處理流程
+    -   解碼 Base64 圖片資料
+    -   驗證圖片格式和大小（最大 5MB）
+    -   Resize 到標準尺寸（640x640）
+    -   計算 SHA256 hash（用於檢測重複和快取）
+-   **臨時文件管理**：
+    -   使用上下文管理器 (`create_temp_file()`) 自動管理臨時文件
+    -   臨時文件存儲在 `uploads/` 目錄
+    -   檢測完成後自動清理（無需手動刪除）
+    -   支持自動清理過期暫存文件（預設 24 小時）
+-   **Cloudinary 儲存**（如果啟用）：
     -   原始圖片：`leaf_disease_ai/origin/{prediction_id}.jpg`
     -   帶檢測框圖片：`leaf_disease_ai/predictions/{prediction_id}.jpg`
--   資料庫中只存儲圖片 URL（`original_image_url`, `predict_img_url`, `annotated_image_url`）
--   臨時文件會在檢測完成後自動清理（使用上下文管理器）
--   圖片可通過以下端點獲取：
+    -   使用 Cloudinary CDN 加速圖片訪問
+-   **資料庫儲存**：
+    -   資料庫中只存儲圖片 URL（`original_image_url`, `predict_img_url`, `annotated_image_url`）
+    -   不存儲圖片二進位資料（節省資料庫空間）
+-   **圖片訪問**：
     -   `/image/{record_id}` - 獲取 detection_records 圖片
     -   `/image/prediction/{prediction_id}` - 獲取 prediction_log 圖片
-    -   如果是 Cloudinary URL，會重定向到 Cloudinary
-    -   如果是本地路徑，會從資料庫讀取（向後兼容）
+    -   如果是 Cloudinary URL（http:// 或 https://），會重定向到 Cloudinary
+    -   如果是資料庫 URL（/image/xxx），會返回錯誤（圖片應在 Cloudinary）
 
 ### AI Model 整合
 
--   CNN 和 YOLOv11 模型在後端啟動時載入
--   CNN 分類流程：
+-   CNN、YOLOv11 和超解析度模型在後端啟動時載入
+-   **超解析度預處理**（可選）：
+    -   如果啟用，在 CNN 分類前先執行超解析度預處理
+    -   使用 EDSR 模型，支持 2x、4x、8x 放大
+    -   增強圖片解析度以提高檢測準確度
+-   **CNN 分類流程**：
     -   先執行 CNN 分類，獲取圖片類別（pepper_bell, potato, tomato, whole_plant, others）
     -   根據分類結果決定是否執行 YOLO 檢測
--   YOLO 檢測流程（僅在特定類別時執行）：
+-   **YOLO 檢測流程**（僅在特定類別時執行）：
     -   調用 `yolo_detect(model, image_path)` 進行檢測
-    -   使用 `model.predict().plot()` 生成帶檢測框的圖片
+    -   使用 `model.predict().plot(labels=False)` 生成帶檢測框的圖片（不包含文字標籤）
     -   預測結果包含：病害名稱、置信度、邊界框等資訊
--   整合檢測服務 (`IntegratedDetectionService`) 統一管理整個流程
+-   **整合檢測服務** (`IntegratedDetectionService`) 統一管理整個流程
+-   **裁切流程**：
+    -   如果 CNN 分類為 `whole_plant`，提示使用者裁切
+    -   支持最多 3 次裁切嘗試
+    -   第 3 次裁切後仍為 `whole_plant` 時，強制設置為 `others`
 
 ### Cloudinary 圖片存儲
 
--   如果啟用 Cloudinary，所有圖片都會上傳到 Cloudinary 雲端存儲
--   圖片組織結構：
+-   **配置**：
+    -   通過環境變數 `USE_CLOUDINARY` 控制是否啟用
+    -   需要配置 `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+-   **上傳流程**：
+    -   原始圖片在檢測完成後上傳到 `leaf_disease_ai/origin/{prediction_id}.jpg`
+    -   帶檢測框圖片在 YOLO 檢測完成後上傳到 `leaf_disease_ai/predictions/{prediction_id}.jpg`
+    -   上傳失敗不會中斷檢測流程（記錄警告日誌）
+-   **圖片組織結構**：
     -   `leaf_disease_ai/origin/{prediction_id}.jpg` - 原始圖片
     -   `leaf_disease_ai/predictions/{prediction_id}.jpg` - 帶檢測框的圖片
--   資料庫中只存儲 Cloudinary URL，不存儲圖片二進位資料
--   圖片訪問：
+-   **資料庫儲存**：
+    -   資料庫中只存儲 Cloudinary URL，不存儲圖片二進位資料
+    -   `image_path`, `original_image_url`, `predict_img_url`, `annotated_image_url` 欄位存儲 Cloudinary URL
+-   **圖片訪問**：
     -   通過 Cloudinary URL 直接訪問（CDN 加速）
-    -   如果 Cloudinary 未啟用，則使用本地文件系統或資料庫存儲（向後兼容）
+    -   後端會重定向（302）到 Cloudinary URL
+    -   如果 Cloudinary 未啟用，則使用本地文件系統（向後兼容，但建議啟用 Cloudinary）
+
+### 歷史記錄查詢功能
+
+-   **分頁支持**：
+    -   使用 `page` 和 `per_page` 參數控制分頁
+    -   每頁最多 100 筆記錄
+    -   返回總記錄數和總頁數
+-   **排序支持**：
+    -   使用 `order_by` 參數指定排序欄位（created_at, confidence, disease_name, severity）
+    -   使用 `order_dir` 參數指定排序方向（ASC, DESC）
+-   **過濾支持**：
+    -   使用 `disease` 參數過濾病害名稱（不區分大小寫，支持部分匹配）
+    -   使用 `min_confidence` 參數過濾最小置信度
+-   **病害資訊查詢**：
+    -   對每筆記錄自動查詢 `disease_library` 表獲取病害詳細資訊
+    -   如果找到中文名稱，使用中文名稱作為顯示名稱
+    -   返回完整的病害資訊（包含病因、症狀、防治措施等）
