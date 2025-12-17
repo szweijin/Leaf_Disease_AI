@@ -960,7 +960,8 @@ function HistoryPage() {
                                                         if (
                                                             !diseaseName ||
                                                             diseaseName === "others" ||
-                                                            diseaseName === "whole_plant"
+                                                            diseaseName === "whole_plant" ||
+                                                            diseaseName === "other"
                                                         )
                                                             return null;
                                                         if (record.confidence !== undefined) {
