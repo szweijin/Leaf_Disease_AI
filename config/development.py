@@ -2,7 +2,7 @@
 開發環境配置（local development）
 """
 import os
-from config.base import Config
+from config.base import Config, get_env_int
 
 class DevelopmentConfig(Config):
     """開發環境特定配置（本地端使用）"""
@@ -13,7 +13,7 @@ class DevelopmentConfig(Config):
     
     # 本地端 Redis 配置（可從環境變數覆蓋）
     REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
-    REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
-    REDIS_DB = int(os.getenv('REDIS_DB', 0))
-    CACHE_DEFAULT_TIMEOUT = int(os.getenv('CACHE_DEFAULT_TIMEOUT', 1800))  # 本地端快取 30 分鐘
+    REDIS_PORT = get_env_int('REDIS_PORT', 6379)
+    REDIS_DB = get_env_int('REDIS_DB', 0)
+    CACHE_DEFAULT_TIMEOUT = get_env_int('CACHE_DEFAULT_TIMEOUT', 1800)  # 本地端快取 30 分鐘
 

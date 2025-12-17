@@ -4,6 +4,26 @@
 import os
 from datetime import timedelta
 
+def get_env_int(key: str, default: int) -> int:
+    """
+    安全地從環境變數獲取整數值
+    如果環境變數不存在或為空字串，返回預設值
+    
+    Args:
+        key: 環境變數名稱
+        default: 預設值
+        
+    Returns:
+        環境變數的整數值或預設值
+    """
+    value = os.getenv(key)
+    if not value or value.strip() == '':
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
 class Config:
     """所有環境的基礎配置"""
     
@@ -60,19 +80,19 @@ class Config:
 
     # Redis 配置（本地端）
     REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
-    REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
-    REDIS_DB = int(os.getenv('REDIS_DB', 0))
+    REDIS_PORT = get_env_int('REDIS_PORT', 6379)
+    REDIS_DB = get_env_int('REDIS_DB', 0)
     REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', None)
-    CACHE_DEFAULT_TIMEOUT = int(os.getenv('CACHE_DEFAULT_TIMEOUT', 3600))  # 預設快取時間 1 小時
+    CACHE_DEFAULT_TIMEOUT = get_env_int('CACHE_DEFAULT_TIMEOUT', 3600)  # 預設快取時間 1 小時
     
     # 會話（可從 .env 檔案設定）
-    PERMANENT_SESSION_LIFETIME = timedelta(hours=int(os.getenv('PERMANENT_SESSION_LIFETIME_HOURS', 24)))
+    PERMANENT_SESSION_LIFETIME = timedelta(hours=get_env_int('PERMANENT_SESSION_LIFETIME_HOURS', 24))
     SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'false').lower() == 'true'
     SESSION_COOKIE_HTTPONLY = os.getenv('SESSION_COOKIE_HTTPONLY', 'true').lower() == 'true'
     SESSION_COOKIE_SAMESITE = os.getenv('SESSION_COOKIE_SAMESITE', 'Lax')
     
     # 上傳（可從 .env 檔案設定）
-    MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 5 * 1024 * 1024))  # 5MB
+    MAX_CONTENT_LENGTH = get_env_int('MAX_CONTENT_LENGTH', 5 * 1024 * 1024)  # 5MB
     UPLOAD_FOLDER_RELATIVE = os.getenv('UPLOAD_FOLDER_RELATIVE', 'uploads')  # 相對於專案根目錄的上傳資料夾
     ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif'}
     
@@ -112,7 +132,7 @@ class Config:
     ENABLE_SR = os.getenv('ENABLE_SR', 'true').lower() == 'true'  # 是否啟用超解析度預處理
     SR_MODEL_PATH_RELATIVE = os.getenv('SR_MODEL_PATH_RELATIVE', None)  # 超解析度模型路徑（可選，如果為 None 則使用預設架構）
     SR_MODEL_TYPE = os.getenv('SR_MODEL_TYPE', 'edsr')  # 超解析度模型類型 ('edsr', 'rcan' 等)
-    SR_SCALE = int(os.getenv('SR_SCALE', 2))  # 超解析度放大倍數 (2, 4, 8)
+    SR_SCALE = get_env_int('SR_SCALE', 2)  # 超解析度放大倍數 (2, 4, 8)
     
     # 向後兼容
     MODEL_PATH_RELATIVE = os.getenv('MODEL_PATH_RELATIVE', os.getenv('YOLO_MODEL_PATH_RELATIVE', 'model/yolov11/best_v1_50.pt'))  # 相對於專案根目錄的模型路徑
@@ -127,5 +147,5 @@ class Config:
     
     # 日誌（可從 .env 檔案設定）
     LOG_FILE = os.getenv('LOG_FILE', 'data/logs/app.log')
-    LOG_MAX_SIZE = int(os.getenv('LOG_MAX_SIZE', 10485760))  # 10MB
-    LOG_BACKUP_COUNT = int(os.getenv('LOG_BACKUP_COUNT', 10))
+    LOG_MAX_SIZE = get_env_int('LOG_MAX_SIZE', 10485760)  # 10MB
+    LOG_BACKUP_COUNT = get_env_int('LOG_BACKUP_COUNT', 10)
