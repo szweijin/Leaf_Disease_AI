@@ -1,11 +1,11 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { toast } from "sonner";
-import Cropper from "react-easy-crop";
-import "react-easy-crop/react-easy-crop.css";
+import Cropper from "react-cropper";
+import "cropperjs/dist/cropper.css";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { X } from "lucide-react";
-import type { Area } from "react-easy-crop";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ImageCropperProps {
     image: string;
@@ -26,10 +26,10 @@ function ImageCropper({
     onCropComplete,
     onCancel,
 }: Omit<ImageCropperProps, "result">) {
-    const [crop, setCrop] = useState({ x: 0, y: 0 });
-    const [zoom, setZoom] = useState(1);
-    const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cropperRef = useRef<any>(null);
     const lastCropCountRef = useRef<number>(cropCount);
+    const isMobile = useIsMobile();
 
     // 根據 crop 次數顯示不同的提示信息
     useEffect(() => {
@@ -44,83 +44,34 @@ function ImageCropper({
         }
     }, [cropCount, maxCropCount]);
 
-    const onCropChange = useCallback((crop: { x: number; y: number }) => {
-        setCrop(crop);
-    }, []);
-
-    const onZoomChange = useCallback((zoom: number) => {
-        setZoom(zoom);
-    }, []);
-
-    const onCropCompleteCallback = useCallback((croppedArea: Area, croppedAreaPixels: Area) => {
-        setCroppedAreaPixels(croppedAreaPixels);
-    }, []);
-
-    const createImage = (url: string): Promise<HTMLImageElement> =>
-        new Promise((resolve, reject) => {
-            const image = new Image();
-            image.addEventListener("load", () => resolve(image));
-            image.addEventListener("error", (error) => reject(error));
-            image.src = url;
-        });
-
-    const getCroppedImg = async (imageSrc: string, pixelCrop: Area): Promise<string> => {
-        const image = await createImage(imageSrc);
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-
-        if (!ctx) {
-            throw new Error("無法獲取 canvas context");
-        }
-
-        const maxSize = Math.max(image.width, image.height);
-        const safeArea = 2 * ((maxSize / 2) * Math.sqrt(2));
-
-        canvas.width = safeArea;
-        canvas.height = safeArea;
-
-        ctx.drawImage(image, safeArea / 2 - image.width * 0.5, safeArea / 2 - image.height * 0.5);
-
-        const data = ctx.getImageData(0, 0, safeArea, safeArea);
-
-        canvas.width = pixelCrop.width;
-        canvas.height = pixelCrop.height;
-
-        ctx.putImageData(
-            data,
-            Math.round(0 - safeArea / 2 + image.width * 0.5 - pixelCrop.x),
-            Math.round(0 - safeArea / 2 + image.height * 0.5 - pixelCrop.y)
-        );
-
-        return new Promise((resolve, reject) => {
-            canvas.toBlob((blob) => {
-                if (!blob) {
-                    reject(new Error("Canvas is empty"));
-                    return;
-                }
-                const reader = new FileReader();
-                reader.addEventListener("load", () => {
-                    resolve(reader.result as string);
-                });
-                reader.addEventListener("error", reject);
-                reader.readAsDataURL(blob);
-            }, "image/jpeg");
-        });
-    };
-
-    const handleCrop = async () => {
-        if (!croppedAreaPixels) {
+    const handleCrop = () => {
+        const cropper = cropperRef.current?.cropper;
+        if (!cropper) {
             toast.error("請先選擇裁切區域");
             return;
         }
 
         try {
-            const croppedImage = await getCroppedImg(image, croppedAreaPixels);
+            const croppedCanvas = cropper.getCroppedCanvas({
+                width: 800,
+                height: 800,
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: "high",
+            });
+
+            if (!croppedCanvas) {
+                toast.error("無法獲取裁切後的圖片");
+                return;
+            }
+
+            const croppedImage = croppedCanvas.toDataURL("image/jpeg", 0.9);
+            const cropData = cropper.getData();
+
             onCropComplete(croppedImage, {
-                x: croppedAreaPixels.x,
-                y: croppedAreaPixels.y,
-                width: croppedAreaPixels.width,
-                height: croppedAreaPixels.height,
+                x: cropData.x,
+                y: cropData.y,
+                width: cropData.width,
+                height: cropData.height,
             });
         } catch (error) {
             console.error("裁切失敗:", error);
@@ -129,62 +80,50 @@ function ImageCropper({
     };
 
     return (
-        <div className='container mx-auto p-4 max-w-4xl'>
+        <div className={`container mx-auto ${isMobile ? "p-2" : "p-4"} max-w-4xl`}>
             <Card>
-                <CardHeader>
-                    <CardTitle>裁切圖片</CardTitle>
-                    <CardDescription>
+                <CardHeader className={isMobile ? "p-4" : ""}>
+                    <CardTitle className={isMobile ? "text-lg" : ""}>裁切圖片</CardTitle>
+                    <CardDescription className={isMobile ? "text-sm" : ""}>
                         {cropCount > 1
                             ? `第 ${cropCount}/${maxCropCount} 次裁切 - 請拖動綠色框選擇要檢測的葉片區域`
                             : "請拖動綠色框選擇要檢測的葉片區域"}
                     </CardDescription>
                 </CardHeader>
-                <CardContent className='space-y-4'>
+                <CardContent className={`space-y-4 ${isMobile ? "p-4" : ""}`}>
                     <div
                         className='relative border rounded-lg overflow-hidden bg-neutral-100'
-                        style={{ height: "400px", position: "relative" }}
+                        style={{
+                            height: isMobile ? "300px" : "auto",
+                            position: "relative",
+                        }}
                     >
                         <Cropper
-                            image={image}
-                            crop={crop}
-                            zoom={zoom}
-                            aspect={1}
-                            onCropChange={onCropChange}
-                            onZoomChange={onZoomChange}
-                            onCropComplete={onCropCompleteCallback}
-                            cropShape='rect'
-                            showGrid={true}
-                            style={{
-                                containerStyle: {
-                                    width: "100%",
-                                    height: "100%",
-                                    position: "relative",
-                                },
-                            }}
+                            ref={cropperRef}
+                            src={image}
+                            style={{ height: "100%", width: "100%" }}
+                            aspectRatio={1}
+                            guides={true}
+                            viewMode={1}
+                            dragMode='move'
+                            cropBoxMovable={true}
+                            cropBoxResizable={true}
+                            toggleDragModeOnDblclick={false}
+                            zoomable={true}
+                            scalable={true}
+                            rotatable={false}
+                            responsive={true}
+                            restore={false}
                         />
                     </div>
-                    <div className='flex flex-col sm:flex-row gap-4'>
-                        <div className='flex-1 space-y-2'>
-                            <label className='text-sm font-medium'>縮放</label>
-                            <input
-                                type='range'
-                                min={1}
-                                max={3}
-                                step={0.1}
-                                value={zoom}
-                                onChange={(e) => setZoom(Number(e.target.value))}
-                                className='w-full'
-                            />
-                        </div>
-                        <div className='flex gap-4'>
-                            <Button onClick={handleCrop} className='flex-1'>
-                                確認裁切
-                            </Button>
-                            <Button variant='outline' onClick={onCancel}>
-                                <X className='h-4 w-4 mr-2' />
-                                取消
-                            </Button>
-                        </div>
+                    <div className={`flex ${isMobile ? "flex-col" : "flex-row"} gap-4`}>
+                        <Button onClick={handleCrop} className='flex-1'>
+                            確認裁切
+                        </Button>
+                        <Button variant='outline' onClick={onCancel} className={isMobile ? "w-full" : ""}>
+                            <X className={`${isMobile ? "h-4 w-4" : "h-4 w-4"} mr-2`} />
+                            取消
+                        </Button>
                     </div>
                 </CardContent>
             </Card>
