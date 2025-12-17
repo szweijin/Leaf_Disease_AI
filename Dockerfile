@@ -101,6 +101,68 @@ RUN mkdir -p ./model/CNN/CNN_v1.1_20251210 ./model/yolov11/YOLOv11_v1_20251212/w
 COPY model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth /app/model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth
 COPY model/yolov11/YOLOv11_v1_20251212/weights/best.pt /app/model/yolov11/YOLOv11_v1_20251212/weights/best.pt
 
+# 檢查文件是否為 Git LFS 指標文件（如果是，提供明確的錯誤信息）
+RUN python3 << 'EOF'
+import os
+
+def check_lfs_pointer(file_path):
+    """檢查文件是否為 Git LFS 指標文件"""
+    if not os.path.exists(file_path):
+        return False, "文件不存在"
+    
+    size = os.path.getsize(file_path)
+    
+    # 如果文件小於 200 bytes，很可能是 LFS 指標文件
+    if size < 200:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            content = f.read(200)
+            if 'version https://git-lfs.github.com/spec/v1' in content or 'oid sha256:' in content:
+                return True, f"Git LFS 指標文件（{size} bytes）\n文件內容:\n{content[:200]}"
+    
+    return False, None
+
+# 檢查 YOLO 模型
+yolo_path = '/app/model/yolov11/YOLOv11_v1_20251212/weights/best.pt'
+print(f"🔍 檢查 YOLO 模型文件: {yolo_path}")
+is_lfs, lfs_info = check_lfs_pointer(yolo_path)
+if is_lfs:
+    print(f"❌ 錯誤: YOLO 模型文件是 Git LFS 指標文件")
+    print(f"   {lfs_info}")
+    print(f"\n💡 解決方案:")
+    print(f"   1. 在本地執行: git lfs pull")
+    print(f"   2. 確認本地文件大小正確: ls -lh {yolo_path}")
+    print(f"   3. 重新提交並推送（確保 LFS 文件已上傳）")
+    print(f"   4. 或者使用遠端下載方式（修改 Dockerfile 使用 wget/curl）")
+    raise ValueError("YOLO 模型文件是 Git LFS 指標文件，請在構建前執行 'git lfs pull'")
+
+size = os.path.getsize(yolo_path)
+if size < 1024 * 1024:
+    raise ValueError(f"YOLO 模型文件大小異常（{size} bytes），模型文件通常應該大於 1MB")
+
+print(f"   ✅ YOLO 模型文件大小正常: {size / 1024 / 1024:.2f} MB")
+
+# 檢查 CNN 模型
+cnn_path = '/app/model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth'
+print(f"🔍 檢查 CNN 模型文件: {cnn_path}")
+is_lfs, lfs_info = check_lfs_pointer(cnn_path)
+if is_lfs:
+    print(f"❌ 錯誤: CNN 模型文件是 Git LFS 指標文件")
+    print(f"   {lfs_info}")
+    print(f"\n💡 解決方案:")
+    print(f"   1. 在本地執行: git lfs pull")
+    print(f"   2. 確認本地文件大小正確: ls -lh {cnn_path}")
+    print(f"   3. 重新提交並推送（確保 LFS 文件已上傳）")
+    print(f"   4. 或者使用遠端下載方式（修改 Dockerfile 使用 wget/curl）")
+    raise ValueError("CNN 模型文件是 Git LFS 指標文件，請在構建前執行 'git lfs pull'")
+
+size = os.path.getsize(cnn_path)
+if size < 1024 * 1024:
+    raise ValueError(f"CNN 模型文件大小異常（{size} bytes），模型文件通常應該大於 1MB")
+
+print(f"   ✅ CNN 模型文件大小正常: {size / 1024 / 1024:.2f} MB")
+print("✅ 模型文件檢查完成")
+EOF
+
 # 驗證文件是否正確複製（檢查文件大小）
 RUN echo "=== 檢查 YOLO 模型文件 ===" && \
     ls -lh /app/model/yolov11/YOLOv11_v1_20251212/weights/best.pt && \
