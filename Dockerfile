@@ -101,46 +101,52 @@ COPY model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth ./model/CNN/CNN_v1.1
 COPY model/yolov11/YOLOv11_v1_20251212/weights/best.pt ./model/yolov11/YOLOv11_v1_20251212/weights/
 
 # 驗證模型文件是否正確複製（檢查文件大小和格式）
-RUN python3 -c " \
-import os; \
-yolo_path = './model/yolov11/YOLOv11_v1_20251212/weights/best.pt'; \
-print(f'🔍 驗證 YOLO 模型文件: {yolo_path}'); \
-if not os.path.exists(yolo_path): \
-    raise FileNotFoundError(f'YOLO 模型文件不存在: {yolo_path}'); \
-size = os.path.getsize(yolo_path); \
-print(f'   文件大小: {size / 1024 / 1024:.2f} MB ({size} bytes)'); \
-if size < 1024 * 1024: \
-    raise ValueError(f'YOLO 模型文件大小異常（{size} bytes），模型文件通常應該大於 1MB'); \
-with open(yolo_path, 'rb') as f: \
-    header = f.read(16); \
-    header_preview = header[:4]; \
-    header_hex = header.hex()[:8]; \
-    print(f'   文件頭: {header_hex} ({repr(header_preview)})'); \
-    if header_preview.startswith(b'v'): \
-        f.seek(0); \
-        try: \
-            first_line = f.readline(100).decode('utf-8', errors='ignore').strip(); \
-            raise ValueError(f'YOLO 模型文件格式異常，文件以 \\'v\\' 開頭，可能是文本文件而非模型文件\\n文件開頭內容: {first_line[:100]}'); \
-        except: \
-            raise ValueError(f'YOLO 模型文件格式異常，文件以 \\'v\\' 開頭，可能是文本文件而非模型文件'); \
-    if header_preview.startswith(b'PK'): \
-        print(f'   ✅ 文件頭格式正確（ZIP/PyTorch 格式）'); \
-    else: \
-        print(f'   ⚠️  文件頭不是標準的 ZIP 格式（\\'PK\\'），但繼續...'); \
-print(f'✅ YOLO 模型文件驗證通過: {yolo_path} (大小: {size / 1024 / 1024:.2f} MB)'); \
-" && \
-python3 -c " \
-import os; \
-cnn_path = './model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth'; \
-print(f'🔍 驗證 CNN 模型文件: {cnn_path}'); \
-if not os.path.exists(cnn_path): \
-    raise FileNotFoundError(f'CNN 模型文件不存在: {cnn_path}'); \
-size = os.path.getsize(cnn_path); \
-print(f'   文件大小: {size / 1024 / 1024:.2f} MB ({size} bytes)'); \
-if size < 1024 * 1024: \
-    raise ValueError(f'CNN 模型文件大小異常（{size} bytes），模型文件通常應該大於 1MB'); \
-print(f'✅ CNN 模型文件驗證通過: {cnn_path} (大小: {size / 1024 / 1024:.2f} MB)'); \
-"
+RUN python3 << 'EOF'
+import os
+
+# 驗證 YOLO 模型
+yolo_path = './model/yolov11/YOLOv11_v1_20251212/weights/best.pt'
+print(f'🔍 驗證 YOLO 模型文件: {yolo_path}')
+if not os.path.exists(yolo_path):
+    raise FileNotFoundError(f'YOLO 模型文件不存在: {yolo_path}')
+
+size = os.path.getsize(yolo_path)
+print(f'   文件大小: {size / 1024 / 1024:.2f} MB ({size} bytes)')
+if size < 1024 * 1024:
+    raise ValueError(f'YOLO 模型文件大小異常（{size} bytes），模型文件通常應該大於 1MB')
+
+with open(yolo_path, 'rb') as f:
+    header = f.read(16)
+    header_preview = header[:4]
+    header_hex = header.hex()[:8]
+    print(f'   文件頭: {header_hex} ({repr(header_preview)})')
+    if header_preview.startswith(b'v'):
+        f.seek(0)
+        try:
+            first_line = f.readline(100).decode('utf-8', errors='ignore').strip()
+            raise ValueError(f'YOLO 模型文件格式異常，文件以 \'v\' 開頭，可能是文本文件而非模型文件\n文件開頭內容: {first_line[:100]}')
+        except:
+            raise ValueError(f'YOLO 模型文件格式異常，文件以 \'v\' 開頭，可能是文本文件而非模型文件')
+    if header_preview.startswith(b'PK'):
+        print(f'   ✅ 文件頭格式正確（ZIP/PyTorch 格式）')
+    else:
+        print(f'   ⚠️  文件頭不是標準的 ZIP 格式（\'PK\'），但繼續...')
+
+print(f'✅ YOLO 模型文件驗證通過: {yolo_path} (大小: {size / 1024 / 1024:.2f} MB)')
+
+# 驗證 CNN 模型
+cnn_path = './model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth'
+print(f'🔍 驗證 CNN 模型文件: {cnn_path}')
+if not os.path.exists(cnn_path):
+    raise FileNotFoundError(f'CNN 模型文件不存在: {cnn_path}')
+
+size = os.path.getsize(cnn_path)
+print(f'   文件大小: {size / 1024 / 1024:.2f} MB ({size} bytes)')
+if size < 1024 * 1024:
+    raise ValueError(f'CNN 模型文件大小異常（{size} bytes），模型文件通常應該大於 1MB')
+
+print(f'✅ CNN 模型文件驗證通過: {cnn_path} (大小: {size / 1024 / 1024:.2f} MB)')
+EOF
 
 # 注意：SR 模型和其他模型文件已排除，如需使用請在 .env 中配置並取消註釋
 # SR 模型是可選的，如果 ENABLE_SR=false 或 SR_MODEL_PATH_RELATIVE 未設置，則不需要
