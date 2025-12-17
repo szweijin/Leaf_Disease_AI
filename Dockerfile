@@ -102,8 +102,12 @@ COPY model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth /app/model/CNN/CNN_v
 COPY model/yolov11/YOLOv11_v1_20251212/weights/best.pt /app/model/yolov11/YOLOv11_v1_20251212/weights/best.pt
 
 # 驗證文件是否正確複製（檢查文件大小）
-RUN ls -lh /app/model/yolov11/YOLOv11_v1_20251212/weights/best.pt && \
+RUN echo "=== 檢查 YOLO 模型文件 ===" && \
+    ls -lh /app/model/yolov11/YOLOv11_v1_20251212/weights/best.pt && \
+    wc -c /app/model/yolov11/YOLOv11_v1_20251212/weights/best.pt && \
+    echo "=== 檢查 CNN 模型文件 ===" && \
     ls -lh /app/model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth && \
+    wc -c /app/model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth && \
     test -f /app/model/yolov11/YOLOv11_v1_20251212/weights/best.pt && \
     test -f /app/model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth && \
     echo "✅ 模型文件複製成功"

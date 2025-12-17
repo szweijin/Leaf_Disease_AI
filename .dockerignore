@@ -65,10 +65,11 @@ logs/
 
 # 上傳文件
 uploads/
-*.jpg
-*.jpeg
-*.png
-*.gif
+# 注意：不要排除模型文件，只排除上傳的圖片文件
+# *.jpg
+# *.jpeg
+# *.png
+# *.gif
 
 # 其他
 .DS_Store
