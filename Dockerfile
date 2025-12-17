@@ -31,9 +31,10 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# 安裝系統依賴（最小化）
+# 安裝系統依賴（最小化，包含 bash）
 RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client \
+    bash \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
@@ -115,6 +116,6 @@ RUN find . -type d -name __pycache__ -exec rm -r {} + 2>/dev/null || true && \
 # 暴露端口
 EXPOSE ${PORT:-5000}
 
-# 啟動命令（使用啟動腳本）
-CMD ["./start.sh"]
+# 啟動命令（使用 shell 執行啟動腳本）
+CMD ["/bin/bash", "./start.sh"]
 
