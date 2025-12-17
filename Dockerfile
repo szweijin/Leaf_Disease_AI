@@ -116,6 +116,7 @@ RUN find . -type d -name __pycache__ -exec rm -r {} + 2>/dev/null || true && \
 # 暴露端口
 EXPOSE ${PORT:-5000}
 
-# 啟動命令（直接使用 shell 執行，確保有 shell 環境）
-CMD /bin/bash -c "./railway-init.sh && gunicorn backend.app:app --bind 0.0.0.0:${PORT:-5000} --workers 2 --threads 2 --timeout 120 --access-logfile - --error-logfile -"
+# 啟動命令（使用 shell 形式，確保有 shell 環境）
+# 注意：Railway 會優先使用 railway.json 中的 startCommand
+CMD ["/bin/bash", "-c", "./railway-init.sh && gunicorn backend.app:app --bind 0.0.0.0:${PORT:-5000} --workers 2 --threads 2 --timeout 120 --access-logfile - --error-logfile -"]
 
