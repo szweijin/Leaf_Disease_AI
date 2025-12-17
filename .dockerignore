@@ -79,6 +79,7 @@ Thumbs.db
 # Railway 特定
 .railwayignore
 railway.json
+Procfile
 
 # NIXPACKS（使用 Dockerfile 時不需要）
 nixpacks.toml
