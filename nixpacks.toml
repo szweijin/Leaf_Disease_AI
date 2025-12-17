@@ -1,0 +1,6 @@
+# NIXPACKS 配置文件
+# 確保 NIXPACKS 同時檢測到 Node.js 和 Python
+
+# NIXPACKS 會自動檢測 package.json（Node.js）和 requirements.txt（Python）
+# 此文件用於確保兩個語言都被正確檢測
+
