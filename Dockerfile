@@ -97,15 +97,23 @@ RUN mkdir -p ./model/CNN/CNN_v1.1_20251210 ./model/yolov11/YOLOv11_v1_20251212/w
 # 只複製預設使用的模型（根據 .env 配置）
 # CNN 模型：model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth
 # YOLO 模型：model/yolov11/YOLOv11_v1_20251212/weights/best.pt
-COPY model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth ./model/CNN/CNN_v1.1_20251210/
-COPY model/yolov11/YOLOv11_v1_20251212/weights/best.pt ./model/yolov11/YOLOv11_v1_20251212/weights/
+# 使用絕對路徑確保文件正確複製
+COPY model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth /app/model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth
+COPY model/yolov11/YOLOv11_v1_20251212/weights/best.pt /app/model/yolov11/YOLOv11_v1_20251212/weights/best.pt
+
+# 驗證文件是否正確複製（檢查文件大小）
+RUN ls -lh /app/model/yolov11/YOLOv11_v1_20251212/weights/best.pt && \
+    ls -lh /app/model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth && \
+    test -f /app/model/yolov11/YOLOv11_v1_20251212/weights/best.pt && \
+    test -f /app/model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth && \
+    echo "✅ 模型文件複製成功"
 
 # 驗證模型文件是否正確複製（檢查文件大小和格式）
 RUN python3 << 'EOF'
 import os
 
 # 驗證 YOLO 模型
-yolo_path = './model/yolov11/YOLOv11_v1_20251212/weights/best.pt'
+yolo_path = '/app/model/yolov11/YOLOv11_v1_20251212/weights/best.pt'
 print(f'🔍 驗證 YOLO 模型文件: {yolo_path}')
 if not os.path.exists(yolo_path):
     raise FileNotFoundError(f'YOLO 模型文件不存在: {yolo_path}')
@@ -135,7 +143,7 @@ with open(yolo_path, 'rb') as f:
 print(f'✅ YOLO 模型文件驗證通過: {yolo_path} (大小: {size / 1024 / 1024:.2f} MB)')
 
 # 驗證 CNN 模型
-cnn_path = './model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth'
+cnn_path = '/app/model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth'
 print(f'🔍 驗證 CNN 模型文件: {cnn_path}')
 if not os.path.exists(cnn_path):
     raise FileNotFoundError(f'CNN 模型文件不存在: {cnn_path}')
