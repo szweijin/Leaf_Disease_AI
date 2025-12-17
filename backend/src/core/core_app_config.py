@@ -27,11 +27,17 @@ base_dir = _setup_import_paths()
 
 # 在導入 config 之前先載入 .env 檔案（重要！）
 # 這樣 Config 類的屬性才能正確讀取環境變數
-from dotenv import load_dotenv
 load_dotenv(dotenv_path=os.path.join(base_dir, '.env'))
 
 # 現在可以導入 config 了
-from config.development import DevelopmentConfig
+# 根據環境變數選擇配置
+ENV = os.getenv('FLASK_ENV', os.getenv('ENVIRONMENT', 'development')).lower()
+
+if ENV == 'production':
+    from config.production import ProductionConfig as AppConfig
+else:
+    from config.development import DevelopmentConfig as AppConfig
+
 from src.core.core_redis_manager import redis_manager
 from src.services.service_yolo import DetectionService
 from src.services.service_integrated import IntegratedDetectionService
@@ -80,19 +86,29 @@ def create_app():
     
     # Flask 應用
     app = Flask(__name__)
-    app.config.from_object(DevelopmentConfig)
+    app.config.from_object(AppConfig)
     
     # 確保 JSON 響應正確處理 Unicode 字符（中文）
     app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
     app.config['JSON_AS_ASCII'] = False  # 確保中文不被轉義為 \uXXXX 格式
     
     # 配置 CORS（跨域資源共享）
-    # 允許前端（localhost:5173）訪問後端 API（localhost:5000）
-    CORS(app, 
-         origins=["http://localhost:5173", "http://127.0.0.1:5173"],  # 允許的前端地址
-         supports_credentials=True,  # 允許發送 cookies 和認證信息
-         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # 允許的 HTTP 方法
-         allow_headers=["Content-Type", "Authorization"])  # 允許的請求頭
+    # 根據環境配置 CORS
+    if ENV == 'production':
+        # 生產環境：允許所有來源（或指定域名）
+        allowed_origins = os.getenv('CORS_ORIGINS', '*').split(',')
+        CORS(app, 
+             origins=allowed_origins if '*' not in allowed_origins else None,  # None 表示允許所有
+             supports_credentials=True,
+             methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+             allow_headers=["Content-Type", "Authorization"])
+    else:
+        # 開發環境：只允許本地前端
+        CORS(app, 
+             origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+             supports_credentials=True,
+             methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+             allow_headers=["Content-Type", "Authorization"])
     
     # 配置靜態文件服務：uploads 資料夾用於提供上傳的圖片
     app.static_folder = BASE_DIR
@@ -100,23 +116,23 @@ def create_app():
     
     # 驗證應用程式配置
     try:
-        DevelopmentConfig.validate_app_config()
+        AppConfig.validate_app_config()
     except ValueError as e:
         logger.error(f"❌ 應用程式配置驗證失敗: {str(e)}")
-        logger.error("   請確保 .env 檔案存在並包含所有必要的設定")
+        logger.error("   請確保環境變數已正確設定")
         raise
     
     # 驗證資料庫配置
     try:
-        DevelopmentConfig.validate_db_config()
+        AppConfig.validate_db_config()
     except ValueError as e:
         logger.error(f"❌ 資料庫配置驗證失敗: {str(e)}")
-        logger.error("   請確保 .env 檔案存在並包含所有必要的資料庫設定")
+        logger.error("   請確保環境變數已正確設定")
         raise
     
     # 驗證 Cloudinary 配置（如果啟用）
     try:
-        DevelopmentConfig.validate_cloudinary_config()
+        AppConfig.validate_cloudinary_config()
     except ValueError as e:
         logger.warning(f"⚠️  Cloudinary 配置驗證失敗: {str(e)}")
         logger.warning("   將使用本地文件儲存")
@@ -125,17 +141,17 @@ def create_app():
     cache = setup_cache(app)
     
     # 配置 Swagger（從 config 讀取配置）
-    setup_swagger(app, DevelopmentConfig)
+    setup_swagger(app, AppConfig)
     
     # 設定上傳資料夾（從 config 讀取路徑）
-    upload_folder = setup_upload_folder(BASE_DIR, DevelopmentConfig)
+    upload_folder = setup_upload_folder(BASE_DIR, AppConfig)
     
     # 載入模型（從 config 讀取路徑）
-    detection_service = load_model(BASE_DIR, DevelopmentConfig)
-    integrated_service = load_integrated_models(BASE_DIR, DevelopmentConfig)
+    detection_service = load_model(BASE_DIR, AppConfig)
+    integrated_service = load_integrated_models(BASE_DIR, AppConfig)
     
     # 初始化 Cloudinary（如果啟用）
-    cloudinary_storage = setup_cloudinary(DevelopmentConfig)
+    cloudinary_storage = setup_cloudinary(AppConfig)
     
     return app, cache, upload_folder, detection_service, integrated_service, cloudinary_storage
 

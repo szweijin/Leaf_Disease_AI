@@ -31,6 +31,9 @@ flask-caching
 flask-swagger-ui
 flasgger
 
+# 生產環境依賴
+gunicorn  # WSGI HTTP Server for production
+
 # 開發依賴
 pytest
 pytest-cov

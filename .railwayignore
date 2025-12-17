@@ -1,0 +1,88 @@
+# 開發文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.npm
+.eslintcache
+.DS_Store
+
+# 前端構建產物（將在部署時重新構建）
+frontend/dist/
+frontend/.vite/
+
+# 測試文件
+tests/
+*.test.js
+*.test.ts
+*.test.tsx
+*.spec.js
+*.spec.ts
+*.spec.tsx
+
+# 日誌文件
+*.log
+logs/
+data/logs/
+
+# 環境變數文件（Railway 會使用環境變數）
+.env
+.env.local
+.env.*.local
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# 文檔（可選，如果需要可以保留）
+docs/
+
+# 腳本（可選）
+scripts/
+
+# 上傳文件（將使用 Cloudinary，不需要上傳）
+uploads/
+*.jpg
+*.jpeg
+*.png
+*.gif
+
+# 模型文件（需要單獨上傳或使用外部存儲）
+# 注意：模型文件很大，建議使用 Railway 的持久化存儲或外部存儲服務
+model/
+
+# 其他
+.DS_Store
+Thumbs.db
+*.bak
+*.tmp
+

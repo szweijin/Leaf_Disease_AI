@@ -3,7 +3,7 @@ Flask 應用程式主文件
 定義所有 API 路由和端點
 """
 
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, send_from_directory, send_file
 from flask_caching import Cache
 import logging
 import os
@@ -28,10 +28,16 @@ logger = logging.getLogger(__name__)
 app, cache, upload_folder, detection_service, integrated_service, cloudinary_storage = create_app()
 
 # 初始化圖片管理器（支援 Cloudinary）
-# 注意：DevelopmentConfig 已經在 create_app() 中載入，這裡直接使用
-from config.development import DevelopmentConfig
-use_cloudinary = getattr(DevelopmentConfig, 'USE_CLOUDINARY', False)
-cloudinary_folder = getattr(DevelopmentConfig, 'CLOUDINARY_FOLDER', 'leaf_disease_ai')
+# 根據環境選擇配置
+import os
+ENV = os.getenv('FLASK_ENV', os.getenv('ENVIRONMENT', 'development')).lower()
+if ENV == 'production':
+    from config.production import ProductionConfig as AppConfig
+else:
+    from config.development import DevelopmentConfig as AppConfig
+
+use_cloudinary = getattr(AppConfig, 'USE_CLOUDINARY', False)
+cloudinary_folder = getattr(AppConfig, 'CLOUDINARY_FOLDER', 'leaf_disease_ai')
 image_manager = init_image_manager(
     upload_folder,
     temp_file_ttl_hours=24,
@@ -941,6 +947,14 @@ def index():
               example: /api-docs
               description: Swagger 文檔路徑
     """
+    # 生產環境：返回前端 index.html
+    if ENV == 'production':
+        frontend_dist = os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'frontend', 'dist')
+        index_path = os.path.join(frontend_dist, 'index.html')
+        if os.path.exists(index_path):
+            return send_from_directory(frontend_dist, 'index.html')
+    
+    # 開發環境：返回 API 狀態
     redis_status = redis_manager.is_available()
     return jsonify({
         "status": "ok",
@@ -950,6 +964,42 @@ def index():
         "redis": redis_status,
         "swagger": "/api-docs"
     })
+
+
+# ==================== 前端靜態文件服務（生產環境）====================
+# 注意：這個路由必須放在最後，作為 catch-all 路由
+
+@app.route("/<path:path>")
+def serve_frontend(path):
+    """
+    服務前端靜態文件（生產環境）
+    用於 SPA 路由，所有非 API 路由都返回 index.html
+    注意：此路由必須放在最後，作為 catch-all 路由
+    """
+    if ENV != 'production':
+        return jsonify({"error": "Not found"}), 404
+    
+    # 獲取前端構建目錄
+    backend_dir = os.path.dirname(__file__)
+    project_root = os.path.dirname(backend_dir)
+    frontend_dist = os.path.join(project_root, 'frontend', 'dist')
+    
+    # 如果是 API 路由或後端路由，不應該到達這裡（應該被前面的路由處理）
+    # 但為了安全起見，還是檢查一下
+    if path.startswith('api/') or path.startswith('static/'):
+        return jsonify({"error": "Not found"}), 404
+    
+    # 嘗試返回靜態文件（CSS、JS、圖片等）
+    file_path = os.path.join(frontend_dist, path)
+    if os.path.exists(file_path) and os.path.isfile(file_path):
+        return send_from_directory(frontend_dist, path)
+    
+    # 否則返回 index.html（SPA 路由）
+    index_path = os.path.join(frontend_dist, 'index.html')
+    if os.path.exists(index_path):
+        return send_from_directory(frontend_dist, 'index.html')
+    
+    return jsonify({"error": "Not found"}), 404
 
 
 if __name__ == "__main__":
