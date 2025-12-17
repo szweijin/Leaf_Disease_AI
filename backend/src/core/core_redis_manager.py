@@ -25,19 +25,49 @@ class RedisManager:
     def __init__(self):
         """初始化 Redis 連接"""
         try:
-            self.client = redis.Redis(
-                host=os.getenv('REDIS_HOST', 'localhost'),
-                port=int(os.getenv('REDIS_PORT', 6379)),
-                db=int(os.getenv('REDIS_DB', 0)),
-                decode_responses=True,
-                socket_connect_timeout=5,
-                socket_timeout=5
-            )
+            # 獲取 Redis 配置
+            redis_host = os.getenv('REDIS_HOST', 'localhost')
+            redis_port_str = os.getenv('REDIS_PORT', '6379')
+            redis_db_str = os.getenv('REDIS_DB', '0')
+            redis_password = os.getenv('REDIS_PASSWORD', None)
+            
+            # 安全地轉換端口和數據庫編號（處理空字串）
+            try:
+                redis_port = int(redis_port_str) if redis_port_str and redis_port_str.strip() else 6379
+            except ValueError:
+                redis_port = 6379
+                
+            try:
+                redis_db = int(redis_db_str) if redis_db_str and redis_db_str.strip() else 0
+            except ValueError:
+                redis_db = 0
+            
+            # 構建連接參數
+            connection_params = {
+                'host': redis_host,
+                'port': redis_port,
+                'db': redis_db,
+                'decode_responses': True,
+                'socket_connect_timeout': 5,
+                'socket_timeout': 5
+            }
+            
+            # 如果有密碼（非空且非空字串），添加到連接參數
+            if redis_password and redis_password.strip():
+                connection_params['password'] = redis_password.strip()
+            
+            self.client = redis.Redis(**connection_params)
+            
             # 測試連接
             self.client.ping()
-            logger.info("✅ Redis 連接成功")
+            logger.info(f"✅ Redis 連接成功: {redis_host}:{redis_port}")
+        except redis.AuthenticationError as e:
+            logger.warning(f"⚠️ Redis 認證失敗: {str(e)}，將使用記憶體快取")
+            logger.warning(f"   提示: 請檢查 REDIS_PASSWORD 環境變數是否正確設置")
+            self.client = None
         except redis.ConnectionError as e:
             logger.warning(f"⚠️ Redis 連接失敗: {str(e)}，將使用記憶體快取")
+            logger.warning(f"   提示: 請檢查 REDIS_HOST 和 REDIS_PORT 環境變數")
             self.client = None
         except Exception as e:
             logger.error(f"❌ Redis 初始化錯誤: {str(e)}")

@@ -100,6 +100,32 @@ RUN mkdir -p ./model/CNN/CNN_v1.1_20251210 ./model/yolov11/YOLOv11_v1_20251212/w
 COPY model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth ./model/CNN/CNN_v1.1_20251210/
 COPY model/yolov11/YOLOv11_v1_20251212/weights/best.pt ./model/yolov11/YOLOv11_v1_20251212/weights/
 
+# 驗證模型文件是否正確複製（檢查文件大小和格式）
+RUN python3 -c " \
+import os; \
+yolo_path = './model/yolov11/YOLOv11_v1_20251212/weights/best.pt'; \
+if not os.path.exists(yolo_path): \
+    raise FileNotFoundError(f'YOLO 模型文件不存在: {yolo_path}'); \
+size = os.path.getsize(yolo_path); \
+if size < 1024 * 1024: \
+    raise ValueError(f'YOLO 模型文件大小異常（{size} bytes），可能已損壞'); \
+with open(yolo_path, 'rb') as f: \
+    header = f.read(4); \
+    if header.startswith(b'v'): \
+        raise ValueError(f'YOLO 模型文件格式異常，可能是文本文件而非模型文件'); \
+print(f'✅ YOLO 模型文件驗證通過: {yolo_path} (大小: {size / 1024 / 1024:.2f} MB)'); \
+" && \
+python3 -c " \
+import os; \
+cnn_path = './model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth'; \
+if not os.path.exists(cnn_path): \
+    raise FileNotFoundError(f'CNN 模型文件不存在: {cnn_path}'); \
+size = os.path.getsize(cnn_path); \
+if size < 1024 * 1024: \
+    raise ValueError(f'CNN 模型文件大小異常（{size} bytes），可能已損壞'); \
+print(f'✅ CNN 模型文件驗證通過: {cnn_path} (大小: {size / 1024 / 1024:.2f} MB)'); \
+"
+
 # 注意：SR 模型和其他模型文件已排除，如需使用請在 .env 中配置並取消註釋
 # SR 模型是可選的，如果 ENABLE_SR=false 或 SR_MODEL_PATH_RELATIVE 未設置，則不需要
 
