@@ -78,7 +78,7 @@ uploads/
 
 # 模型文件（需要單獨上傳或使用外部存儲）
 # 注意：模型文件很大，建議使用 Railway 的持久化存儲或外部存儲服務
-model/
+model/SR/
 
 # 其他
 .DS_Store
