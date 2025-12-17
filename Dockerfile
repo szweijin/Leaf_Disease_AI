@@ -6,15 +6,21 @@ FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 
+# 設置 npm 配置以加快安裝速度
+ENV NPM_CONFIG_PRODUCTION=false \
+    NPM_CONFIG_AUDIT=false \
+    NPM_CONFIG_FUND=false
+
 # 複製前端文件並安裝依賴（構建需要 devDependencies）
 COPY frontend/package*.json ./
-RUN npm ci --ignore-scripts && \
+RUN npm ci --prefer-offline --no-audit --no-fund && \
     npm cache clean --force
 
 # 複製前端源代碼
 COPY frontend/ ./
 
-# 構建前端
+# 構建前端（設置環境變數以加快構建）
+ENV NODE_ENV=production
 RUN npm run build
 
 # 清理構建時不需要的文件（保留 dist 目錄）
@@ -31,11 +37,46 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# 只複製 requirements.txt 並安裝 Python 依賴（使用緩存優化）
+# 升級 pip 並設置環境變數（提前設置以優化後續安裝）
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_DEFAULT_TIMEOUT=100
+
+# 先安裝 pip 和基礎工具
+RUN pip install --upgrade pip setuptools wheel
+
+# 分階段安裝依賴以利用構建緩存
+# 先安裝輕量級依賴
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt && \
-    pip cache purge
+RUN pip install --no-cache-dir \
+    Flask \
+    flask-cors \
+    psycopg2-binary \
+    python-dotenv \
+    werkzeug \
+    Pillow \
+    numpy \
+    cloudinary \
+    requests \
+    redis \
+    flask-caching \
+    flask-swagger-ui \
+    flasgger \
+    gunicorn
+
+# 再安裝深度學習框架（使用 CPU 版本，更小更快）
+RUN pip install --no-cache-dir \
+    torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+# 最後安裝其他依賴
+RUN pip install --no-cache-dir \
+    ultralytics \
+    opencv-python-headless \
+    timm
+
+# 注意：開發依賴（pytest, pytest-cov, black, flake8）已排除，生產環境不需要
 
 # 複製後端代碼和配置（排除不必要的文件）
 COPY backend/ ./backend/
@@ -62,12 +103,8 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 COPY railway-init.sh ./
 RUN chmod +x railway-init.sh
 
-# 設置環境變數
-ENV PYTHONUNBUFFERED=1 \
-    FLASK_APP=backend/app.py \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+# 設置應用環境變數
+ENV FLASK_APP=backend/app.py
 
 # 清理不必要的文件
 RUN find . -type d -name __pycache__ -exec rm -r {} + 2>/dev/null || true && \
