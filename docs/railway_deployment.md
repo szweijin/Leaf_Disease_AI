@@ -4,13 +4,13 @@
 
 ## 目錄
 
-- [前置需求](#前置需求)
-- [部署步驟](#部署步驟)
-- [環境變數配置](#環境變數配置)
-- [資料庫設置](#資料庫設置)
-- [Redis 設置](#redis-設置)
-- [模型文件部署](#模型文件部署)
-- [故障排除](#故障排除)
+-   [前置需求](#前置需求)
+-   [部署步驟](#部署步驟)
+-   [環境變數配置](#環境變數配置)
+-   [資料庫設置](#資料庫設置)
+-   [Redis 設置](#redis-設置)
+-   [模型文件部署](#模型文件部署)
+-   [故障排除](#故障排除)
 
 ## 前置需求
 
@@ -179,9 +179,9 @@ psql $DATABASE_URL -f database/init_database.sql
 1. 在 Railway 專案設置中，進入 **"Settings"** → **"Networking"**
 2. 點擊 **"Generate Domain"** 生成 Railway 域名
 3. 或添加自定義域名：
-   - 點擊 **"Custom Domain"**
-   - 輸入您的域名
-   - 按照指示配置 DNS 記錄
+    - 點擊 **"Custom Domain"**
+    - 輸入您的域名
+    - 按照指示配置 DNS 記錄
 
 ### 10. 監控和日誌
 
@@ -197,14 +197,14 @@ Railway 提供內建的監控和日誌功能：
 
 Railway 支援使用 `${{Service.Variable}}` 語法引用其他服務的環境變數：
 
-- `${{Postgres.PGHOST}}` - PostgreSQL 主機
-- `${{Postgres.PGPORT}}` - PostgreSQL 端口
-- `${{Postgres.PGDATABASE}}` - 資料庫名稱
-- `${{Postgres.PGUSER}}` - 資料庫用戶
-- `${{Postgres.PGPASSWORD}}` - 資料庫密碼
-- `${{Redis.REDIS_HOST}}` - Redis 主機
-- `${{Redis.REDIS_PORT}}` - Redis 端口
-- `${{Redis.REDIS_PASSWORD}}` - Redis 密碼
+-   `${{Postgres.PGHOST}}` - PostgreSQL 主機
+-   `${{Postgres.PGPORT}}` - PostgreSQL 端口
+-   `${{Postgres.PGDATABASE}}` - 資料庫名稱
+-   `${{Postgres.PGUSER}}` - 資料庫用戶
+-   `${{Postgres.PGPASSWORD}}` - 資料庫密碼
+-   `${{Redis.REDIS_HOST}}` - Redis 主機
+-   `${{Redis.REDIS_PORT}}` - Redis 端口
+-   `${{Redis.REDIS_PASSWORD}}` - Redis 密碼
 
 ### 環境變數優先級
 
@@ -216,36 +216,70 @@ Railway 環境變數會覆蓋 `.env` 文件中的設定，這確保了生產環�
 
 創建一個初始化腳本，在首次部署時自動執行：
 
-1. 在專案根目錄創建 `railway-init.sh`：
+1. 專案已包含 `railway-init.sh`（包含錯誤處理和狀態檢查）：
 
 ```bash
 #!/bin/bash
 # Railway 資料庫初始化腳本
 
-echo "正在初始化資料庫..."
+set +e  # 不因錯誤而退出，允許繼續執行
+
+echo "🔍 檢查資料庫連接..."
 
 # 等待資料庫就緒
 sleep 5
 
-# 執行初始化 SQL
-psql $DATABASE_URL -f database/init_database.sql
+# 檢查 DATABASE_URL 是否存在
+if [ -z "$DATABASE_URL" ]; then
+    echo "⚠️  警告: DATABASE_URL 未設置，跳過資料庫初始化"
+    exit 0
+fi
 
-echo "資料庫初始化完成！"
+# 檢查 psql 是否可用
+if ! command -v psql &> /dev/null; then
+    echo "⚠️  警告: psql 命令不可用，跳過資料庫初始化"
+    exit 0
+fi
+
+# 檢查資料庫是否已初始化（檢查 users 表是否存在）
+TABLE_EXISTS=$(psql $DATABASE_URL -tAc "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users');" 2>/dev/null)
+
+if [ "$TABLE_EXISTS" = "t" ]; then
+    echo "✅ 資料庫已初始化，跳過初始化步驟"
+    exit 0
+fi
+
+# 執行初始化 SQL
+echo "📦 正在初始化資料庫..."
+if psql $DATABASE_URL -f database/init_database.sql; then
+    echo "✅ 資料庫初始化完成！"
+else
+    echo "⚠️  資料庫初始化失敗，但繼續啟動應用程式"
+fi
 ```
 
-2. 在 `railway.json` 中添加初始化步驟：
+2. 在 `railway.json` 中配置（已包含在專案中）：
 
 ```json
 {
-  "build": {
-    "builder": "NIXPACKS",
-    "buildCommand": "cd frontend && npm install && npm run build && cd .. && pip install -r requirements.txt && chmod +x railway-init.sh"
-  },
-  "deploy": {
-    "startCommand": "./railway-init.sh && cd backend && gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120"
-  }
+    "$schema": "https://railway.app/railway.schema.json",
+    "build": {
+        "builder": "NIXPACKS",
+        "buildCommand": "./build.sh"
+    },
+    "deploy": {
+        "startCommand": "./railway-init.sh && cd backend && gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120 --access-logfile - --error-logfile -",
+        "restartPolicyType": "ON_FAILURE",
+        "restartPolicyMaxRetries": 10
+    }
 }
 ```
+
+**注意**：
+
+-   `build.sh` 會自動構建前端、安裝 Python 依賴，並設置腳本執行權限
+-   `railway-init.sh` 會自動檢查資料庫狀態，避免重複初始化
+-   Gunicorn 配置了日誌輸出到標準輸出（Railway 會自動捕獲）
 
 ### 手動初始化
 
@@ -303,64 +337,72 @@ YOLO_MODEL_PATH_RELATIVE=/app/model/yolov11/best_v1_50.pt
 ### 部署失敗
 
 1. **檢查構建日誌**：
-   - 在 Railway 專案中查看 **"Deployments"** 標籤
-   - 點擊失敗的部署查看詳細日誌
+
+    - 在 Railway 專案中查看 **"Deployments"** 標籤
+    - 點擊失敗的部署查看詳細日誌
 
 2. **檢查環境變數**：
-   - 確保所有必要的環境變數都已設置
-   - 檢查環境變數名稱是否正確（區分大小寫）
+
+    - 確保所有必要的環境變數都已設置
+    - 檢查環境變數名稱是否正確（區分大小寫）
 
 3. **檢查依賴**：
-   - 確保 `requirements.txt` 包含所有必要的依賴
-   - 檢查 Python 版本是否兼容
+    - 確保 `requirements.txt` 包含所有必要的依賴
+    - 檢查 Python 版本是否兼容
 
 ### 應用無法啟動
 
 1. **檢查日誌**：
-   - 在 Railway 專案中查看 **"Logs"** 標籤
-   - 查找錯誤訊息
+
+    - 在 Railway 專案中查看 **"Logs"** 標籤
+    - 查找錯誤訊息
 
 2. **檢查資料庫連接**：
-   - 確認資料庫服務已啟動
-   - 檢查資料庫環境變數是否正確
+
+    - 確認資料庫服務已啟動
+    - 檢查資料庫環境變數是否正確
 
 3. **檢查模型文件**：
-   - 確認模型文件路徑正確
-   - 確認模型文件存在且可讀取
+    - 確認模型文件路徑正確
+    - 確認模型文件存在且可讀取
 
 ### 資料庫連接失敗
 
 1. **檢查環境變數**：
-   - 確認 `DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USER`、`DB_PASSWORD` 都已設置
-   - 確認使用了正確的 Railway 環境變數引用語法
+
+    - 確認 `DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USER`、`DB_PASSWORD` 都已設置
+    - 確認使用了正確的 Railway 環境變數引用語法
 
 2. **檢查資料庫服務**：
-   - 確認 PostgreSQL 服務已啟動
-   - 檢查資料庫服務的狀態
+
+    - 確認 PostgreSQL 服務已啟動
+    - 檢查資料庫服務的狀態
 
 3. **檢查防火牆**：
-   - Railway 會自動處理網路配置，但確認沒有額外的防火牆規則
+    - Railway 會自動處理網路配置，但確認沒有額外的防火牆規則
 
 ### 前端無法訪問
 
 1. **檢查 CORS 配置**：
-   - 確認 `CORS_ORIGINS` 環境變數包含正確的域名
-   - 確認前端構建成功
+
+    - 確認 `CORS_ORIGINS` 環境變數包含正確的域名
+    - 確認前端構建成功
 
 2. **檢查路由配置**：
-   - 確認後端正確服務前端靜態文件
-   - 檢查 SPA 路由是否正確配置
+    - 確認後端正確服務前端靜態文件
+    - 檢查 SPA 路由是否正確配置
 
 ### 性能問題
 
 1. **檢查資源使用**：
-   - 在 Railway 專案中查看 **"Metrics"** 標籤
-   - 考慮升級服務計劃
+
+    - 在 Railway 專案中查看 **"Metrics"** 標籤
+    - 考慮升級服務計劃
 
 2. **優化配置**：
-   - 調整 Gunicorn workers 數量
-   - 啟用 Redis 快取
-   - 優化模型載入
+    - 調整 Gunicorn workers 數量
+    - 啟用 Redis 快取
+    - 優化模型載入
 
 ## 最佳實踐
 
@@ -374,10 +416,10 @@ YOLO_MODEL_PATH_RELATIVE=/app/model/yolov11/best_v1_50.pt
 
 ## 相關資源
 
-- [Railway 文檔](https://docs.railway.app)
-- [Railway CLI](https://docs.railway.app/develop/cli)
-- [Gunicorn 文檔](https://gunicorn.org/)
-- [Flask 部署指南](https://flask.palletsprojects.com/en/latest/deploying/)
+-   [Railway 文檔](https://docs.railway.app)
+-   [Railway CLI](https://docs.railway.app/develop/cli)
+-   [Gunicorn 文檔](https://gunicorn.org/)
+-   [Flask 部署指南](https://flask.palletsprojects.com/en/latest/deploying/)
 
 ## 支援
 
@@ -387,4 +429,3 @@ YOLO_MODEL_PATH_RELATIVE=/app/model/yolov11/best_v1_50.pt
 2. 檢查環境變數配置
 3. 參考本文檔的故障排除部分
 4. 查看專案 GitHub Issues
-

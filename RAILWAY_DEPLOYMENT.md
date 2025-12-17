@@ -66,7 +66,18 @@ CORS_ORIGINS=https://your-app.railway.app
 
 ### 5. 初始化資料庫
 
-部署完成後，使用 Railway CLI 初始化資料庫：
+**自動初始化（推薦）**：
+
+專案已配置自動資料庫初始化。`railway-init.sh` 會在應用啟動時自動執行：
+
+- ✅ 自動檢查資料庫是否已初始化
+- ✅ 如果未初始化，自動執行初始化 SQL
+- ✅ 如果已初始化，跳過初始化步驟
+- ✅ 包含錯誤處理，不會因初始化失敗而阻止應用啟動
+
+**手動初始化（如果需要）**：
+
+如果自動初始化失敗，可以使用 Railway CLI 手動初始化：
 
 ```bash
 # 安裝 Railway CLI
@@ -106,10 +117,11 @@ psql -f database/init_database.sql
 ## 重要提示
 
 1. **SECRET_KEY**：必須使用強隨機字串，至少 32 字元
-2. **資料庫初始化**：首次部署後必須初始化資料庫
+2. **資料庫初始化**：首次部署時會自動初始化資料庫（通過 `railway-init.sh`）
 3. **模型文件**：模型文件很大，建議使用 Volume 或外部存儲
 4. **Cloudinary**：強烈建議啟用 Cloudinary 用於圖片儲存
 5. **監控**：定期檢查 Railway Metrics 和 Logs
+6. **部署配置**：專案已包含 `railway.json`、`build.sh`、`railway-init.sh`，無需額外配置
 
 ## 故障排除
 

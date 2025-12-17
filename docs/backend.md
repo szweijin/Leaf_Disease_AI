@@ -74,8 +74,8 @@ backend/
 **主要函數**：
 
 -   `create_app()`: 創建並配置 Flask 應用程式
-    -   載入配置（DevelopmentConfig）
-    -   配置 CORS
+    -   根據環境變數載入配置（DevelopmentConfig 或 ProductionConfig）
+    -   配置 CORS（開發環境允許本地前端，生產環境可配置允許的域名）
     -   配置快取（Redis 或簡單記憶體快取）
     -   配置 Swagger 文檔
     -   設定上傳資料夾
@@ -467,9 +467,14 @@ integrated_api_service = IntegratedDetectionAPIService(integrated_service, image
 
 ### 配置檔案位置
 
--   `config/base.py`: 基礎配置
--   `config/development.py`: 開發環境配置
--   `config/production.py`: 生產環境配置
+-   `config/base.py`: 基礎配置（所有環境共用）
+-   `config/development.py`: 開發環境配置（本地開發使用）
+-   `config/production.py`: 生產環境配置（Railway 部署使用）
+
+**環境選擇**：
+- 系統會根據 `FLASK_ENV` 或 `ENVIRONMENT` 環境變數自動選擇配置
+- 開發環境（預設）：使用 `DevelopmentConfig`
+- 生產環境：使用 `ProductionConfig`
 
 ### 環境變數（.env）
 
@@ -742,6 +747,31 @@ python backend/app.py
 
 ### 生產環境
 
+#### Railway 部署（推薦）
+
+專案已配置 Railway 部署支援：
+
+1. **部署配置**：
+   - `railway.json` - Railway 部署配置
+   - `build.sh` - 自動構建腳本（構建前端、安裝依賴）
+   - `railway-init.sh` - 資料庫自動初始化腳本
+   - `Procfile` - Gunicorn 啟動配置
+
+2. **環境配置**：
+   - 使用 `config/production.py` 生產環境配置
+   - 通過 Railway 環境變數配置所有設定
+   - 自動支援 HTTPS（Railway 提供）
+
+3. **啟動流程**：
+   - 構建階段：執行 `build.sh` 構建前端和安裝依賴
+   - 啟動階段：執行 `railway-init.sh` 初始化資料庫，然後啟動 Gunicorn
+
+4. **詳細文檔**：
+   - 快速指南：`RAILWAY_DEPLOYMENT.md`
+   - 完整文檔：`docs/railway_deployment.md`
+
+#### 傳統部署方式
+
 1. 使用 Gunicorn 或 uWSGI 部署
 2. 配置 Nginx 反向代理
 3. 使用環境變數配置（不提交 .env 檔案）
@@ -753,7 +783,7 @@ python backend/app.py
 
 ## 版本資訊
 
--   **版本**：2.0.0
+-   **版本**：2.1.0
 -   **作者**：szweijin
 -   **許可證**：MIT
 
@@ -768,6 +798,15 @@ python backend/app.py
 ---
 
 ## 更新日誌
+
+### v2.1.0
+
+-   ✅ Railway 部署支援（railway.json, build.sh, railway-init.sh）
+-   ✅ 生產環境配置（config/production.py）
+-   ✅ 前端靜態文件服務（生產環境 SPA 路由）
+-   ✅ Gunicorn WSGI 服務器配置
+-   ✅ 自動資料庫初始化
+-   ✅ 環境變數自動選擇配置（開發/生產）
 
 ### v2.0.0
 

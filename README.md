@@ -394,7 +394,13 @@ Leaf_Disease_AI_local/
 ├── uploads/                    # 上傳圖片暫存（自動創建）
 ├── .env.example                # 環境變數範例
 ├── .gitignore                  # Git 忽略文件
+├── .railwayignore              # Railway 部署忽略文件
 ├── requirements.txt            # Python 依賴
+├── Procfile                    # Heroku/Railway 啟動配置
+├── railway.json                # Railway 部署配置
+├── build.sh                    # Railway 構建腳本
+├── railway-init.sh             # Railway 資料庫初始化腳本
+├── RAILWAY_DEPLOYMENT.md       # Railway 部署快速指南
 └── README.md                   # 專案說明文檔
 ```
 
@@ -577,8 +583,8 @@ Leaf_Disease_AI_local/
 
 ## 注意事項
 
-1. 此專案僅用於本地端開發，不適合直接部署到生產環境
-2. 確保 PostgreSQL 和 Redis 服務已啟動
+1. **本地開發**：確保 PostgreSQL 和 Redis 服務已啟動
+2. **生產部署**：專案已配置 Railway 部署，支援生產環境運行
 3. 模型檔案需要存在：
     - **CNN 模型**：預設 `model/CNN/CNN_v1.0_20251204/best_mobilenetv3_large.pth`（可通過環境變數 `CNN_MODEL_PATH_RELATIVE` 配置）
     - **YOLO 模型**：預設 `model/yolov11/best_v1_50.pt`（可通過環境變數 `YOLO_MODEL_PATH_RELATIVE` 配置）
@@ -918,6 +924,29 @@ npm run build
 
 **注意**：生產環境部署時，需要配置服務器支援 SPA 路由（所有路由都返回 `index.html`）。
 
+## 部署
+
+### Railway 部署
+
+專案已配置 Railway 部署支援，包含完整的生產環境配置：
+
+-   **部署配置**：`railway.json` - Railway 部署配置
+-   **構建腳本**：`build.sh` - 自動構建前端和安裝依賴
+-   **初始化腳本**：`railway-init.sh` - 資料庫自動初始化
+-   **生產配置**：`config/production.py` - 生產環境配置
+-   **Procfile**：Heroku/Railway 啟動配置
+
+詳細部署指南請參考：
+-   **快速指南**：`RAILWAY_DEPLOYMENT.md` - Railway 部署快速參考
+-   **完整文檔**：`docs/railway_deployment.md` - Railway 部署詳細文檔
+
+### 本地開發
+
+此專案支援本地端開發和生產環境部署：
+
+-   **開發環境**：使用 `config/development.py`，支援熱重載和調試
+-   **生產環境**：使用 `config/production.py`，優化性能和安全性
+
 ## 文檔
 
 專案提供完整的架構文檔：
@@ -926,11 +955,12 @@ npm run build
 -   **前端架構**：`docs/frontend.md` - 前端完整架構與檔案功能說明
 -   **資料庫架構**：`docs/database.md` - 資料庫完整架構與表結構說明
 -   **序列圖**：`docs/sequences_diagram.md` - 系統主要流程的序列圖
+-   **Railway 部署**：`docs/railway_deployment.md` - Railway 部署詳細指南
 
 ## 版本資訊
 
--   **版本**: 2.0.0
--   **模式**: 本地端開發
+-   **版本**: 2.1.0
+-   **模式**: 本地端開發 + Railway 生產部署
 -   **前端框架**: React 19.2.0 + React Router DOM 7.10.1 + Vite 7.2.4 + Tailwind CSS 4.1.18 + shadcn/ui + TypeScript 5.9.3 + PostCSS 8.5.6
 -   **前端工具**: ESLint 9.39.1 + TypeScript 5.9.3
 -   **UI 組件庫**: shadcn/ui（灰階配色方案）
@@ -952,4 +982,10 @@ npm run build
     -   ✅ 響應式設計（手機、平板、桌面三種佈局）
     -   ✅ TypeScript 完整支援
     -   ✅ 完整的日誌系統（活動、錯誤、API、性能日誌）
+-   **部署支援**:
+    -   ✅ Railway 部署配置（railway.json, build.sh, railway-init.sh）
+    -   ✅ 生產環境配置（config/production.py）
+    -   ✅ 前端靜態文件服務（生產環境 SPA 路由）
+    -   ✅ Gunicorn WSGI 服務器配置
+    -   ✅ 自動資料庫初始化
 -   **最後更新**: 2025-12-17
