@@ -103,7 +103,7 @@ def draw_boxes_on_image(
     image_path: str,
     detections: List[Dict[str, Any]],
     line_width: int = 2,
-    box_color: tuple = (0, 255, 0)  # 綠色框
+    box_color: tuple = (255, 255, 0)  # 黃色框
 ) -> bytes:
     """
     在圖片上繪製檢測框（只繪製框，不添加文字）
@@ -112,7 +112,7 @@ def draw_boxes_on_image(
         image_path: 原始圖片路徑
         detections: 檢測結果列表，每個包含 'bbox' 欄位 [x1, y1, x2, y2]
         line_width: 框線寬度（預設 2，不要太粗）
-        box_color: 框線顏色 RGB 元組（預設綠色）
+        box_color: 框線顏色 RGB 元組（預設黃色）
     
     Returns:
         帶框圖片的位元組資料（JPEG 格式）
@@ -157,7 +157,7 @@ def draw_boxes_on_image_from_bytes(
     image_bytes: bytes,
     detections: List[Dict[str, Any]],
     line_width: int = 2,
-    box_color: tuple = (0, 255, 0)  # 綠色框
+    box_color: tuple = (255, 255, 0)  # 黃色框
 ) -> bytes:
     """
     在圖片位元組上繪製檢測框（只繪製框，不添加文字）
@@ -166,7 +166,7 @@ def draw_boxes_on_image_from_bytes(
         image_bytes: 原始圖片位元組
         detections: 檢測結果列表，每個包含 'bbox' 欄位 [x1, y1, x2, y2]
         line_width: 框線寬度（預設 2，不要太粗）
-        box_color: 框線顏色 RGB 元組（預設綠色）
+        box_color: 框線顏色 RGB 元組（預設黃色）
     
     Returns:
         帶框圖片的位元組資料（JPEG 格式）
