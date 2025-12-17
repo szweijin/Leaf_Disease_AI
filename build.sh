@@ -37,10 +37,24 @@ elif command -v python &>/dev/null; then
   PYTHON_CMD=python
 else
   echo "❌ 錯誤: Python 未安裝！"
-  echo "   提示: NIXPACKS 應該通過 requirements.txt 自動檢測並安裝 Python"
-  echo "   請確認 requirements.txt 在專案根目錄，且 NIXPACKS 已正確檢測到它"
-  echo "   當前目錄: $(pwd)"
-  echo "   requirements.txt 位置: $(ls -la requirements.txt 2>/dev/null || echo '未找到')"
+  echo ""
+  echo "   問題診斷："
+  echo "   - 當前目錄: $(pwd)"
+  echo "   - requirements.txt 存在: $([ -f requirements.txt ] && echo '是' || echo '否')"
+  echo "   - package.json 存在: $([ -f package.json ] && echo '是' || echo '否')"
+  echo "   - 可用的命令: $(which python3 python python2 2>/dev/null | head -n3 | tr '\n' ' ' || echo '無')"
+  echo ""
+  echo "   可能的原因："
+  echo "   1. NIXPACKS 只檢測到了 Node.js（package.json），但沒有檢測到 Python（requirements.txt）"
+  echo "   2. 這是 NIXPACKS 的已知限制：當同時有 package.json 和 requirements.txt 時，"
+  echo "      可能只處理第一個檢測到的語言"
+  echo ""
+  echo "   建議的解決方案："
+  echo "   1. 檢查 Railway 構建日誌，確認 NIXPACKS 是否檢測到 requirements.txt"
+  echo "   2. 嘗試在 Railway 專案設置中明確指定 Python 版本"
+  echo "   3. 聯繫 Railway 支援，報告 NIXPACKS 多語言檢測問題"
+  echo "   4. 考慮使用 Dockerfile 替代 NIXPACKS，以獲得更好的控制"
+  echo ""
   exit 1
 fi
 
