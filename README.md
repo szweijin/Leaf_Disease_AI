@@ -395,11 +395,13 @@ Leaf_Disease_AI_local/
 ├── .env.example                # 環境變數範例
 ├── .gitignore                  # Git 忽略文件
 ├── .railwayignore              # Railway 部署忽略文件
-├── requirements.txt            # Python 依賴（觸發 NIXPACKS 安裝 Python）
-├── package.json                # 根目錄 package.json（觸發 NIXPACKS 安裝 Node.js）
+├── .dockerignore               # Docker 構建忽略文件
+├── requirements.txt            # Python 依賴
+├── package.json                # 根目錄 package.json
+├── Dockerfile                  # Docker 多階段構建配置
 ├── Procfile                    # Heroku/Railway 啟動配置
 ├── railway.json                # Railway 部署配置
-├── build.sh                    # Railway 構建腳本
+├── start.sh                    # 應用啟動腳本（資料庫初始化 + Gunicorn）
 ├── railway-init.sh             # Railway 資料庫初始化腳本
 ├── RAILWAY_DEPLOYMENT.md       # Railway 部署快速指南
 └── README.md                   # 專案說明文檔
@@ -929,28 +931,32 @@ npm run build
 
 ### Railway 部署
 
-專案已配置 Railway 部署支援，包含完整的生產環境配置：
+專案已配置 Railway 部署支援，使用 Dockerfile 進行多階段構建：
 
--   **根目錄 package.json**：`package.json` - 觸發 NIXPACKS 自動檢測並安裝 Node.js
--   **requirements.txt**：觸發 NIXPACKS 自動檢測並安裝 Python 3
--   **部署配置**：`railway.json` - Railway 部署配置
--   **構建腳本**：`build.sh` - 自動構建前端和安裝依賴
+-   **Dockerfile**：多階段構建配置（前端 + 後端）
+-   **部署配置**：`railway.json` - Railway 部署配置（使用 Dockerfile）
+-   **啟動腳本**：`start.sh` - 應用啟動腳本（資料庫初始化 + Gunicorn）
 -   **初始化腳本**：`railway-init.sh` - 資料庫自動初始化
 -   **生產配置**：`config/production.py` - 生產環境配置
--   **Procfile**：Heroku/Railway 啟動配置
+-   **.dockerignore**：排除不必要的文件以減少構建時間
 
 **部署流程**：
 
-1. **構建階段**：
-   - NIXPACKS 自動檢測根目錄的 `package.json` 和 `requirements.txt`
-   - 自動安裝 Node.js（根據 `package.json` 中的 `engines.node` 指定版本）
-   - 自動安裝 Python 3
-   - 執行 `railway.json` 中的 `buildCommand: "./build.sh"`
-   - `build.sh` 自動構建前端（`cd frontend && npm install && npm run build`）
-   - 安裝 Python 依賴（`pip install -r requirements.txt`）
+1. **構建階段**（Dockerfile 多階段構建）：
+   - **階段 1 - 前端構建**：
+     - 使用 Node.js 20 Alpine 構建前端
+     - 安裝依賴並構建 React 應用
+     - 清理構建時不需要的文件
+   - **階段 2 - 後端構建**：
+     - 使用 Python 3.11 Slim 基礎映像
+     - 分階段安裝 Python 依賴（利用構建緩存）
+     - 使用 CPU 版本的 PyTorch（更小更快）
+     - 只複製必要的模型文件（CNN v1.1 和 YOLO v1）
+     - 從前端構建階段複製構建產物
 
 2. **部署階段**：
-   - 執行 `railway-init.sh` 初始化資料庫（如果尚未初始化）
+   - 執行 `start.sh` 啟動腳本
+   - `railway-init.sh` 自動初始化資料庫（如果尚未初始化）
    - 啟動 Gunicorn WSGI 服務器
 
 詳細部署指南請參考：
@@ -1000,12 +1006,17 @@ npm run build
     -   ✅ TypeScript 完整支援
     -   ✅ 完整的日誌系統（活動、錯誤、API、性能日誌）
 -   **部署支援**:
-    -   ✅ NIXPACKS 自動檢測（通過根目錄 package.json 和 requirements.txt）
-    -   ✅ 根目錄 package.json（觸發 NIXPACKS 自動安裝 Node.js）
-    -   ✅ Railway 部署配置（railway.json, build.sh, railway-init.sh）
+    -   ✅ Dockerfile 多階段構建（前端 + 後端）
+    -   ✅ 構建優化（CPU 版 PyTorch、分階段安裝、映像大小優化）
+    -   ✅ Railway 部署配置（railway.json, Dockerfile, start.sh, railway-init.sh）
     -   ✅ 生產環境配置（config/production.py）
     -   ✅ 前端靜態文件服務（生產環境 SPA 路由）
     -   ✅ Gunicorn WSGI 服務器配置
     -   ✅ 自動資料庫初始化
+    -   ✅ 模型文件優化（只包含預設使用的模型：CNN v1.1 和 YOLO v1）
 -   **最後更新**: 2025-12-17
--   **部署修復**: 已修正 NIXPACKS 構建流程，通過根目錄 package.json 和 requirements.txt 讓 NIXPACKS 自動檢測並安裝 Node.js 和 Python
+-   **部署優化**: 
+    -   使用 Dockerfile 替代 NIXPACKS，確保同時安裝 Node.js 和 Python
+    -   優化構建速度和映像大小（CPU 版 PyTorch、分階段安裝）
+    -   更新模型路徑為 CNN v1.1 和 YOLO v1
+    -   創建啟動腳本 start.sh 確保容器正確啟動

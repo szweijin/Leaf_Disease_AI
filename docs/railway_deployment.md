@@ -93,9 +93,9 @@ CORS_ORIGINS=https://your-domain.railway.app,https://www.your-domain.com
 #### 可選環境變數
 
 ```bash
-# AI 模型路徑（如果使用非預設路徑）
-CNN_MODEL_PATH_RELATIVE=model/CNN/CNN_v1.0_20251204/best_mobilenetv3_large.pth
-YOLO_MODEL_PATH_RELATIVE=model/yolov11/best_v1_50.pt
+# AI 模型路徑（預設路徑，如需更改請確保模型文件存在於映像中）
+CNN_MODEL_PATH_RELATIVE=model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth
+YOLO_MODEL_PATH_RELATIVE=model/yolov11/YOLOv11_v1_20251212/weights/best.pt
 SR_MODEL_PATH_RELATIVE=model/SR/model_pytorch/EDSR_x2.pt
 SR_MODEL_TYPE=edsr
 SR_SCALE=2
@@ -264,11 +264,10 @@ fi
 {
     "$schema": "https://railway.app/railway.schema.json",
     "build": {
-        "builder": "NIXPACKS",
-        "buildCommand": "./build.sh"
+        "builder": "DOCKERFILE",
+        "dockerfilePath": "Dockerfile"
     },
     "deploy": {
-        "startCommand": "./railway-init.sh && cd backend && gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120 --access-logfile - --error-logfile -",
         "restartPolicyType": "ON_FAILURE",
         "restartPolicyMaxRetries": 10
     }
@@ -277,7 +276,9 @@ fi
 
 **注意**：
 
--   `build.sh` 會自動構建前端、安裝 Python 依賴，並設置腳本執行權限
+-   專案使用 **Dockerfile** 進行多階段構建，確保同時安裝 Node.js 和 Python
+-   `Dockerfile` 會自動構建前端、安裝 Python 依賴，並優化映像大小
+-   `start.sh` 啟動腳本會自動執行資料庫初始化並啟動 Gunicorn
 -   `railway-init.sh` 會自動檢查資料庫狀態，避免重複初始化
 -   Gunicorn 配置了日誌輸出到標準輸出（Railway 會自動捕獲）
 
@@ -322,15 +323,49 @@ railway volume mount model-storage /app/model
 3. 在環境變數中配置模型路徑：
 
 ```bash
-CNN_MODEL_PATH_RELATIVE=/app/model/CNN/CNN_v1.0_20251204/best_mobilenetv3_large.pth
-YOLO_MODEL_PATH_RELATIVE=/app/model/yolov11/best_v1_50.pt
+CNN_MODEL_PATH_RELATIVE=/app/model/CNN/CNN_v1.1_20251210/best_mobilenetv3_large.pth
+YOLO_MODEL_PATH_RELATIVE=/app/model/yolov11/YOLOv11_v1_20251212/weights/best.pt
 ```
+
+**注意**：Dockerfile 已包含預設模型文件，如果使用 Volume 或外部存儲，請確保路徑正確。
 
 ### 替代方式：使用外部存儲
 
 1. 將模型文件上傳到雲端存儲（AWS S3、Google Cloud Storage 等）
 2. 在應用啟動時下載模型文件
 3. 或使用環境變數配置模型 URL
+
+## Dockerfile 構建說明
+
+專案使用 **Dockerfile** 進行多階段構建，優化構建速度和映像大小：
+
+### 構建階段
+
+1. **前端構建階段**：
+
+    - 使用 Node.js 20 Alpine 構建前端
+    - 安裝依賴並構建 React 應用
+    - 清理構建時不需要的文件
+
+2. **後端構建階段**：
+    - 使用 Python 3.11 Slim 基礎映像
+    - 分階段安裝 Python 依賴（利用構建緩存）
+    - 使用 CPU 版本的 PyTorch（更小更快）
+    - 只複製必要的模型文件
+
+### 構建優化
+
+-   ✅ **多階段構建**：減少最終映像大小
+-   ✅ **CPU 版 PyTorch**：使用 `--index-url https://download.pytorch.org/whl/cpu`
+-   ✅ **分階段安裝**：先安裝輕量級依賴，再安裝重依賴
+-   ✅ **模型文件優化**：只包含預設使用的模型文件
+-   ✅ **構建緩存**：優化 Docker 層緩存以加快構建速度
+
+### 啟動流程
+
+1. `start.sh` 啟動腳本執行
+2. `railway-init.sh` 初始化資料庫（如果尚未初始化）
+3. 啟動 Gunicorn WSGI 服務器
 
 ## 故障排除
 
@@ -340,15 +375,18 @@ YOLO_MODEL_PATH_RELATIVE=/app/model/yolov11/best_v1_50.pt
 
     - 在 Railway 專案中查看 **"Deployments"** 標籤
     - 點擊失敗的部署查看詳細日誌
+    - 檢查 Dockerfile 構建是否超時（通常需要 2-3 分鐘）
 
 2. **檢查環境變數**：
 
     - 確保所有必要的環境變數都已設置
     - 檢查環境變數名稱是否正確（區分大小寫）
+    - 確認模型路徑環境變數與 Dockerfile 中複製的模型文件一致
 
 3. **檢查依賴**：
     - 確保 `requirements.txt` 包含所有必要的依賴
-    - 檢查 Python 版本是否兼容
+    - 檢查 Python 版本是否兼容（Python 3.11）
+    - 確認 PyTorch CPU 版本安裝成功
 
 ### 應用無法啟動
 
@@ -356,15 +394,24 @@ YOLO_MODEL_PATH_RELATIVE=/app/model/yolov11/best_v1_50.pt
 
     - 在 Railway 專案中查看 **"Logs"** 標籤
     - 查找錯誤訊息
+    - 確認 `start.sh` 腳本是否正確執行
 
 2. **檢查資料庫連接**：
 
     - 確認資料庫服務已啟動
     - 檢查資料庫環境變數是否正確
+    - 查看 `railway-init.sh` 的執行日誌
 
 3. **檢查模型文件**：
-    - 確認模型文件路徑正確
-    - 確認模型文件存在且可讀取
+
+    - 確認模型文件路徑正確（預設：CNN v1.1 和 YOLO v1）
+    - 確認模型文件存在於映像中
+    - 檢查環境變數 `CNN_MODEL_PATH_RELATIVE` 和 `YOLO_MODEL_PATH_RELATIVE` 是否正確
+
+4. **檢查容器啟動**：
+    - 確認 `start.sh` 腳本有執行權限
+    - 檢查 Gunicorn 是否正常啟動
+    - 查看端口是否正確綁定
 
 ### 資料庫連接失敗
 

@@ -101,7 +101,8 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 # 複製其他必要文件
 COPY railway-init.sh ./
-RUN chmod +x railway-init.sh
+COPY start.sh ./
+RUN chmod +x railway-init.sh start.sh
 
 # 設置應用環境變數
 ENV FLASK_APP=backend/app.py
@@ -114,6 +115,6 @@ RUN find . -type d -name __pycache__ -exec rm -r {} + 2>/dev/null || true && \
 # 暴露端口
 EXPOSE ${PORT:-5000}
 
-# 啟動命令（使用 shell 形式以支援 &&）
-CMD ./railway-init.sh && cd backend && gunicorn app:app --bind 0.0.0.0:${PORT:-5000} --workers 2 --threads 2 --timeout 120 --access-logfile - --error-logfile -
+# 啟動命令（使用啟動腳本）
+CMD ["./start.sh"]
 
