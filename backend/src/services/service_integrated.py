@@ -455,7 +455,7 @@ class IntegratedDetectionService:
                     if stored_image_path and (stored_image_path.startswith('http://') or stored_image_path.startswith('https://')):
                         image_url = stored_image_path
                     else:
-                        image_url = f"/image/{record_id}"
+                        image_url = f"/image/prediction/{prediction_id}"
             except Exception as e:
                 logger.debug(f"查詢 detection_records 失敗，使用預設 URL: {str(e)}")
             
@@ -954,10 +954,10 @@ class IntegratedDetectionService:
                 if stored_image_path and (stored_image_path.startswith('http://') or stored_image_path.startswith('https://')):
                     image_url = stored_image_path
                 else:
-                    image_url = f"/image/{record_id}"
+                    image_url = f"/image/prediction/{prediction_log_id}"
         except Exception as e:
             logger.debug(f"查詢 detection_records 失敗，使用預設 URL: {str(e)}")
-        
+
         result = {
             'prediction_id': prediction_log_id,
             'status': 'completed',

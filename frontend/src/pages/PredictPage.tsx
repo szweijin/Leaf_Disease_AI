@@ -380,7 +380,7 @@ function PredictPage() {
                     disease: result.disease,
                     severity: result.severity,
                     confidence: result.confidence,
-                    image_path: result.image_path,
+                    image_path: result.image_path || image || undefined,
                     predict_img_url: result.predict_img_url,
                     disease_info: result.disease_info,
                     errorMessage: errorMessage,

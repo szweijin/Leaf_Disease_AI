@@ -69,17 +69,39 @@ class IntegratedDetectionAPIService:
             cache_key = f"integrated_detection:{image_hash}:{user_id}"
             cached_result = redis_manager.get(cache_key)
             if cached_result:
-                logger.info(f"✅ 從快取獲取檢測結果: hash={image_hash[:8]}...")
-                execution_time = int((datetime.now() - start_time).total_seconds() * 1000)
-                log_api_request(
-                    user_id=user_id, 
-                    endpoint="/api/predict", 
-                    method="POST",
-                    status_code=200, 
-                    execution_time_ms=execution_time,
-                    error_message=None
-                )
-                return jsonify(cached_result)
+                # Verify the DB record still exists (cache may be stale after a DB reset)
+                cached_prediction_id = cached_result.get('prediction_id', '')
+                record_exists = False
+                if cached_prediction_id:
+                    try:
+                        record_exists = bool(db.execute_query(
+                            "SELECT 1 FROM detection_records WHERE prediction_log_id = %s AND user_id = %s",
+                            (cached_prediction_id, user_id),
+                            fetch_one=True
+                        ))
+                    except Exception:
+                        record_exists = False
+                if not record_exists:
+                    logger.warning(f"⚠️  快取記錄已失效（DB 無對應記錄），重新執行預測: prediction_id={cached_prediction_id}")
+                    redis_manager.delete(cache_key)
+                    cached_result = None
+                else:
+                    logger.info(f"✅ 從快取獲取檢測結果: hash={image_hash[:8]}...")
+                    # Null out any /image/ placeholder — no actual image is stored at those paths
+                    cached_image_path = cached_result.get('image_path', '')
+                    if cached_image_path and cached_image_path.startswith('/image/'):
+                        cached_result['image_path'] = None
+                        logger.info(f"🔄 已清除快取中的無效圖片路徑: {cached_image_path}")
+                    execution_time = int((datetime.now() - start_time).total_seconds() * 1000)
+                    log_api_request(
+                        user_id=user_id,
+                        endpoint="/api/predict",
+                        method="POST",
+                        status_code=200,
+                        execution_time_ms=execution_time,
+                        error_message=None
+                    )
+                    return jsonify(cached_result)
             
             # 4. 創建臨時文件並執行檢測（使用上下文管理器自動清理）
             # 注意：儲存到資料庫的是原始 URL，轉換後的 URL 只用於預測驗證
@@ -296,6 +318,9 @@ class IntegratedDetectionAPIService:
                     logger.warning(f"⚠️  未找到病害資訊: disease_name={disease_name}")
             
             # 7. 快取結果（1 小時）
+            # Null out placeholder /image/ paths before caching — no actual image at those paths
+            if result.get('image_path', '').startswith('/image/'):
+                result['image_path'] = None
             redis_manager.set(cache_key, result, expire=3600)
             
             # 8. 記錄 API 日誌
@@ -625,7 +650,11 @@ class IntegratedDetectionAPIService:
             execution_time = int((datetime.now() - start_time).total_seconds() * 1000)
             log_api_request(user_id=user_id, endpoint="/api/predict-crop", method="POST",
                            status_code=200, execution_time_ms=execution_time)
-            
+
+            # Null out placeholder /image/ paths — no actual image at those paths
+            if result.get('image_path', '').startswith('/image/'):
+                result['image_path'] = None
+
             return jsonify(result)
             
         except Exception as e:
